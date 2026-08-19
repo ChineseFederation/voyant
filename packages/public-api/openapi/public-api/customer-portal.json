@@ -3545,16 +3545,7 @@
                           },
                           "status": {
                             "type": "string",
-                            "enum": [
-                              "draft",
-                              "on_hold",
-                              "awaiting_payment",
-                              "confirmed",
-                              "in_progress",
-                              "completed",
-                              "expired",
-                              "cancelled"
-                            ]
+                            "enum": ["confirmed", "in_progress", "completed", "cancelled"]
                           },
                           "sellCurrency": {
                             "type": "string"
@@ -3673,16 +3664,7 @@
                         },
                         "status": {
                           "type": "string",
-                          "enum": [
-                            "draft",
-                            "on_hold",
-                            "awaiting_payment",
-                            "confirmed",
-                            "in_progress",
-                            "completed",
-                            "expired",
-                            "cancelled"
-                          ]
+                          "enum": ["confirmed", "in_progress", "completed", "cancelled"]
                         },
                         "sellCurrency": {
                           "type": "string"
@@ -3770,14 +3752,7 @@
                               },
                               "status": {
                                 "type": "string",
-                                "enum": [
-                                  "draft",
-                                  "on_hold",
-                                  "confirmed",
-                                  "cancelled",
-                                  "expired",
-                                  "fulfilled"
-                                ]
+                                "enum": ["confirmed", "cancelled", "fulfilled"]
                               },
                               "serviceDate": {
                                 "type": ["string", "null"]

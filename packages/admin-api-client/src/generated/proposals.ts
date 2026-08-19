@@ -1058,7 +1058,9 @@ export interface operations {
               lostReason: string | null
               tags: string[]
               customFields: {
-                [key: string]: unknown
+                [key: string]: {
+                  [key: string]: unknown
+                }
               }
               description: string | null
               createdBy: string | null
@@ -1140,7 +1142,9 @@ export interface operations {
               lostReason: string | null
               tags: string[]
               customFields: {
-                [key: string]: unknown
+                [key: string]: {
+                  [key: string]: unknown
+                }
               }
               description: string | null
               createdBy: string | null
@@ -1204,7 +1208,9 @@ export interface operations {
               lostReason: string | null
               tags: string[]
               customFields: {
-                [key: string]: unknown
+                [key: string]: {
+                  [key: string]: unknown
+                }
               }
               description: string | null
               createdBy: string | null
@@ -1332,7 +1338,9 @@ export interface operations {
               lostReason: string | null
               tags: string[]
               customFields: {
-                [key: string]: unknown
+                [key: string]: {
+                  [key: string]: unknown
+                }
               }
               description: string | null
               createdBy: string | null
@@ -1934,6 +1942,17 @@ export interface operations {
           taxAmountCents?: number
           /** @default 0 */
           totalAmountCents?: number
+          paymentTerms?: {
+            deposit: {
+              /** @enum {string} */
+              kind: "none" | "percent" | "fixed_cents"
+              percent?: number
+              amountCents?: number
+            }
+            minDaysBeforeDepartureForDeposit: number
+            balanceDueDaysBeforeDeparture: number
+            balanceDueMinDaysFromNow: number
+          } | null
           notes?: string | null
           /** Format: date-time */
           sentAt?: string | null
@@ -2373,6 +2392,17 @@ export interface operations {
           subtotalAmountCents?: number
           taxAmountCents?: number
           totalAmountCents?: number
+          paymentTerms?: {
+            deposit: {
+              /** @enum {string} */
+              kind: "none" | "percent" | "fixed_cents"
+              percent?: number
+              amountCents?: number
+            }
+            minDaysBeforeDepartureForDeposit: number
+            balanceDueDaysBeforeDeparture: number
+            balanceDueMinDaysFromNow: number
+          } | null
           notes?: string | null
           /** Format: date-time */
           sentAt?: string | null
@@ -2773,7 +2803,9 @@ export interface operations {
                 lostReason: string | null
                 tags: string[]
                 customFields: {
-                  [key: string]: unknown
+                  [key: string]: {
+                    [key: string]: unknown
+                  }
                 }
                 description: string | null
                 createdBy: string | null

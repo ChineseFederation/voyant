@@ -1013,9 +1013,9 @@ importers:
 
   packages/admin-api-client:
     dependencies:
-      '@voyant-travel/core':
+      '@voyant-travel/graph-contracts':
         specifier: workspace:^
-        version: link:../core
+        version: link:../graph-contracts
       openapi-fetch:
         specifier: 'catalog:'
         version: 0.17.0
@@ -1413,6 +1413,9 @@ importers:
       '@better-auth/api-key':
         specifier: 1.6.23
         version: 1.6.23(1ac6a98f3eafa8cc5361cfcd8d9e497a)
+      '@better-auth/core':
+        specifier: 1.6.23
+        version: 1.6.23(@better-auth/utils@0.4.2)(@better-fetch/fetch@1.3.1)(@cloudflare/workers-types@4.20260702.1)(@opentelemetry/api@1.9.0)(better-call@1.3.7(zod@4.4.3))(jose@6.2.4)(kysely@0.29.2)(nanostores@1.4.0)
       '@better-auth/oauth-provider':
         specifier: 1.6.23
         version: 1.6.23(bf36fc26337f4673d4d3fc1d92c2f490)
@@ -4560,6 +4563,9 @@ importers:
       '@voyant-travel/admin-app':
         specifier: workspace:^
         version: link:../admin-app
+      '@voyant-travel/auth-react':
+        specifier: workspace:^
+        version: link:../auth-react
       '@voyant-travel/finance':
         specifier: workspace:^
         version: link:../finance
@@ -5203,28 +5209,13 @@ importers:
 
   packages/public-api-client:
     dependencies:
+      '@voyant-travel/graph-contracts':
+        specifier: workspace:^
+        version: link:../graph-contracts
       openapi-fetch:
         specifier: 'catalog:'
         version: 0.17.0
     devDependencies:
-      '@voyant-travel/bookings':
-        specifier: workspace:^
-        version: link:../bookings
-      '@voyant-travel/bookings-contracts':
-        specifier: workspace:^
-        version: link:../bookings-contracts
-      '@voyant-travel/catalog-contracts':
-        specifier: workspace:^
-        version: link:../catalog-contracts
-      '@voyant-travel/finance':
-        specifier: workspace:^
-        version: link:../finance
-      '@voyant-travel/public-api':
-        specifier: workspace:^
-        version: link:../public-api
-      '@voyant-travel/relationships-contracts':
-        specifier: workspace:^
-        version: link:../relationships-contracts
       '@voyant-travel/voyant-typescript-config':
         specifier: workspace:^
         version: link:../typescript-config
@@ -5259,6 +5250,15 @@ importers:
 
   packages/public-api-react:
     dependencies:
+      '@voyant-travel/bookings':
+        specifier: workspace:^
+        version: link:../bookings
+      '@voyant-travel/bookings-contracts':
+        specifier: workspace:^
+        version: link:../bookings-contracts
+      '@voyant-travel/finance':
+        specifier: workspace:^
+        version: link:../finance
       '@voyant-travel/i18n':
         specifier: workspace:^
         version: link:../i18n
@@ -5268,6 +5268,9 @@ importers:
       '@voyant-travel/react':
         specifier: workspace:^
         version: link:../react
+      '@voyant-travel/relationships-contracts':
+        specifier: workspace:^
+        version: link:../relationships-contracts
     devDependencies:
       '@tanstack/react-query':
         specifier: ^5.101.2

@@ -202,12 +202,15 @@ test("retail-spine-closure still goes red on a tracked violation", () => {
   // The pair that makes the assertions above mean something: a checker that
   // ignored everything would pass them all.
   const manifest = path.join(repoRoot, "packages", "catalog", "package.json")
-  const original = execFileSync("git", ["show", "HEAD:packages/catalog/package.json"], {
-    cwd: repoRoot,
-    encoding: "utf8",
-  })
+  // The WORKING-TREE bytes, not `git show HEAD:`. Restoring from HEAD discards
+  // whatever uncommitted change the manifest was carrying, so running
+  // `verify:architecture` with work in progress on this one file silently
+  // reverted it — and the chain then went green against a tree the developer no
+  // longer had. It is invisible in CI, where the file is committed and the two
+  // agree.
+  const original = readFileSync(manifest)
   try {
-    const parsed = JSON.parse(original)
+    const parsed = JSON.parse(original.toString("utf8"))
     parsed.voyant.requiresSchemas = ["@voyant-travel/db", "@voyant-travel/operations"]
     writeFileSync(manifest, `${JSON.stringify(parsed, null, 2)}\n`)
     const result = run("scripts/check-retail-spine-closure.mjs")

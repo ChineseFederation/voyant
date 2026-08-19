@@ -173,15 +173,13 @@ export function createCatalogRuntimePortContribution(
       ? createDeferredAnalytics(Promise.resolve(host.getRuntimePort<AnalyticsPort>(analyticsPort)))
       : undefined
   const bookingSessionServiceRuntimes = {
-    ...(host.hasRuntimePort?.(bookingsRelationshipsRuntimePort) === true
-      ? {
-          async resolveBookingsRelationshipsRuntime() {
-            return host.getRuntimePort<BookingsRelationshipsRuntime>(
-              bookingsRelationshipsRuntimePort,
-            )
-          },
-        }
-      : {}),
+    // An optional provider may be contributed after Catalog is constructed.
+    // Availability must be read when a Session needs the port, not snapshotted
+    // while Catalog contributes its own ports.
+    async resolveBookingsRelationshipsRuntime() {
+      if (host.hasRuntimePort?.(bookingsRelationshipsRuntimePort) !== true) return null
+      return host.getRuntimePort<BookingsRelationshipsRuntime>(bookingsRelationshipsRuntimePort)
+    },
     resolveFinanceServiceRuntime(context: unknown) {
       const eventBus = (context as { var?: { eventBus?: unknown } } | undefined)?.var?.eventBus
       return eventBus ? { eventBus: eventBus as never } : {}

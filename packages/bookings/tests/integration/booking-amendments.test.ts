@@ -487,6 +487,95 @@ describe.skipIf(!DB_AVAILABLE)("Booking traveler Amendments", () => {
     expect(travelers).toHaveLength(2)
   })
 
+  it("claims departure capacity once when adding a traveler across two priced items", async () => {
+    const { booking, traveler, slot, item, allocation } = await seedOwnedRosterBooking()
+    const [secondItem] = await db
+      .insert(bookingItems)
+      .values({
+        bookingId: booking.id,
+        title: "Second priced line on the same departure",
+        status: "confirmed",
+        quantity: 1,
+        sellCurrency: "EUR",
+        unitSellAmountCents: 5_000,
+        totalSellAmountCents: 5_000,
+        productId: "prod_roster",
+        availabilitySlotId: slot.id,
+      })
+      .returning()
+    const [secondAllocation] = await db
+      .insert(bookingAllocations)
+      .values({
+        bookingId: booking.id,
+        bookingItemId: secondItem!.id,
+        productId: "prod_roster",
+        availabilitySlotId: slot.id,
+        quantity: 0,
+        status: "confirmed",
+      })
+      .returning()
+    await db.insert(bookingItemTravelers).values({
+      bookingItemId: secondItem!.id,
+      travelerId: traveler.id,
+      role: "traveler",
+    })
+    await db.update(bookings).set({ sellAmountCents: 15_000 }).where(eq(bookings.id, booking.id))
+
+    const dependencies = { finance: financeRuntime() }
+    const preview = await bookingAmendmentService.previewTravelerRosterChange(
+      db,
+      booking.id,
+      {
+        expectedBookingRevision: 1,
+        reason: "Add one traveler to every priced line on the departure",
+        change: {
+          type: "traveler_add",
+          bookingItemIds: [item.id, secondItem!.id],
+          traveler: { firstName: "Katherine", lastName: "Johnson" },
+        },
+      },
+      { actor: "staff", actorId: "usr_staff", idempotencyKey: "multi-line-preview" },
+      dependencies,
+    )
+    if (preview.status !== "ok") throw new Error(`Expected preview, received ${preview.status}`)
+    const proposed = preview.amendment.revisions!.find(
+      (revision) => revision.role === "proposed_after",
+    )!
+    await bookingAmendmentService.accept(
+      db,
+      preview.amendment.id,
+      proposed.id,
+      { actor: "staff", actorId: "usr_staff", idempotencyKey: "multi-line-accept" },
+      dependencies,
+    )
+    await expect(
+      bookingAmendmentService.apply(
+        db,
+        preview.amendment.id,
+        { expectedBookingRevision: 1, proposedRevisionId: proposed.id },
+        { actor: "staff", actorId: "usr_staff", idempotencyKey: "multi-line-apply" },
+        dependencies,
+      ),
+    ).resolves.toMatchObject({ status: "ok" })
+
+    const [currentSlot] = await db
+      .select()
+      .from(availabilitySlotsRef)
+      .where(eq(availabilitySlotsRef.id, slot.id))
+    const currentAllocations = await db
+      .select()
+      .from(bookingAllocations)
+      .where(eq(bookingAllocations.bookingId, booking.id))
+    expect(currentSlot).toMatchObject({ remainingPax: 1 })
+    expect(currentAllocations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: allocation.id, quantity: 2 }),
+        expect.objectContaining({ id: secondAllocation!.id, quantity: 0 }),
+      ]),
+    )
+    expect(currentAllocations.reduce((sum, candidate) => sum + candidate.quantity, 0)).toBe(2)
+  })
+
   it("quotes a refund and releases capacity when dropping a traveler", async () => {
     const { booking, traveler, slot, item, allocation } = await seedOwnedRosterBooking()
     const dependencies = { finance: financeRuntime() }

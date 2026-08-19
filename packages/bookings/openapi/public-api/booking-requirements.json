@@ -129,6 +129,7 @@
   "paths": {
     "/v1/public/booking-requirements/products/{productId}/transport-requirements": {
       "get": {
+        "x-voyant-api-id": "@voyant-travel/bookings#requirements.api.public",
         "parameters": [
           {
             "schema": {

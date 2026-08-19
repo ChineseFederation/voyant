@@ -74,6 +74,30 @@ it("accepts provider-neutral graph ports as contributor inputs", async () => {
   assert.match(result.stdout, /6 package bindings derived from primitives and static ports/)
 })
 
+it("accepts Relationships-owned configuration unrelated to custom fields", async () => {
+  const root = await fixture("return options.createRuntimePorts({ primitives })\n")
+  await write(
+    root,
+    "packages/relationships/src/runtime-contributor.ts",
+    'customFieldValueReaderRuntimePort.id\nrelationshipsMiceRuntimePort.id\nhost.primitives.config.read(bindings, "inquiryFirstResponseSla")\n',
+  )
+  const result = await execFileAsync(process.execPath, [checker, "--root", root])
+  assert.match(result.stdout, /6 package bindings derived from primitives and static ports/)
+})
+
+it("rejects deployment-configured Relationships custom fields", async () => {
+  const root = await fixture("return options.createRuntimePorts({ primitives })\n")
+  await write(
+    root,
+    "packages/relationships/src/runtime-contributor.ts",
+    'customFieldValueReaderRuntimePort.id\nrelationshipsMiceRuntimePort.id\nhost.primitives.config.read(bindings, "customFields")\n',
+  )
+  await assert.rejects(
+    execFileAsync(process.execPath, [checker, "--root", root]),
+    /must not restore deployment-configured custom fields/,
+  )
+})
+
 it("rejects starter-side assembly of a migrated binding", async () => {
   const root = await fixture(
     "return options.createRuntimePorts({ primitives, mice: { resolveDelegatePersonById } })\n",

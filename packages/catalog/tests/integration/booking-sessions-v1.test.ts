@@ -375,7 +375,7 @@ describe.skipIf(!DB_AVAILABLE)("Booking Session v1 PostgreSQL invariants", () =>
 
     expect(outcomes.filter(isCommitted)).toHaveLength(1)
     expect(outcomes.filter(isReplay)).toHaveLength(1)
-    const [booking] = await db.select().from(bookings)
+    const [booking] = await db.select().from(bookingsRef)
     await expect(db.select().from(paymentSessions)).resolves.toEqual([
       expect.objectContaining({
         id: payment.id,

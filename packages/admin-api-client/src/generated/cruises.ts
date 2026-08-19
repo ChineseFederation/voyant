@@ -11,179 +11,11 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: {
-          cruiseType?: "ocean" | "river" | "expedition" | "coastal"
-          status?: "draft" | "awaiting_review" | "live" | "archived"
-          lineSupplierId?: string
-          region?: string
-          search?: string
-          limit?: number
-          offset?: number | null
-        }
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Local cruises merged with every registered adapter's entries */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                source: string
-                sourceProvider: string | null
-                sourceRef?: unknown
-                key: string
-                cruise?: unknown
-              }[]
-              total: number
-              localTotal: number
-              adapterCount: number
-              adapterErrors: {
-                adapter: string
-                error: string
-              }[]
-              limit: number
-              offset: number
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/cruises */
+    get: operations["getAdminCruises"]
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            slug: string
-            name: string
-            /** @enum {string} */
-            cruiseType: "ocean" | "river" | "expedition" | "coastal"
-            lineSupplierId?: string | null
-            defaultShipId?: string | null
-            nights: number
-            embarkPortFacilityId?: string | null
-            embarkPortCanonicalPlaceId?: string | null
-            disembarkPortFacilityId?: string | null
-            disembarkPortCanonicalPlaceId?: string | null
-            description?: string | null
-            shortDescription?: string | null
-            /** @default [] */
-            highlights?: string[]
-            inclusionsHtml?: string | null
-            exclusionsHtml?: string | null
-            /** @default [] */
-            regionIds?: string[]
-            /** @default [] */
-            waterwayIds?: string[]
-            /** @default [] */
-            portIds?: string[]
-            /** @default [] */
-            countryIso?: string[]
-            /** @default [] */
-            regions?: string[]
-            /** @default [] */
-            waterways?: string[]
-            /** @default [] */
-            ports?: string[]
-            /** @default [] */
-            countries?: string[]
-            /** @default [] */
-            themes?: string[]
-            /** Format: uri */
-            heroImageUrl?: string | null
-            /** Format: uri */
-            mapImageUrl?: string | null
-            /**
-             * @default draft
-             * @enum {string}
-             */
-            status?: "draft" | "awaiting_review" | "live" | "archived"
-            /** @default {} */
-            externalRefs?: {
-              [key: string]: string
-            }
-          }
-        }
-      }
-      responses: {
-        /** @description The created cruise */
-        201: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                slug: string
-                name: string
-                /** @enum {string} */
-                cruiseType: "ocean" | "river" | "expedition" | "coastal"
-                lineSupplierId: string | null
-                defaultShipId: string | null
-                nights: number
-                embarkPortFacilityId: string | null
-                embarkPortCanonicalPlaceId: string | null
-                disembarkPortFacilityId: string | null
-                disembarkPortCanonicalPlaceId: string | null
-                description: string | null
-                shortDescription: string | null
-                highlights: string[] | null
-                inclusionsHtml: string | null
-                exclusionsHtml: string | null
-                regionIds: string[] | null
-                waterwayIds: string[] | null
-                portIds: string[] | null
-                countryIso: string[] | null
-                regions: string[] | null
-                waterways: string[] | null
-                ports: string[] | null
-                countries: string[] | null
-                themes: string[] | null
-                heroImageUrl: string | null
-                mapImageUrl: string | null
-                /** @enum {string} */
-                status: "draft" | "awaiting_review" | "live" | "archived"
-                lowestPriceCached: string | null
-                lowestPriceCurrencyCached: string | null
-                earliestDepartureCached: string | null
-                latestDepartureCached: string | null
-                externalRefs: {
-                  [key: string]: string
-                } | null
-                customerPaymentPolicy?: unknown
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request: request body failed validation */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            }
-          }
-        }
-      }
-    }
+    /** POST /v1/admin/cruises */
+    post: operations["postAdminCruises"]
     delete?: never
     options?: never
     head?: never
@@ -197,175 +29,11 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: {
-          groupKind?: "combination" | "grand_voyage" | "world_cruise" | "cruise_tour"
-          status?: "draft" | "awaiting_review" | "live" | "archived"
-          lineSupplierId?: string
-          region?: string
-          search?: string
-          limit?: number
-          offset?: number | null
-        }
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Paginated list of voyage groups */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                slug: string
-                name: string
-                /** @enum {string} */
-                groupKind: "combination" | "grand_voyage" | "world_cruise" | "cruise_tour"
-                lineSupplierId: string | null
-                nights: number
-                embarkPortFacilityId: string | null
-                embarkPortCanonicalPlaceId: string | null
-                disembarkPortFacilityId: string | null
-                disembarkPortCanonicalPlaceId: string | null
-                description: string | null
-                shortDescription: string | null
-                highlights: string[] | null
-                regions: string[] | null
-                themes: string[] | null
-                heroImageUrl: string | null
-                mapImageUrl: string | null
-                /** @enum {string} */
-                status: "draft" | "awaiting_review" | "live" | "archived"
-                lowestPriceCached: string | null
-                lowestPriceCurrencyCached: string | null
-                earliestDepartureCached: string | null
-                latestDepartureCached: string | null
-                externalRefs: {
-                  [key: string]: string
-                } | null
-                createdAt: string
-                updatedAt: string
-              }[]
-              total: number
-              limit: number
-              offset: number
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/cruises/voyage-groups */
+    get: operations["getAdminCruisesVoyageGroups"]
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            slug: string
-            name: string
-            /** @enum {string} */
-            groupKind: "combination" | "grand_voyage" | "world_cruise" | "cruise_tour"
-            lineSupplierId?: string | null
-            nights: number
-            embarkPortFacilityId?: string | null
-            embarkPortCanonicalPlaceId?: string | null
-            disembarkPortFacilityId?: string | null
-            disembarkPortCanonicalPlaceId?: string | null
-            description?: string | null
-            shortDescription?: string | null
-            /** @default [] */
-            highlights?: string[]
-            /** @default [] */
-            regions?: string[]
-            /** @default [] */
-            themes?: string[]
-            /** Format: uri */
-            heroImageUrl?: string | null
-            /** Format: uri */
-            mapImageUrl?: string | null
-            /**
-             * @default draft
-             * @enum {string}
-             */
-            status?: "draft" | "awaiting_review" | "live" | "archived"
-            lowestPriceCached?: string | null
-            lowestPriceCurrencyCached?: string | null
-            earliestDepartureCached?: string | null
-            latestDepartureCached?: string | null
-            /** @default {} */
-            externalRefs?: {
-              [key: string]: string
-            }
-          }
-        }
-      }
-      responses: {
-        /** @description The created voyage group */
-        201: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                slug: string
-                name: string
-                /** @enum {string} */
-                groupKind: "combination" | "grand_voyage" | "world_cruise" | "cruise_tour"
-                lineSupplierId: string | null
-                nights: number
-                embarkPortFacilityId: string | null
-                embarkPortCanonicalPlaceId: string | null
-                disembarkPortFacilityId: string | null
-                disembarkPortCanonicalPlaceId: string | null
-                description: string | null
-                shortDescription: string | null
-                highlights: string[] | null
-                regions: string[] | null
-                themes: string[] | null
-                heroImageUrl: string | null
-                mapImageUrl: string | null
-                /** @enum {string} */
-                status: "draft" | "awaiting_review" | "live" | "archived"
-                lowestPriceCached: string | null
-                lowestPriceCurrencyCached: string | null
-                earliestDepartureCached: string | null
-                latestDepartureCached: string | null
-                externalRefs: {
-                  [key: string]: string
-                } | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request: request body failed validation */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-      }
-    }
+    /** POST /v1/admin/cruises/voyage-groups */
+    post: operations["postAdminCruisesVoyageGroups"]
     delete?: never
     options?: never
     head?: never
@@ -379,291 +47,13 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description A voyage group (optionally with segments) */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                slug: string
-                name: string
-                /** @enum {string} */
-                groupKind: "combination" | "grand_voyage" | "world_cruise" | "cruise_tour"
-                lineSupplierId: string | null
-                nights: number
-                embarkPortFacilityId: string | null
-                embarkPortCanonicalPlaceId: string | null
-                disembarkPortFacilityId: string | null
-                disembarkPortCanonicalPlaceId: string | null
-                description: string | null
-                shortDescription: string | null
-                highlights: string[] | null
-                regions: string[] | null
-                themes: string[] | null
-                heroImageUrl: string | null
-                mapImageUrl: string | null
-                /** @enum {string} */
-                status: "draft" | "awaiting_review" | "live" | "archived"
-                lowestPriceCached: string | null
-                lowestPriceCurrencyCached: string | null
-                earliestDepartureCached: string | null
-                latestDepartureCached: string | null
-                externalRefs: {
-                  [key: string]: string
-                } | null
-                createdAt: string
-                updatedAt: string
-                segments?: {
-                  id: string
-                  voyageGroupId: string
-                  sortOrder: number
-                  /** @enum {string} */
-                  segmentKind: "cruise" | "land" | "hotel" | "transfer" | "rail" | "air" | "other"
-                  /** @enum {string} */
-                  segmentRole: "core" | "pre_extension" | "post_extension"
-                  title: string
-                  description: string | null
-                  cruiseId: string | null
-                  sailingId: string | null
-                  startDay: number | null
-                  endDay: number | null
-                  startDate: string | null
-                  endDate: string | null
-                  embarkPortFacilityId: string | null
-                  embarkPortCanonicalPlaceId: string | null
-                  disembarkPortFacilityId: string | null
-                  disembarkPortCanonicalPlaceId: string | null
-                  nights: number | null
-                  externalRefs: {
-                    [key: string]: string
-                  } | null
-                  metadata: {
-                    [key: string]: unknown
-                  } | null
-                  createdAt: string
-                  updatedAt: string
-                }[]
-              }
-            }
-          }
-        }
-        /** @description Voyage group not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-      }
-    }
-    put: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            slug?: string
-            name?: string
-            /** @enum {string} */
-            groupKind?: "combination" | "grand_voyage" | "world_cruise" | "cruise_tour"
-            lineSupplierId?: string | null
-            nights?: number
-            embarkPortFacilityId?: string | null
-            embarkPortCanonicalPlaceId?: string | null
-            disembarkPortFacilityId?: string | null
-            disembarkPortCanonicalPlaceId?: string | null
-            description?: string | null
-            shortDescription?: string | null
-            /** @default [] */
-            highlights?: string[]
-            /** @default [] */
-            regions?: string[]
-            /** @default [] */
-            themes?: string[]
-            /** Format: uri */
-            heroImageUrl?: string | null
-            /** Format: uri */
-            mapImageUrl?: string | null
-            /**
-             * @default draft
-             * @enum {string}
-             */
-            status?: "draft" | "awaiting_review" | "live" | "archived"
-            lowestPriceCached?: string | null
-            lowestPriceCurrencyCached?: string | null
-            earliestDepartureCached?: string | null
-            latestDepartureCached?: string | null
-            /** @default {} */
-            externalRefs?: {
-              [key: string]: string
-            }
-          }
-        }
-      }
-      responses: {
-        /** @description The updated voyage group */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                slug: string
-                name: string
-                /** @enum {string} */
-                groupKind: "combination" | "grand_voyage" | "world_cruise" | "cruise_tour"
-                lineSupplierId: string | null
-                nights: number
-                embarkPortFacilityId: string | null
-                embarkPortCanonicalPlaceId: string | null
-                disembarkPortFacilityId: string | null
-                disembarkPortCanonicalPlaceId: string | null
-                description: string | null
-                shortDescription: string | null
-                highlights: string[] | null
-                regions: string[] | null
-                themes: string[] | null
-                heroImageUrl: string | null
-                mapImageUrl: string | null
-                /** @enum {string} */
-                status: "draft" | "awaiting_review" | "live" | "archived"
-                lowestPriceCached: string | null
-                lowestPriceCurrencyCached: string | null
-                earliestDepartureCached: string | null
-                latestDepartureCached: string | null
-                externalRefs: {
-                  [key: string]: string
-                } | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request: request body failed validation */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-        /** @description Voyage group not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/cruises/voyage-groups/{id} */
+    get: operations["getAdminCruisesVoyageGroupsById"]
+    /** PUT /v1/admin/cruises/voyage-groups/{id} */
+    put: operations["putAdminCruisesVoyageGroupsById"]
     post?: never
-    delete: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description The archived voyage group */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                slug: string
-                name: string
-                /** @enum {string} */
-                groupKind: "combination" | "grand_voyage" | "world_cruise" | "cruise_tour"
-                lineSupplierId: string | null
-                nights: number
-                embarkPortFacilityId: string | null
-                embarkPortCanonicalPlaceId: string | null
-                disembarkPortFacilityId: string | null
-                disembarkPortCanonicalPlaceId: string | null
-                description: string | null
-                shortDescription: string | null
-                highlights: string[] | null
-                regions: string[] | null
-                themes: string[] | null
-                heroImageUrl: string | null
-                mapImageUrl: string | null
-                /** @enum {string} */
-                status: "draft" | "awaiting_review" | "live" | "archived"
-                lowestPriceCached: string | null
-                lowestPriceCurrencyCached: string | null
-                earliestDepartureCached: string | null
-                latestDepartureCached: string | null
-                externalRefs: {
-                  [key: string]: string
-                } | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description Voyage group not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-      }
-    }
+    /** DELETE /v1/admin/cruises/voyage-groups/{id} */
+    delete: operations["deleteAdminCruisesVoyageGroupsById"]
     options?: never
     head?: never
     patch?: never
@@ -676,172 +66,11 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: {
-          voyageGroupId?: string
-          cruiseId?: string
-          sailingId?: string
-          segmentKind?: "cruise" | "land" | "hotel" | "transfer" | "rail" | "air" | "other"
-          segmentRole?: "core" | "pre_extension" | "post_extension"
-          limit?: number
-          offset?: number | null
-        }
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Paginated list of segments for the voyage group */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                voyageGroupId: string
-                sortOrder: number
-                /** @enum {string} */
-                segmentKind: "cruise" | "land" | "hotel" | "transfer" | "rail" | "air" | "other"
-                /** @enum {string} */
-                segmentRole: "core" | "pre_extension" | "post_extension"
-                title: string
-                description: string | null
-                cruiseId: string | null
-                sailingId: string | null
-                startDay: number | null
-                endDay: number | null
-                startDate: string | null
-                endDate: string | null
-                embarkPortFacilityId: string | null
-                embarkPortCanonicalPlaceId: string | null
-                disembarkPortFacilityId: string | null
-                disembarkPortCanonicalPlaceId: string | null
-                nights: number | null
-                externalRefs: {
-                  [key: string]: string
-                } | null
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                createdAt: string
-                updatedAt: string
-              }[]
-              total: number
-              limit: number
-              offset: number
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/cruises/voyage-groups/{id}/segments */
+    get: operations["getAdminCruisesVoyageGroupsByIdSegments"]
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          id: string
-        }
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            voyageGroupId?: string
-            sortOrder: number
-            /** @enum {string} */
-            segmentKind: "cruise" | "land" | "hotel" | "transfer" | "rail" | "air" | "other"
-            /**
-             * @default core
-             * @enum {string}
-             */
-            segmentRole?: "core" | "pre_extension" | "post_extension"
-            title: string
-            description?: string | null
-            cruiseId?: string | null
-            sailingId?: string | null
-            startDay?: number | null
-            endDay?: number | null
-            startDate?: string | null
-            endDate?: string | null
-            embarkPortFacilityId?: string | null
-            embarkPortCanonicalPlaceId?: string | null
-            disembarkPortFacilityId?: string | null
-            disembarkPortCanonicalPlaceId?: string | null
-            nights?: number | null
-            /** @default {} */
-            externalRefs?: {
-              [key: string]: string
-            }
-            /** @default {} */
-            metadata?: {
-              [key: string]: unknown
-            }
-          }
-        }
-      }
-      responses: {
-        /** @description The created segment */
-        201: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                voyageGroupId: string
-                sortOrder: number
-                /** @enum {string} */
-                segmentKind: "cruise" | "land" | "hotel" | "transfer" | "rail" | "air" | "other"
-                /** @enum {string} */
-                segmentRole: "core" | "pre_extension" | "post_extension"
-                title: string
-                description: string | null
-                cruiseId: string | null
-                sailingId: string | null
-                startDay: number | null
-                endDay: number | null
-                startDate: string | null
-                endDate: string | null
-                embarkPortFacilityId: string | null
-                embarkPortCanonicalPlaceId: string | null
-                disembarkPortFacilityId: string | null
-                disembarkPortCanonicalPlaceId: string | null
-                nights: number | null
-                externalRefs: {
-                  [key: string]: string
-                } | null
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request: request body failed validation */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-      }
-    }
+    /** POST /v1/admin/cruises/voyage-groups/{id}/segments */
+    post: operations["postAdminCruisesVoyageGroupsByIdSegments"]
     delete?: never
     options?: never
     head?: never
@@ -856,154 +85,11 @@ export interface paths {
       cookie?: never
     }
     get?: never
-    put: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          segmentId: string
-        }
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            voyageGroupId?: string
-            sortOrder?: number
-            /** @enum {string} */
-            segmentKind?: "cruise" | "land" | "hotel" | "transfer" | "rail" | "air" | "other"
-            /**
-             * @default core
-             * @enum {string}
-             */
-            segmentRole?: "core" | "pre_extension" | "post_extension"
-            title?: string
-            description?: string | null
-            cruiseId?: string | null
-            sailingId?: string | null
-            startDay?: number | null
-            endDay?: number | null
-            startDate?: string | null
-            endDate?: string | null
-            embarkPortFacilityId?: string | null
-            embarkPortCanonicalPlaceId?: string | null
-            disembarkPortFacilityId?: string | null
-            disembarkPortCanonicalPlaceId?: string | null
-            nights?: number | null
-            /** @default {} */
-            externalRefs?: {
-              [key: string]: string
-            }
-            /** @default {} */
-            metadata?: {
-              [key: string]: unknown
-            }
-          }
-        }
-      }
-      responses: {
-        /** @description The updated segment */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                voyageGroupId: string
-                sortOrder: number
-                /** @enum {string} */
-                segmentKind: "cruise" | "land" | "hotel" | "transfer" | "rail" | "air" | "other"
-                /** @enum {string} */
-                segmentRole: "core" | "pre_extension" | "post_extension"
-                title: string
-                description: string | null
-                cruiseId: string | null
-                sailingId: string | null
-                startDay: number | null
-                endDay: number | null
-                startDate: string | null
-                endDate: string | null
-                embarkPortFacilityId: string | null
-                embarkPortCanonicalPlaceId: string | null
-                disembarkPortFacilityId: string | null
-                disembarkPortCanonicalPlaceId: string | null
-                nights: number | null
-                externalRefs: {
-                  [key: string]: string
-                } | null
-                metadata: {
-                  [key: string]: unknown
-                } | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request: request body failed validation */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-        /** @description Segment not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-      }
-    }
+    /** PUT /v1/admin/cruises/voyage-group-segments/{segmentId} */
+    put: operations["putAdminCruisesVoyageGroupSegmentsBySegmentId"]
     post?: never
-    delete: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          segmentId: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Deleted */
-        204: {
-          headers: {
-            [name: string]: unknown
-          }
-          content?: never
-        }
-        /** @description Segment not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-      }
-    }
+    /** DELETE /v1/admin/cruises/voyage-group-segments/{segmentId} */
+    delete: operations["deleteAdminCruisesVoyageGroupSegmentsBySegmentId"]
     options?: never
     head?: never
     patch?: never
@@ -1017,117 +103,11 @@ export interface paths {
       cookie?: never
     }
     get?: never
-    put: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          programId: string
-        }
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            cruiseId?: string
-            /** @enum {string} */
-            kind?: "naturalist" | "historian" | "photographer" | "lecturer" | "expert" | "other"
-            name?: string
-            title?: string | null
-            description?: string | null
-            /** Format: uri */
-            bioImageUrl?: string | null
-            /** @default 0 */
-            sortOrder?: number
-          }
-        }
-      }
-      responses: {
-        /** @description The updated enrichment program */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                cruiseId: string
-                /** @enum {string} */
-                kind: "naturalist" | "historian" | "photographer" | "lecturer" | "expert" | "other"
-                name: string
-                title: string | null
-                description: string | null
-                bioImageUrl: string | null
-                sortOrder: number
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request: request body failed validation */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-        /** @description Enrichment program not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-      }
-    }
+    /** PUT /v1/admin/cruises/enrichment/{programId} */
+    put: operations["putAdminCruisesEnrichmentByProgramId"]
     post?: never
-    delete: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          programId: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Deleted */
-        204: {
-          headers: {
-            [name: string]: unknown
-          }
-          content?: never
-        }
-        /** @description Enrichment program not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-      }
-    }
+    /** DELETE /v1/admin/cruises/enrichment/{programId} */
+    delete: operations["deleteAdminCruisesEnrichmentByProgramId"]
     options?: never
     head?: never
     patch?: never
@@ -1140,149 +120,11 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: {
-          cruiseId?: string
-          shipId?: string
-          dateFrom?: string
-          dateTo?: string
-          salesStatus?: "open" | "on_request" | "wait_list" | "sold_out" | "closed"
-          direction?: "upstream" | "downstream" | "round_trip" | "one_way"
-          limit?: number
-          offset?: number | null
-        }
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Paginated list of cruise sailings */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                cruiseId: string
-                shipId: string
-                departureDate: string
-                returnDate: string
-                embarkPortFacilityId: string | null
-                embarkPortCanonicalPlaceId: string | null
-                disembarkPortFacilityId: string | null
-                disembarkPortCanonicalPlaceId: string | null
-                /** @enum {string|null} */
-                direction: "upstream" | "downstream" | "round_trip" | "one_way" | null
-                availabilityNote: string | null
-                isCharter: boolean
-                /** @enum {string} */
-                salesStatus: "open" | "on_request" | "wait_list" | "sold_out" | "closed"
-                externalRefs: {
-                  [key: string]: string
-                } | null
-                customerPaymentPolicy?: unknown
-                lastSyncedAt: string | null
-                createdAt: string
-                updatedAt: string
-              }[]
-              total: number
-              limit: number
-              offset: number
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/cruises/sailings */
+    get: operations["getAdminCruisesSailings"]
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            cruiseId: string
-            shipId: string
-            departureDate: string
-            returnDate: string
-            embarkPortFacilityId?: string | null
-            embarkPortCanonicalPlaceId?: string | null
-            disembarkPortFacilityId?: string | null
-            disembarkPortCanonicalPlaceId?: string | null
-            /** @enum {string|null} */
-            direction?: "upstream" | "downstream" | "round_trip" | "one_way" | null
-            availabilityNote?: string | null
-            /** @default false */
-            isCharter?: boolean
-            /**
-             * @default open
-             * @enum {string}
-             */
-            salesStatus?: "open" | "on_request" | "wait_list" | "sold_out" | "closed"
-            /** @default {} */
-            externalRefs?: {
-              [key: string]: string
-            }
-          }
-        }
-      }
-      responses: {
-        /** @description The created (or upserted) sailing */
-        201: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                cruiseId: string
-                shipId: string
-                departureDate: string
-                returnDate: string
-                embarkPortFacilityId: string | null
-                embarkPortCanonicalPlaceId: string | null
-                disembarkPortFacilityId: string | null
-                disembarkPortCanonicalPlaceId: string | null
-                /** @enum {string|null} */
-                direction: "upstream" | "downstream" | "round_trip" | "one_way" | null
-                availabilityNote: string | null
-                isCharter: boolean
-                /** @enum {string} */
-                salesStatus: "open" | "on_request" | "wait_list" | "sold_out" | "closed"
-                externalRefs: {
-                  [key: string]: string
-                } | null
-                customerPaymentPolicy?: unknown
-                lastSyncedAt: string | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request: request body failed validation */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-      }
-    }
+    /** POST /v1/admin/cruises/sailings */
+    post: operations["postAdminCruisesSailings"]
     delete?: never
     options?: never
     head?: never
@@ -1296,182 +138,10 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          key: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description A sailing by unified key (local aggregate or external adapter shape) */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data?: unknown
-            }
-          }
-        }
-        /** @description Key is not a valid local id or external key */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-        /** @description Sailing not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-        /** @description Referenced adapter is not registered */
-        501: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-      }
-    }
-    put: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          key: string
-        }
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            cruiseId?: string
-            shipId?: string
-            departureDate?: string
-            returnDate?: string
-            embarkPortFacilityId?: string | null
-            embarkPortCanonicalPlaceId?: string | null
-            disembarkPortFacilityId?: string | null
-            disembarkPortCanonicalPlaceId?: string | null
-            /** @enum {string|null} */
-            direction?: "upstream" | "downstream" | "round_trip" | "one_way" | null
-            availabilityNote?: string | null
-            /** @default false */
-            isCharter?: boolean
-            /**
-             * @default open
-             * @enum {string}
-             */
-            salesStatus?: "open" | "on_request" | "wait_list" | "sold_out" | "closed"
-            /** @default {} */
-            externalRefs?: {
-              [key: string]: string
-            }
-          }
-        }
-      }
-      responses: {
-        /** @description The updated sailing */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                cruiseId: string
-                shipId: string
-                departureDate: string
-                returnDate: string
-                embarkPortFacilityId: string | null
-                embarkPortCanonicalPlaceId: string | null
-                disembarkPortFacilityId: string | null
-                disembarkPortCanonicalPlaceId: string | null
-                /** @enum {string|null} */
-                direction: "upstream" | "downstream" | "round_trip" | "one_way" | null
-                availabilityNote: string | null
-                isCharter: boolean
-                /** @enum {string} */
-                salesStatus: "open" | "on_request" | "wait_list" | "sold_out" | "closed"
-                externalRefs: {
-                  [key: string]: string
-                } | null
-                customerPaymentPolicy?: unknown
-                lastSyncedAt: string | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description Key is not a valid local id */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-        /** @description Sailing not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-        /** @description External sailing is read-only */
-        409: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/cruises/sailings/{key} */
+    get: operations["getAdminCruisesSailingsByKey"]
+    /** PUT /v1/admin/cruises/sailings/{key} */
+    put: operations["putAdminCruisesSailingsByKey"]
     post?: never
     delete?: never
     options?: never
@@ -1486,56 +156,8 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          key: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Effective itinerary days for the sailing (local merged days or adapter days) */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: unknown[]
-            }
-          }
-        }
-        /** @description Key is not a valid local id or external key */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-        /** @description Referenced adapter is not registered */
-        501: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/cruises/sailings/{key}/itinerary */
+    get: operations["getAdminCruisesSailingsByKeyItinerary"]
     put?: never
     post?: never
     delete?: never
@@ -1552,101 +174,8 @@ export interface paths {
       cookie?: never
     }
     get?: never
-    put: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          key: string
-        }
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            days: {
-              dayNumber: number
-              title?: string | null
-              description?: string | null
-              portFacilityId?: string | null
-              portCanonicalPlaceId?: string | null
-              arrivalTime?: string | null
-              departureTime?: string | null
-              isOvernight?: boolean | null
-              isSeaDay?: boolean | null
-              isExpeditionLanding?: boolean | null
-              /** @default false */
-              isSkipped?: boolean
-              meals?: {
-                breakfast?: boolean
-                lunch?: boolean
-                dinner?: boolean
-              } | null
-            }[]
-          }
-        }
-      }
-      responses: {
-        /** @description The replaced sailing-day overrides */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                sailingId: string
-                dayNumber: number
-                title: string | null
-                description: string | null
-                portFacilityId: string | null
-                portCanonicalPlaceId: string | null
-                arrivalTime: string | null
-                departureTime: string | null
-                isOvernight: boolean | null
-                isSeaDay: boolean | null
-                isExpeditionLanding: boolean | null
-                isSkipped: boolean
-                meals: {
-                  breakfast?: boolean
-                  lunch?: boolean
-                  dinner?: boolean
-                } | null
-                createdAt: string
-                updatedAt: string
-              }[]
-            }
-          }
-        }
-        /** @description Key is not a valid local id */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-        /** @description External sailing is read-only */
-        409: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-      }
-    }
+    /** PUT /v1/admin/cruises/sailings/{key}/days/bulk */
+    put: operations["putAdminCruisesSailingsByKeyDaysBulk"]
     post?: never
     delete?: never
     options?: never
@@ -1661,59 +190,8 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          key: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Pricing for the sailing (local price rows or external adapter prices) */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: unknown[]
-              total?: number
-              limit?: number
-              offset?: number
-            }
-          }
-        }
-        /** @description Key is not a valid local id or external key */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-        /** @description Referenced adapter is not registered */
-        501: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-      }
-    }
+    /** GET /v1/admin/cruises/sailings/{key}/pricing */
+    get: operations["getAdminCruisesSailingsByKeyPricing"]
     put?: never
     post?: never
     delete?: never
@@ -1730,147 +208,8 @@ export interface paths {
       cookie?: never
     }
     get?: never
-    put: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          key: string
-        }
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            prices: {
-              sailingId: string
-              cabinCategoryId: string
-              occupancy: number
-              fareCode?: string | null
-              fareCodeName?: string | null
-              /**
-               * @default cruise_only
-               * @enum {string}
-               */
-              fareVariant?: "cruise_only" | "air_inclusive"
-              currency: string
-              pricePerPerson: string
-              originalPricePerPerson?: string | null
-              secondGuestPricePerPerson?: string | null
-              singlePricePerPerson?: string | null
-              singleSupplementPercent?: string | null
-              /**
-               * @default available
-               * @enum {string}
-               */
-              availability?: "available" | "limited" | "on_request" | "wait_list" | "sold_out"
-              availabilityCount?: number | null
-              priceCatalogId?: string | null
-              priceScheduleId?: string | null
-              bookingDeadline?: string | null
-              earlyBookingDeadline?: string | null
-              earlyBookingBonusDescription?: string | null
-              /** @default false */
-              requiresRequest?: boolean
-              notes?: string | null
-              /** @default {} */
-              externalRefs?: {
-                [key: string]: string
-              }
-              components?: {
-                /** @enum {string} */
-                kind:
-                  | "gratuity"
-                  | "onboard_credit"
-                  | "port_charge"
-                  | "tax"
-                  | "ncf"
-                  | "airfare"
-                  | "transfer"
-                  | "insurance"
-                label?: string | null
-                amount: string
-                currency: string
-                /** @enum {string} */
-                direction: "addition" | "inclusion" | "credit"
-                /** @default true */
-                perPerson?: boolean
-              }[]
-            }[]
-          }
-        }
-      }
-      responses: {
-        /** @description The replaced sailing prices */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                sailingId: string
-                cabinCategoryId: string
-                occupancy: number
-                fareCode: string | null
-                fareCodeName: string | null
-                /** @enum {string} */
-                fareVariant: "cruise_only" | "air_inclusive"
-                currency: string
-                pricePerPerson: string
-                originalPricePerPerson: string | null
-                secondGuestPricePerPerson: string | null
-                singlePricePerPerson: string | null
-                singleSupplementPercent: string | null
-                /** @enum {string} */
-                availability: "available" | "limited" | "on_request" | "wait_list" | "sold_out"
-                availabilityCount: number | null
-                priceCatalogId: string | null
-                priceScheduleId: string | null
-                bookingDeadline: string | null
-                earlyBookingDeadline: string | null
-                earlyBookingBonusDescription: string | null
-                requiresRequest: boolean
-                notes: string | null
-                externalRefs: {
-                  [key: string]: string
-                } | null
-                lastSyncedAt: string | null
-                createdAt: string
-                updatedAt: string
-              }[]
-            }
-          }
-        }
-        /** @description Key is not a valid local id */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-        /** @description External sailing is read-only */
-        409: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-      }
-    }
+    /** PUT /v1/admin/cruises/sailings/{key}/pricing/bulk */
+    put: operations["putAdminCruisesSailingsByKeyPricingBulk"]
     post?: never
     delete?: never
     options?: never
@@ -1887,94 +226,8 @@ export interface paths {
     }
     get?: never
     put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          key: string
-        }
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            cabinCategoryId: string
-            cabinCategoryRef?: {
-              [key: string]: unknown
-            } | null
-            occupancy: number
-            guestCount?: number
-            passengerComposition?:
-              | ({
-                  adults: number
-                  children?: number
-                  childAges?: number[]
-                  infants?: number
-                  seniors?: number
-                } & {
-                  [key: string]: unknown
-                })
-              | null
-            fareCode?: string | null
-            /** @enum {string|null} */
-            fareVariant?: "cruise_only" | "air_inclusive" | null
-          }
-        }
-      }
-      responses: {
-        /** @description The composed cruise quote */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data?: unknown
-            }
-          }
-        }
-        /** @description Invalid key, or guestCount/passengerComposition missing */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-        /** @description No matching price for the requested cabin/occupancy/fare */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-        /** @description Referenced adapter is not registered */
-        501: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-      }
-    }
+    /** POST /v1/admin/cruises/sailings/{key}/quote */
+    post: operations["postAdminCruisesSailingsByKeyQuote"]
     delete?: never
     options?: never
     head?: never
@@ -1988,83 +241,2037 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    get: {
-      parameters: {
-        query?: {
-          sailingId?: string
-          cabinCategoryId?: string
-          occupancy?: number
-          fareCode?: string
-          fareVariant?: "cruise_only" | "air_inclusive"
-          availability?: "available" | "limited" | "on_request" | "wait_list" | "sold_out"
-          priceCatalogId?: string
-          limit?: number
-          offset?: number | null
-        }
-        header?: never
-        path?: never
-        cookie?: never
+    /** GET /v1/admin/cruises/prices */
+    get: operations["getAdminCruisesPrices"]
+    put?: never
+    /** POST /v1/admin/cruises/prices */
+    post: operations["postAdminCruisesPrices"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/admin/cruises/prices/{priceId}": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    /** PUT /v1/admin/cruises/prices/{priceId} */
+    put: operations["putAdminCruisesPricesByPriceId"]
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/admin/cruises/ships": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/admin/cruises/ships */
+    get: operations["getAdminCruisesShips"]
+    put?: never
+    /** POST /v1/admin/cruises/ships */
+    post: operations["postAdminCruisesShips"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/admin/cruises/ships/{key}": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/admin/cruises/ships/{key} */
+    get: operations["getAdminCruisesShipsByKey"]
+    /** PUT /v1/admin/cruises/ships/{key} */
+    put: operations["putAdminCruisesShipsByKey"]
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/admin/cruises/ships/{key}/effective": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/admin/cruises/ships/{key}/effective */
+    get: operations["getAdminCruisesShipsByKeyEffective"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/admin/cruises/ships/{key}/editorial-overlays": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/admin/cruises/ships/{key}/editorial-overlays */
+    get: operations["getAdminCruisesShipsByKeyEditorialOverlays"]
+    /** PUT /v1/admin/cruises/ships/{key}/editorial-overlays */
+    put: operations["putAdminCruisesShipsByKeyEditorialOverlays"]
+    post?: never
+    /** DELETE /v1/admin/cruises/ships/{key}/editorial-overlays */
+    delete: operations["deleteAdminCruisesShipsByKeyEditorialOverlays"]
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/admin/cruises/ships/{key}/editorial-overlays/history": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/admin/cruises/ships/{key}/editorial-overlays/history */
+    get: operations["getAdminCruisesShipsByKeyEditorialOverlaysHistory"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/admin/cruises/ships/{key}/decks": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/admin/cruises/ships/{key}/decks */
+    get: operations["getAdminCruisesShipsByKeyDecks"]
+    put?: never
+    /** POST /v1/admin/cruises/ships/{key}/decks */
+    post: operations["postAdminCruisesShipsByKeyDecks"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/admin/cruises/decks/{deckId}": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    /** PUT /v1/admin/cruises/decks/{deckId} */
+    put: operations["putAdminCruisesDecksByDeckId"]
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/admin/cruises/ships/{key}/categories": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/admin/cruises/ships/{key}/categories */
+    get: operations["getAdminCruisesShipsByKeyCategories"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/admin/cruises/ships/{key}/categories/bulk": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    /** PUT /v1/admin/cruises/ships/{key}/categories/bulk */
+    put: operations["putAdminCruisesShipsByKeyCategoriesBulk"]
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/admin/cruises/categories/{categoryId}": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    /** PUT /v1/admin/cruises/categories/{categoryId} */
+    put: operations["putAdminCruisesCategoriesByCategoryId"]
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/admin/cruises/categories/{categoryId}/cabins": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/admin/cruises/categories/{categoryId}/cabins */
+    get: operations["getAdminCruisesCategoriesByCategoryIdCabins"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/admin/cruises/categories/{categoryId}/cabins/bulk": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    /** PUT /v1/admin/cruises/categories/{categoryId}/cabins/bulk */
+    put: operations["putAdminCruisesCategoriesByCategoryIdCabinsBulk"]
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/admin/cruises/cabins/{cabinId}": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    /** PUT /v1/admin/cruises/cabins/{cabinId} */
+    put: operations["putAdminCruisesCabinsByCabinId"]
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/admin/cruises/search-index/bulk": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    /** PUT /v1/admin/cruises/search-index/bulk */
+    put: operations["putAdminCruisesSearchIndexBulk"]
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/admin/cruises/search-index/{crsiId}": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post?: never
+    /** DELETE /v1/admin/cruises/search-index/{crsiId} */
+    delete: operations["deleteAdminCruisesSearchIndexByCrsiId"]
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/admin/cruises/search-index/rebuild": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** POST /v1/admin/cruises/search-index/rebuild */
+    post: operations["postAdminCruisesSearchIndexRebuild"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/admin/cruises/{key}": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/admin/cruises/{key} */
+    get: operations["getAdminCruisesByKey"]
+    /** PUT /v1/admin/cruises/{key} */
+    put: operations["putAdminCruisesByKey"]
+    post?: never
+    /** DELETE /v1/admin/cruises/{key} */
+    delete: operations["deleteAdminCruisesByKey"]
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/admin/cruises/{key}/aggregates/recompute": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** POST /v1/admin/cruises/{key}/aggregates/recompute */
+    post: operations["postAdminCruisesByKeyAggregatesRecompute"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/admin/cruises/{key}/sailings": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/admin/cruises/{key}/sailings */
+    get: operations["getAdminCruisesByKeySailings"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/admin/cruises/{key}/days/bulk": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    /** PUT /v1/admin/cruises/{key}/days/bulk */
+    put: operations["putAdminCruisesByKeyDaysBulk"]
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/admin/cruises/{key}/refresh": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** POST /v1/admin/cruises/{key}/refresh */
+    post: operations["postAdminCruisesByKeyRefresh"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/admin/cruises/{key}/detach": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** POST /v1/admin/cruises/{key}/detach */
+    post: operations["postAdminCruisesByKeyDetach"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/admin/cruises/{key}/enrichment": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/admin/cruises/{key}/enrichment */
+    get: operations["getAdminCruisesByKeyEnrichment"]
+    put?: never
+    /** POST /v1/admin/cruises/{key}/enrichment */
+    post: operations["postAdminCruisesByKeyEnrichment"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/admin/cruises/{key}/enrichment/bulk": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    /** PUT /v1/admin/cruises/{key}/enrichment/bulk */
+    put: operations["putAdminCruisesByKeyEnrichmentBulk"]
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+}
+export type webhooks = Record<string, never>
+export interface components {
+  schemas: never
+  responses: never
+  parameters: never
+  requestBodies: never
+  headers: never
+  pathItems: never
+}
+export type $defs = Record<string, never>
+export interface operations {
+  getAdminCruises: {
+    parameters: {
+      query?: {
+        cruiseType?: "ocean" | "river" | "expedition" | "coastal"
+        status?: "draft" | "awaiting_review" | "live" | "archived"
+        lineSupplierId?: string
+        region?: string
+        search?: string
+        limit?: number
+        offset?: number | null
       }
-      requestBody?: never
-      responses: {
-        /** @description Paginated list of cruise prices */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                sailingId: string
-                cabinCategoryId: string
-                occupancy: number
-                fareCode: string | null
-                fareCodeName: string | null
-                /** @enum {string} */
-                fareVariant: "cruise_only" | "air_inclusive"
-                currency: string
-                pricePerPerson: string
-                originalPricePerPerson: string | null
-                secondGuestPricePerPerson: string | null
-                singlePricePerPerson: string | null
-                singleSupplementPercent: string | null
-                /** @enum {string} */
-                availability: "available" | "limited" | "on_request" | "wait_list" | "sold_out"
-                availabilityCount: number | null
-                priceCatalogId: string | null
-                priceScheduleId: string | null
-                bookingDeadline: string | null
-                earlyBookingDeadline: string | null
-                earlyBookingBonusDescription: string | null
-                requiresRequest: boolean
-                notes: string | null
-                externalRefs: {
-                  [key: string]: string
-                } | null
-                lastSyncedAt: string | null
-                createdAt: string
-                updatedAt: string
-              }[]
-              total: number
-              limit: number
-              offset: number
-            }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Local cruises merged with every registered adapter's entries */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              source: string
+              sourceProvider: string | null
+              sourceRef?: unknown
+              key: string
+              cruise?: unknown
+            }[]
+            total: number
+            localTotal: number
+            adapterCount: number
+            adapterErrors: {
+              adapter: string
+              error: string
+            }[]
+            limit: number
+            offset: number
           }
         }
       }
     }
-    put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
+  }
+  postAdminCruises: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          slug: string
+          name: string
+          /** @enum {string} */
+          cruiseType: "ocean" | "river" | "expedition" | "coastal"
+          lineSupplierId?: string | null
+          defaultShipId?: string | null
+          nights: number
+          embarkPortFacilityId?: string | null
+          embarkPortCanonicalPlaceId?: string | null
+          disembarkPortFacilityId?: string | null
+          disembarkPortCanonicalPlaceId?: string | null
+          description?: string | null
+          shortDescription?: string | null
+          /** @default [] */
+          highlights?: string[]
+          inclusionsHtml?: string | null
+          exclusionsHtml?: string | null
+          /** @default [] */
+          regionIds?: string[]
+          /** @default [] */
+          waterwayIds?: string[]
+          /** @default [] */
+          portIds?: string[]
+          /** @default [] */
+          countryIso?: string[]
+          /** @default [] */
+          regions?: string[]
+          /** @default [] */
+          waterways?: string[]
+          /** @default [] */
+          ports?: string[]
+          /** @default [] */
+          countries?: string[]
+          /** @default [] */
+          themes?: string[]
+          /** Format: uri */
+          heroImageUrl?: string | null
+          /** Format: uri */
+          mapImageUrl?: string | null
+          /**
+           * @default draft
+           * @enum {string}
+           */
+          status?: "draft" | "awaiting_review" | "live" | "archived"
+          /** @default {} */
+          externalRefs?: {
+            [key: string]: string
+          }
+        }
       }
-      requestBody: {
+    }
+    responses: {
+      /** @description The created cruise */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
         content: {
           "application/json": {
+            data: {
+              id: string
+              slug: string
+              name: string
+              /** @enum {string} */
+              cruiseType: "ocean" | "river" | "expedition" | "coastal"
+              lineSupplierId: string | null
+              defaultShipId: string | null
+              nights: number
+              embarkPortFacilityId: string | null
+              embarkPortCanonicalPlaceId: string | null
+              disembarkPortFacilityId: string | null
+              disembarkPortCanonicalPlaceId: string | null
+              description: string | null
+              shortDescription: string | null
+              highlights: string[] | null
+              inclusionsHtml: string | null
+              exclusionsHtml: string | null
+              regionIds: string[] | null
+              waterwayIds: string[] | null
+              portIds: string[] | null
+              countryIso: string[] | null
+              regions: string[] | null
+              waterways: string[] | null
+              ports: string[] | null
+              countries: string[] | null
+              themes: string[] | null
+              heroImageUrl: string | null
+              mapImageUrl: string | null
+              /** @enum {string} */
+              status: "draft" | "awaiting_review" | "live" | "archived"
+              lowestPriceCached: string | null
+              lowestPriceCurrencyCached: string | null
+              earliestDepartureCached: string | null
+              latestDepartureCached: string | null
+              externalRefs: {
+                [key: string]: string
+              } | null
+              customerPaymentPolicy?: unknown
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request: request body failed validation */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminCruisesVoyageGroups: {
+    parameters: {
+      query?: {
+        groupKind?: "combination" | "grand_voyage" | "world_cruise" | "cruise_tour"
+        status?: "draft" | "awaiting_review" | "live" | "archived"
+        lineSupplierId?: string
+        region?: string
+        search?: string
+        limit?: number
+        offset?: number | null
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Paginated list of voyage groups */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              slug: string
+              name: string
+              /** @enum {string} */
+              groupKind: "combination" | "grand_voyage" | "world_cruise" | "cruise_tour"
+              lineSupplierId: string | null
+              nights: number
+              embarkPortFacilityId: string | null
+              embarkPortCanonicalPlaceId: string | null
+              disembarkPortFacilityId: string | null
+              disembarkPortCanonicalPlaceId: string | null
+              description: string | null
+              shortDescription: string | null
+              highlights: string[] | null
+              regions: string[] | null
+              themes: string[] | null
+              heroImageUrl: string | null
+              mapImageUrl: string | null
+              /** @enum {string} */
+              status: "draft" | "awaiting_review" | "live" | "archived"
+              lowestPriceCached: string | null
+              lowestPriceCurrencyCached: string | null
+              earliestDepartureCached: string | null
+              latestDepartureCached: string | null
+              externalRefs: {
+                [key: string]: string
+              } | null
+              createdAt: string
+              updatedAt: string
+            }[]
+            total: number
+            limit: number
+            offset: number
+          }
+        }
+      }
+    }
+  }
+  postAdminCruisesVoyageGroups: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          slug: string
+          name: string
+          /** @enum {string} */
+          groupKind: "combination" | "grand_voyage" | "world_cruise" | "cruise_tour"
+          lineSupplierId?: string | null
+          nights: number
+          embarkPortFacilityId?: string | null
+          embarkPortCanonicalPlaceId?: string | null
+          disembarkPortFacilityId?: string | null
+          disembarkPortCanonicalPlaceId?: string | null
+          description?: string | null
+          shortDescription?: string | null
+          /** @default [] */
+          highlights?: string[]
+          /** @default [] */
+          regions?: string[]
+          /** @default [] */
+          themes?: string[]
+          /** Format: uri */
+          heroImageUrl?: string | null
+          /** Format: uri */
+          mapImageUrl?: string | null
+          /**
+           * @default draft
+           * @enum {string}
+           */
+          status?: "draft" | "awaiting_review" | "live" | "archived"
+          lowestPriceCached?: string | null
+          lowestPriceCurrencyCached?: string | null
+          earliestDepartureCached?: string | null
+          latestDepartureCached?: string | null
+          /** @default {} */
+          externalRefs?: {
+            [key: string]: string
+          }
+        }
+      }
+    }
+    responses: {
+      /** @description The created voyage group */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              slug: string
+              name: string
+              /** @enum {string} */
+              groupKind: "combination" | "grand_voyage" | "world_cruise" | "cruise_tour"
+              lineSupplierId: string | null
+              nights: number
+              embarkPortFacilityId: string | null
+              embarkPortCanonicalPlaceId: string | null
+              disembarkPortFacilityId: string | null
+              disembarkPortCanonicalPlaceId: string | null
+              description: string | null
+              shortDescription: string | null
+              highlights: string[] | null
+              regions: string[] | null
+              themes: string[] | null
+              heroImageUrl: string | null
+              mapImageUrl: string | null
+              /** @enum {string} */
+              status: "draft" | "awaiting_review" | "live" | "archived"
+              lowestPriceCached: string | null
+              lowestPriceCurrencyCached: string | null
+              earliestDepartureCached: string | null
+              latestDepartureCached: string | null
+              externalRefs: {
+                [key: string]: string
+              } | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request: request body failed validation */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  getAdminCruisesVoyageGroupsById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description A voyage group (optionally with segments) */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              slug: string
+              name: string
+              /** @enum {string} */
+              groupKind: "combination" | "grand_voyage" | "world_cruise" | "cruise_tour"
+              lineSupplierId: string | null
+              nights: number
+              embarkPortFacilityId: string | null
+              embarkPortCanonicalPlaceId: string | null
+              disembarkPortFacilityId: string | null
+              disembarkPortCanonicalPlaceId: string | null
+              description: string | null
+              shortDescription: string | null
+              highlights: string[] | null
+              regions: string[] | null
+              themes: string[] | null
+              heroImageUrl: string | null
+              mapImageUrl: string | null
+              /** @enum {string} */
+              status: "draft" | "awaiting_review" | "live" | "archived"
+              lowestPriceCached: string | null
+              lowestPriceCurrencyCached: string | null
+              earliestDepartureCached: string | null
+              latestDepartureCached: string | null
+              externalRefs: {
+                [key: string]: string
+              } | null
+              createdAt: string
+              updatedAt: string
+              segments?: {
+                id: string
+                voyageGroupId: string
+                sortOrder: number
+                /** @enum {string} */
+                segmentKind: "cruise" | "land" | "hotel" | "transfer" | "rail" | "air" | "other"
+                /** @enum {string} */
+                segmentRole: "core" | "pre_extension" | "post_extension"
+                title: string
+                description: string | null
+                cruiseId: string | null
+                sailingId: string | null
+                startDay: number | null
+                endDay: number | null
+                startDate: string | null
+                endDate: string | null
+                embarkPortFacilityId: string | null
+                embarkPortCanonicalPlaceId: string | null
+                disembarkPortFacilityId: string | null
+                disembarkPortCanonicalPlaceId: string | null
+                nights: number | null
+                externalRefs: {
+                  [key: string]: string
+                } | null
+                metadata: {
+                  [key: string]: unknown
+                } | null
+                createdAt: string
+                updatedAt: string
+              }[]
+            }
+          }
+        }
+      }
+      /** @description Voyage group not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  putAdminCruisesVoyageGroupsById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          slug?: string
+          name?: string
+          /** @enum {string} */
+          groupKind?: "combination" | "grand_voyage" | "world_cruise" | "cruise_tour"
+          lineSupplierId?: string | null
+          nights?: number
+          embarkPortFacilityId?: string | null
+          embarkPortCanonicalPlaceId?: string | null
+          disembarkPortFacilityId?: string | null
+          disembarkPortCanonicalPlaceId?: string | null
+          description?: string | null
+          shortDescription?: string | null
+          /** @default [] */
+          highlights?: string[]
+          /** @default [] */
+          regions?: string[]
+          /** @default [] */
+          themes?: string[]
+          /** Format: uri */
+          heroImageUrl?: string | null
+          /** Format: uri */
+          mapImageUrl?: string | null
+          /**
+           * @default draft
+           * @enum {string}
+           */
+          status?: "draft" | "awaiting_review" | "live" | "archived"
+          lowestPriceCached?: string | null
+          lowestPriceCurrencyCached?: string | null
+          earliestDepartureCached?: string | null
+          latestDepartureCached?: string | null
+          /** @default {} */
+          externalRefs?: {
+            [key: string]: string
+          }
+        }
+      }
+    }
+    responses: {
+      /** @description The updated voyage group */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              slug: string
+              name: string
+              /** @enum {string} */
+              groupKind: "combination" | "grand_voyage" | "world_cruise" | "cruise_tour"
+              lineSupplierId: string | null
+              nights: number
+              embarkPortFacilityId: string | null
+              embarkPortCanonicalPlaceId: string | null
+              disembarkPortFacilityId: string | null
+              disembarkPortCanonicalPlaceId: string | null
+              description: string | null
+              shortDescription: string | null
+              highlights: string[] | null
+              regions: string[] | null
+              themes: string[] | null
+              heroImageUrl: string | null
+              mapImageUrl: string | null
+              /** @enum {string} */
+              status: "draft" | "awaiting_review" | "live" | "archived"
+              lowestPriceCached: string | null
+              lowestPriceCurrencyCached: string | null
+              earliestDepartureCached: string | null
+              latestDepartureCached: string | null
+              externalRefs: {
+                [key: string]: string
+              } | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request: request body failed validation */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Voyage group not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  deleteAdminCruisesVoyageGroupsById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description The archived voyage group */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              slug: string
+              name: string
+              /** @enum {string} */
+              groupKind: "combination" | "grand_voyage" | "world_cruise" | "cruise_tour"
+              lineSupplierId: string | null
+              nights: number
+              embarkPortFacilityId: string | null
+              embarkPortCanonicalPlaceId: string | null
+              disembarkPortFacilityId: string | null
+              disembarkPortCanonicalPlaceId: string | null
+              description: string | null
+              shortDescription: string | null
+              highlights: string[] | null
+              regions: string[] | null
+              themes: string[] | null
+              heroImageUrl: string | null
+              mapImageUrl: string | null
+              /** @enum {string} */
+              status: "draft" | "awaiting_review" | "live" | "archived"
+              lowestPriceCached: string | null
+              lowestPriceCurrencyCached: string | null
+              earliestDepartureCached: string | null
+              latestDepartureCached: string | null
+              externalRefs: {
+                [key: string]: string
+              } | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description Voyage group not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  getAdminCruisesVoyageGroupsByIdSegments: {
+    parameters: {
+      query?: {
+        voyageGroupId?: string
+        cruiseId?: string
+        sailingId?: string
+        segmentKind?: "cruise" | "land" | "hotel" | "transfer" | "rail" | "air" | "other"
+        segmentRole?: "core" | "pre_extension" | "post_extension"
+        limit?: number
+        offset?: number | null
+      }
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Paginated list of segments for the voyage group */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              voyageGroupId: string
+              sortOrder: number
+              /** @enum {string} */
+              segmentKind: "cruise" | "land" | "hotel" | "transfer" | "rail" | "air" | "other"
+              /** @enum {string} */
+              segmentRole: "core" | "pre_extension" | "post_extension"
+              title: string
+              description: string | null
+              cruiseId: string | null
+              sailingId: string | null
+              startDay: number | null
+              endDay: number | null
+              startDate: string | null
+              endDate: string | null
+              embarkPortFacilityId: string | null
+              embarkPortCanonicalPlaceId: string | null
+              disembarkPortFacilityId: string | null
+              disembarkPortCanonicalPlaceId: string | null
+              nights: number | null
+              externalRefs: {
+                [key: string]: string
+              } | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }[]
+            total: number
+            limit: number
+            offset: number
+          }
+        }
+      }
+    }
+  }
+  postAdminCruisesVoyageGroupsByIdSegments: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          voyageGroupId?: string
+          sortOrder: number
+          /** @enum {string} */
+          segmentKind: "cruise" | "land" | "hotel" | "transfer" | "rail" | "air" | "other"
+          /**
+           * @default core
+           * @enum {string}
+           */
+          segmentRole?: "core" | "pre_extension" | "post_extension"
+          title: string
+          description?: string | null
+          cruiseId?: string | null
+          sailingId?: string | null
+          startDay?: number | null
+          endDay?: number | null
+          startDate?: string | null
+          endDate?: string | null
+          embarkPortFacilityId?: string | null
+          embarkPortCanonicalPlaceId?: string | null
+          disembarkPortFacilityId?: string | null
+          disembarkPortCanonicalPlaceId?: string | null
+          nights?: number | null
+          /** @default {} */
+          externalRefs?: {
+            [key: string]: string
+          }
+          /** @default {} */
+          metadata?: {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+    responses: {
+      /** @description The created segment */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              voyageGroupId: string
+              sortOrder: number
+              /** @enum {string} */
+              segmentKind: "cruise" | "land" | "hotel" | "transfer" | "rail" | "air" | "other"
+              /** @enum {string} */
+              segmentRole: "core" | "pre_extension" | "post_extension"
+              title: string
+              description: string | null
+              cruiseId: string | null
+              sailingId: string | null
+              startDay: number | null
+              endDay: number | null
+              startDate: string | null
+              endDate: string | null
+              embarkPortFacilityId: string | null
+              embarkPortCanonicalPlaceId: string | null
+              disembarkPortFacilityId: string | null
+              disembarkPortCanonicalPlaceId: string | null
+              nights: number | null
+              externalRefs: {
+                [key: string]: string
+              } | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request: request body failed validation */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  putAdminCruisesVoyageGroupSegmentsBySegmentId: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        segmentId: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          voyageGroupId?: string
+          sortOrder?: number
+          /** @enum {string} */
+          segmentKind?: "cruise" | "land" | "hotel" | "transfer" | "rail" | "air" | "other"
+          /**
+           * @default core
+           * @enum {string}
+           */
+          segmentRole?: "core" | "pre_extension" | "post_extension"
+          title?: string
+          description?: string | null
+          cruiseId?: string | null
+          sailingId?: string | null
+          startDay?: number | null
+          endDay?: number | null
+          startDate?: string | null
+          endDate?: string | null
+          embarkPortFacilityId?: string | null
+          embarkPortCanonicalPlaceId?: string | null
+          disembarkPortFacilityId?: string | null
+          disembarkPortCanonicalPlaceId?: string | null
+          nights?: number | null
+          /** @default {} */
+          externalRefs?: {
+            [key: string]: string
+          }
+          /** @default {} */
+          metadata?: {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+    responses: {
+      /** @description The updated segment */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              voyageGroupId: string
+              sortOrder: number
+              /** @enum {string} */
+              segmentKind: "cruise" | "land" | "hotel" | "transfer" | "rail" | "air" | "other"
+              /** @enum {string} */
+              segmentRole: "core" | "pre_extension" | "post_extension"
+              title: string
+              description: string | null
+              cruiseId: string | null
+              sailingId: string | null
+              startDay: number | null
+              endDay: number | null
+              startDate: string | null
+              endDate: string | null
+              embarkPortFacilityId: string | null
+              embarkPortCanonicalPlaceId: string | null
+              disembarkPortFacilityId: string | null
+              disembarkPortCanonicalPlaceId: string | null
+              nights: number | null
+              externalRefs: {
+                [key: string]: string
+              } | null
+              metadata: {
+                [key: string]: unknown
+              } | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request: request body failed validation */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Segment not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  deleteAdminCruisesVoyageGroupSegmentsBySegmentId: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        segmentId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Deleted */
+      204: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description Segment not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  putAdminCruisesEnrichmentByProgramId: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        programId: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          cruiseId?: string
+          /** @enum {string} */
+          kind?: "naturalist" | "historian" | "photographer" | "lecturer" | "expert" | "other"
+          name?: string
+          title?: string | null
+          description?: string | null
+          /** Format: uri */
+          bioImageUrl?: string | null
+          /** @default 0 */
+          sortOrder?: number
+        }
+      }
+    }
+    responses: {
+      /** @description The updated enrichment program */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              cruiseId: string
+              /** @enum {string} */
+              kind: "naturalist" | "historian" | "photographer" | "lecturer" | "expert" | "other"
+              name: string
+              title: string | null
+              description: string | null
+              bioImageUrl: string | null
+              sortOrder: number
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request: request body failed validation */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Enrichment program not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  deleteAdminCruisesEnrichmentByProgramId: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        programId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Deleted */
+      204: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description Enrichment program not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  getAdminCruisesSailings: {
+    parameters: {
+      query?: {
+        cruiseId?: string
+        shipId?: string
+        dateFrom?: string
+        dateTo?: string
+        salesStatus?: "open" | "on_request" | "wait_list" | "sold_out" | "closed"
+        direction?: "upstream" | "downstream" | "round_trip" | "one_way"
+        limit?: number
+        offset?: number | null
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Paginated list of cruise sailings */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              cruiseId: string
+              shipId: string
+              departureDate: string
+              returnDate: string
+              embarkPortFacilityId: string | null
+              embarkPortCanonicalPlaceId: string | null
+              disembarkPortFacilityId: string | null
+              disembarkPortCanonicalPlaceId: string | null
+              /** @enum {string|null} */
+              direction: "upstream" | "downstream" | "round_trip" | "one_way" | null
+              availabilityNote: string | null
+              isCharter: boolean
+              /** @enum {string} */
+              salesStatus: "open" | "on_request" | "wait_list" | "sold_out" | "closed"
+              externalRefs: {
+                [key: string]: string
+              } | null
+              customerPaymentPolicy?: unknown
+              lastSyncedAt: string | null
+              createdAt: string
+              updatedAt: string
+            }[]
+            total: number
+            limit: number
+            offset: number
+          }
+        }
+      }
+    }
+  }
+  postAdminCruisesSailings: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          cruiseId: string
+          shipId: string
+          departureDate: string
+          returnDate: string
+          embarkPortFacilityId?: string | null
+          embarkPortCanonicalPlaceId?: string | null
+          disembarkPortFacilityId?: string | null
+          disembarkPortCanonicalPlaceId?: string | null
+          /** @enum {string|null} */
+          direction?: "upstream" | "downstream" | "round_trip" | "one_way" | null
+          availabilityNote?: string | null
+          /** @default false */
+          isCharter?: boolean
+          /**
+           * @default open
+           * @enum {string}
+           */
+          salesStatus?: "open" | "on_request" | "wait_list" | "sold_out" | "closed"
+          /** @default {} */
+          externalRefs?: {
+            [key: string]: string
+          }
+        }
+      }
+    }
+    responses: {
+      /** @description The created (or upserted) sailing */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              cruiseId: string
+              shipId: string
+              departureDate: string
+              returnDate: string
+              embarkPortFacilityId: string | null
+              embarkPortCanonicalPlaceId: string | null
+              disembarkPortFacilityId: string | null
+              disembarkPortCanonicalPlaceId: string | null
+              /** @enum {string|null} */
+              direction: "upstream" | "downstream" | "round_trip" | "one_way" | null
+              availabilityNote: string | null
+              isCharter: boolean
+              /** @enum {string} */
+              salesStatus: "open" | "on_request" | "wait_list" | "sold_out" | "closed"
+              externalRefs: {
+                [key: string]: string
+              } | null
+              customerPaymentPolicy?: unknown
+              lastSyncedAt: string | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request: request body failed validation */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  getAdminCruisesSailingsByKey: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        key: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description A sailing by unified key (local aggregate or external adapter shape) */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data?: unknown
+          }
+        }
+      }
+      /** @description Key is not a valid local id or external key */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Sailing not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Referenced adapter is not registered */
+      501: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  putAdminCruisesSailingsByKey: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        key: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          cruiseId?: string
+          shipId?: string
+          departureDate?: string
+          returnDate?: string
+          embarkPortFacilityId?: string | null
+          embarkPortCanonicalPlaceId?: string | null
+          disembarkPortFacilityId?: string | null
+          disembarkPortCanonicalPlaceId?: string | null
+          /** @enum {string|null} */
+          direction?: "upstream" | "downstream" | "round_trip" | "one_way" | null
+          availabilityNote?: string | null
+          /** @default false */
+          isCharter?: boolean
+          /**
+           * @default open
+           * @enum {string}
+           */
+          salesStatus?: "open" | "on_request" | "wait_list" | "sold_out" | "closed"
+          /** @default {} */
+          externalRefs?: {
+            [key: string]: string
+          }
+        }
+      }
+    }
+    responses: {
+      /** @description The updated sailing */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              cruiseId: string
+              shipId: string
+              departureDate: string
+              returnDate: string
+              embarkPortFacilityId: string | null
+              embarkPortCanonicalPlaceId: string | null
+              disembarkPortFacilityId: string | null
+              disembarkPortCanonicalPlaceId: string | null
+              /** @enum {string|null} */
+              direction: "upstream" | "downstream" | "round_trip" | "one_way" | null
+              availabilityNote: string | null
+              isCharter: boolean
+              /** @enum {string} */
+              salesStatus: "open" | "on_request" | "wait_list" | "sold_out" | "closed"
+              externalRefs: {
+                [key: string]: string
+              } | null
+              customerPaymentPolicy?: unknown
+              lastSyncedAt: string | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description Key is not a valid local id */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Sailing not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description External sailing is read-only */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  getAdminCruisesSailingsByKeyItinerary: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        key: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Effective itinerary days for the sailing (local merged days or adapter days) */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: unknown[]
+          }
+        }
+      }
+      /** @description Key is not a valid local id or external key */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Referenced adapter is not registered */
+      501: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  putAdminCruisesSailingsByKeyDaysBulk: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        key: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          days: {
+            dayNumber: number
+            title?: string | null
+            description?: string | null
+            portFacilityId?: string | null
+            portCanonicalPlaceId?: string | null
+            arrivalTime?: string | null
+            departureTime?: string | null
+            isOvernight?: boolean | null
+            isSeaDay?: boolean | null
+            isExpeditionLanding?: boolean | null
+            /** @default false */
+            isSkipped?: boolean
+            meals?: {
+              breakfast?: boolean
+              lunch?: boolean
+              dinner?: boolean
+            } | null
+          }[]
+        }
+      }
+    }
+    responses: {
+      /** @description The replaced sailing-day overrides */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              sailingId: string
+              dayNumber: number
+              title: string | null
+              description: string | null
+              portFacilityId: string | null
+              portCanonicalPlaceId: string | null
+              arrivalTime: string | null
+              departureTime: string | null
+              isOvernight: boolean | null
+              isSeaDay: boolean | null
+              isExpeditionLanding: boolean | null
+              isSkipped: boolean
+              meals: {
+                breakfast?: boolean
+                lunch?: boolean
+                dinner?: boolean
+              } | null
+              createdAt: string
+              updatedAt: string
+            }[]
+          }
+        }
+      }
+      /** @description Key is not a valid local id */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description External sailing is read-only */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  getAdminCruisesSailingsByKeyPricing: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        key: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Pricing for the sailing (local price rows or external adapter prices) */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: unknown[]
+            total?: number
+            limit?: number
+            offset?: number
+          }
+        }
+      }
+      /** @description Key is not a valid local id or external key */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Referenced adapter is not registered */
+      501: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  putAdminCruisesSailingsByKeyPricingBulk: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        key: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          prices: {
             sailingId: string
             cabinCategoryId: string
             occupancy: number
@@ -2099,1496 +2306,1483 @@ export interface paths {
             externalRefs?: {
               [key: string]: string
             }
-          }
-        }
-      }
-      responses: {
-        /** @description The created price */
-        201: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                sailingId: string
-                cabinCategoryId: string
-                occupancy: number
-                fareCode: string | null
-                fareCodeName: string | null
-                /** @enum {string} */
-                fareVariant: "cruise_only" | "air_inclusive"
-                currency: string
-                pricePerPerson: string
-                originalPricePerPerson: string | null
-                secondGuestPricePerPerson: string | null
-                singlePricePerPerson: string | null
-                singleSupplementPercent: string | null
-                /** @enum {string} */
-                availability: "available" | "limited" | "on_request" | "wait_list" | "sold_out"
-                availabilityCount: number | null
-                priceCatalogId: string | null
-                priceScheduleId: string | null
-                bookingDeadline: string | null
-                earlyBookingDeadline: string | null
-                earlyBookingBonusDescription: string | null
-                requiresRequest: boolean
-                notes: string | null
-                externalRefs: {
-                  [key: string]: string
-                } | null
-                lastSyncedAt: string | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request: request body failed validation */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-      }
-    }
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  "/v1/admin/cruises/prices/{priceId}": {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          priceId: string
-        }
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            sailingId?: string
-            cabinCategoryId?: string
-            occupancy?: number
-            fareCode?: string | null
-            fareCodeName?: string | null
-            /**
-             * @default cruise_only
-             * @enum {string}
-             */
-            fareVariant?: "cruise_only" | "air_inclusive"
-            currency?: string
-            pricePerPerson?: string
-            originalPricePerPerson?: string | null
-            secondGuestPricePerPerson?: string | null
-            singlePricePerPerson?: string | null
-            singleSupplementPercent?: string | null
-            /**
-             * @default available
-             * @enum {string}
-             */
-            availability?: "available" | "limited" | "on_request" | "wait_list" | "sold_out"
-            availabilityCount?: number | null
-            priceCatalogId?: string | null
-            priceScheduleId?: string | null
-            bookingDeadline?: string | null
-            earlyBookingDeadline?: string | null
-            earlyBookingBonusDescription?: string | null
-            /** @default false */
-            requiresRequest?: boolean
-            notes?: string | null
-            /** @default {} */
-            externalRefs?: {
-              [key: string]: string
-            }
-          }
-        }
-      }
-      responses: {
-        /** @description The updated price */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                sailingId: string
-                cabinCategoryId: string
-                occupancy: number
-                fareCode: string | null
-                fareCodeName: string | null
-                /** @enum {string} */
-                fareVariant: "cruise_only" | "air_inclusive"
-                currency: string
-                pricePerPerson: string
-                originalPricePerPerson: string | null
-                secondGuestPricePerPerson: string | null
-                singlePricePerPerson: string | null
-                singleSupplementPercent: string | null
-                /** @enum {string} */
-                availability: "available" | "limited" | "on_request" | "wait_list" | "sold_out"
-                availabilityCount: number | null
-                priceCatalogId: string | null
-                priceScheduleId: string | null
-                bookingDeadline: string | null
-                earlyBookingDeadline: string | null
-                earlyBookingBonusDescription: string | null
-                requiresRequest: boolean
-                notes: string | null
-                externalRefs: {
-                  [key: string]: string
-                } | null
-                lastSyncedAt: string | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request: request body failed validation */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-        /** @description Price not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-      }
-    }
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  "/v1/admin/cruises/ships": {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get: {
-      parameters: {
-        query?: {
-          lineSupplierId?: string
-          shipType?: "ocean" | "river" | "expedition" | "yacht" | "sailing" | "coastal"
-          isActive?: boolean | null
-          search?: string
-          limit?: number
-          offset?: number | null
-        }
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Paginated list of cruise ships */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                lineSupplierId: string | null
-                name: string
-                slug: string
-                /** @enum {string} */
-                shipType: "ocean" | "river" | "expedition" | "yacht" | "sailing" | "coastal"
-                capacityGuests: number | null
-                capacityCrew: number | null
-                cabinCount: number | null
-                deckCount: number | null
-                lengthMeters: string | null
-                cruisingSpeedKnots: string | null
-                yearBuilt: number | null
-                yearRefurbished: number | null
-                imo: string | null
-                description: string | null
-                deckPlanUrl: string | null
-                gallery: string[] | null
-                amenities: {
-                  [key: string]: unknown
-                } | null
-                externalRefs: {
-                  [key: string]: string
-                } | null
-                isActive: boolean
-                createdAt: string
-                updatedAt: string
-              }[]
-              total: number
-              limit: number
-              offset: number
-            }
-          }
-        }
-      }
-    }
-    put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            lineSupplierId?: string | null
-            name: string
-            slug: string
-            /** @enum {string} */
-            shipType: "ocean" | "river" | "expedition" | "yacht" | "sailing" | "coastal"
-            capacityGuests?: number | null
-            capacityCrew?: number | null
-            cabinCount?: number | null
-            deckCount?: number | null
-            lengthMeters?: string | null
-            cruisingSpeedKnots?: string | null
-            yearBuilt?: number | null
-            yearRefurbished?: number | null
-            imo?: string | null
-            description?: string | null
-            /** Format: uri */
-            deckPlanUrl?: string | null
-            /** @default [] */
-            gallery?: string[]
-            /** @default {} */
-            amenities?: {
-              [key: string]: unknown
-            }
-            /** @default {} */
-            externalRefs?: {
-              [key: string]: string
-            }
-            /** @default true */
-            isActive?: boolean
-          }
-        }
-      }
-      responses: {
-        /** @description The created ship */
-        201: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                lineSupplierId: string | null
-                name: string
-                slug: string
-                /** @enum {string} */
-                shipType: "ocean" | "river" | "expedition" | "yacht" | "sailing" | "coastal"
-                capacityGuests: number | null
-                capacityCrew: number | null
-                cabinCount: number | null
-                deckCount: number | null
-                lengthMeters: string | null
-                cruisingSpeedKnots: string | null
-                yearBuilt: number | null
-                yearRefurbished: number | null
-                imo: string | null
-                description: string | null
-                deckPlanUrl: string | null
-                gallery: string[] | null
-                amenities: {
-                  [key: string]: unknown
-                } | null
-                externalRefs: {
-                  [key: string]: string
-                } | null
-                isActive: boolean
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description invalid_request: request body failed validation */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-      }
-    }
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  "/v1/admin/cruises/ships/{key}": {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          key: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description A ship by unified key (local row or external adapter shape) */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data:
-                | {
-                    id: string
-                    lineSupplierId: string | null
-                    name: string
-                    slug: string
-                    /** @enum {string} */
-                    shipType: "ocean" | "river" | "expedition" | "yacht" | "sailing" | "coastal"
-                    capacityGuests: number | null
-                    capacityCrew: number | null
-                    cabinCount: number | null
-                    deckCount: number | null
-                    lengthMeters: string | null
-                    cruisingSpeedKnots: string | null
-                    yearBuilt: number | null
-                    yearRefurbished: number | null
-                    imo: string | null
-                    description: string | null
-                    deckPlanUrl: string | null
-                    gallery: string[] | null
-                    amenities: {
-                      [key: string]: unknown
-                    } | null
-                    externalRefs: {
-                      [key: string]: string
-                    } | null
-                    isActive: boolean
-                    createdAt: string
-                    updatedAt: string
-                  }
-                | {
-                    /** @enum {string} */
-                    source: "external"
-                    sourceProvider: string
-                    sourceRef?: unknown
-                    ship?: unknown
-                  }
-            }
-          }
-        }
-        /** @description Key is not a valid local id or external key */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-        /** @description Ship not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-        /** @description Referenced adapter is not registered */
-        501: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-      }
-    }
-    put: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          key: string
-        }
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            lineSupplierId?: string | null
-            name?: string
-            slug?: string
-            /** @enum {string} */
-            shipType?: "ocean" | "river" | "expedition" | "yacht" | "sailing" | "coastal"
-            capacityGuests?: number | null
-            capacityCrew?: number | null
-            cabinCount?: number | null
-            deckCount?: number | null
-            lengthMeters?: string | null
-            cruisingSpeedKnots?: string | null
-            yearBuilt?: number | null
-            yearRefurbished?: number | null
-            imo?: string | null
-            description?: string | null
-            /** Format: uri */
-            deckPlanUrl?: string | null
-            /** @default [] */
-            gallery?: string[]
-            /** @default {} */
-            amenities?: {
-              [key: string]: unknown
-            }
-            /** @default {} */
-            externalRefs?: {
-              [key: string]: string
-            }
-            /** @default true */
-            isActive?: boolean
-          }
-        }
-      }
-      responses: {
-        /** @description The updated ship */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                lineSupplierId: string | null
-                name: string
-                slug: string
-                /** @enum {string} */
-                shipType: "ocean" | "river" | "expedition" | "yacht" | "sailing" | "coastal"
-                capacityGuests: number | null
-                capacityCrew: number | null
-                cabinCount: number | null
-                deckCount: number | null
-                lengthMeters: string | null
-                cruisingSpeedKnots: string | null
-                yearBuilt: number | null
-                yearRefurbished: number | null
-                imo: string | null
-                description: string | null
-                deckPlanUrl: string | null
-                gallery: string[] | null
-                amenities: {
-                  [key: string]: unknown
-                } | null
-                externalRefs: {
-                  [key: string]: string
-                } | null
-                isActive: boolean
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description Key is not a valid local id */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-        /** @description Ship not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-        /** @description External cruise/ship is read-only */
-        409: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-      }
-    }
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  "/v1/admin/cruises/ships/{key}/effective": {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get: {
-      parameters: {
-        query?: {
-          locale?: string
-          audience?: "customer" | "partner"
-          market?: string
-        }
-        header?: never
-        path: {
-          key: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Public effective ship presentation content */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data?: unknown
-            }
-          }
-        }
-        /** @description Key is not a valid local id */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-        /** @description Ship not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-        /** @description Referenced adapter is not registered */
-        501: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-      }
-    }
-    put?: never
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  "/v1/admin/cruises/ships/{key}/editorial-overlays": {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get: {
-      parameters: {
-        query?: {
-          locale?: string
-          audience?: "staff" | "customer" | "partner" | "supplier" | "default"
-          market?: string
-        }
-        header?: never
-        path: {
-          key: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Ship source, overlays, and effective content */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data?: unknown
-            }
-          }
-        }
-        /** @description Key is not a valid local id */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-        /** @description Ship not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-        /** @description Referenced adapter is not registered */
-        501: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-      }
-    }
-    put: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          key: string
-        }
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            fieldPath: string
-            /** @default en-GB */
-            locale?: string
-            /**
-             * @default customer
-             * @enum {string}
-             */
-            audience?: "staff" | "customer" | "partner" | "supplier" | "default"
-            /** @default default */
-            market?: string
-            value?: unknown
-            expectedVersion?: number | null
-            editorialNote?: string
-          }
-        }
-      }
-      responses: {
-        /** @description Ship editorial overlay written */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data?: unknown
-            }
-          }
-        }
-        /** @description Invalid overlay field or value */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-        /** @description Ship not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-        /** @description Overlay version conflict */
-        409: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-        /** @description Referenced adapter is not registered */
-        501: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-      }
-    }
-    post?: never
-    delete: {
-      parameters: {
-        query: {
-          locale?: string
-          audience?: "staff" | "customer" | "partner" | "supplier" | "default"
-          market?: string
-          fieldPath: string
-          expectedVersion?: number | null
-        }
-        header?: never
-        path: {
-          key: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Ship editorial overlay cleared */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data?: unknown
-            }
-          }
-        }
-        /** @description Key is not valid */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-        /** @description Ship not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-        /** @description Overlay version conflict */
-        409: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-        /** @description Referenced adapter is not registered */
-        501: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-      }
-    }
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  "/v1/admin/cruises/ships/{key}/editorial-overlays/history": {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get: {
-      parameters: {
-        query?: {
-          locale?: string
-          audience?: "staff" | "customer" | "partner" | "supplier" | "default"
-          market?: string
-          fieldPath?: string
-          expectedVersion?: number | null
-        }
-        header?: never
-        path: {
-          key: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Ship editorial overlay history */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: unknown[]
-            }
-          }
-        }
-        /** @description Key is not valid */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-        /** @description Ship not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-        /** @description Referenced adapter is not registered */
-        501: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-      }
-    }
-    put?: never
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  "/v1/admin/cruises/ships/{key}/decks": {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          key: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Decks for the ship (local rows or external adapter decks) */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: unknown[]
-            }
-          }
-        }
-        /** @description Key is not a valid local id or external key */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-        /** @description Referenced adapter is not registered */
-        501: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-      }
-    }
-    put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          key: string
-        }
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            name: string
-            level?: number | null
-            /** Format: uri */
-            planImageUrl?: string | null
-          }
-        }
-      }
-      responses: {
-        /** @description The created (or upserted) deck */
-        201: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                shipId: string
-                name: string
-                level: number | null
-                planImageUrl: string | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description Key is not a valid local id */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-        /** @description External cruise/ship is read-only */
-        409: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-      }
-    }
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  "/v1/admin/cruises/decks/{deckId}": {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          deckId: string
-        }
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            shipId?: string
-            name?: string
-            level?: number | null
-            /** Format: uri */
-            planImageUrl?: string | null
-          }
-        }
-      }
-      responses: {
-        /** @description The updated deck */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                shipId: string
-                name: string
-                level: number | null
-                planImageUrl: string | null
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description Deck not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-      }
-    }
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  "/v1/admin/cruises/ships/{key}/categories": {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          key: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Cabin categories for the ship (local rows or external adapter shapes) */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: unknown[]
-            }
-          }
-        }
-        /** @description Key is not a valid local id or external key */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-        /** @description Referenced adapter is not registered */
-        501: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-      }
-    }
-    put?: never
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  "/v1/admin/cruises/ships/{key}/categories/bulk": {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          key: string
-        }
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            categories: {
-              shipId: string
-              code: string
-              name: string
+            components?: {
               /** @enum {string} */
-              roomType: "inside" | "oceanview" | "balcony" | "suite" | "penthouse" | "single"
-              description?: string | null
-              /** @default 1 */
-              minOccupancy?: number
-              maxOccupancy: number
-              squareFeet?: string | null
-              /** @default false */
-              wheelchairAccessible?: boolean
-              /** @default [] */
-              amenities?: string[]
-              /** @default [] */
-              featureCodes?: string[]
-              /** @default [] */
-              bedConfigurations?: (
-                | "single"
-                | "twin"
-                | "double"
-                | "queen"
-                | "king"
-                | "convertible_twins"
-                | "sofa_bed"
-                | "pullman"
-                | "bunk"
-                | "murphy"
-              )[]
-              /** @default [] */
-              accessibilityFeatures?: (
-                | "wheelchair_accessible"
-                | "step_free_access"
-                | "roll_in_shower"
-                | "grab_bars"
-                | "visual_alarm"
-                | "hearing_loop"
-                | "accessible_balcony"
-                | "accessible_bathroom"
-              )[]
-              /** @enum {string|null} */
-              viewType?:
-                | "none"
-                | "interior"
-                | "virtual"
-                | "porthole"
-                | "window"
-                | "oceanview"
-                | "river_view"
-                | "balcony"
-                | "french_balcony"
-                | "promenade"
-                | "obstructed"
-                | null
-              /** @default [] */
-              images?: string[]
-              /** @default [] */
-              floorplanImages?: string[]
-              /** @default [] */
-              gradeCodes?: string[]
-              /** @default {} */
-              externalRefs?: {
+              kind:
+                | "gratuity"
+                | "onboard_credit"
+                | "port_charge"
+                | "tax"
+                | "ncf"
+                | "airfare"
+                | "transfer"
+                | "insurance"
+              label?: string | null
+              amount: string
+              currency: string
+              /** @enum {string} */
+              direction: "addition" | "inclusion" | "credit"
+              /** @default true */
+              perPerson?: boolean
+            }[]
+          }[]
+        }
+      }
+    }
+    responses: {
+      /** @description The replaced sailing prices */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              sailingId: string
+              cabinCategoryId: string
+              occupancy: number
+              fareCode: string | null
+              fareCodeName: string | null
+              /** @enum {string} */
+              fareVariant: "cruise_only" | "air_inclusive"
+              currency: string
+              pricePerPerson: string
+              originalPricePerPerson: string | null
+              secondGuestPricePerPerson: string | null
+              singlePricePerPerson: string | null
+              singleSupplementPercent: string | null
+              /** @enum {string} */
+              availability: "available" | "limited" | "on_request" | "wait_list" | "sold_out"
+              availabilityCount: number | null
+              priceCatalogId: string | null
+              priceScheduleId: string | null
+              bookingDeadline: string | null
+              earlyBookingDeadline: string | null
+              earlyBookingBonusDescription: string | null
+              requiresRequest: boolean
+              notes: string | null
+              externalRefs: {
                 [key: string]: string
-              }
+              } | null
+              lastSyncedAt: string | null
+              createdAt: string
+              updatedAt: string
             }[]
           }
         }
       }
-      responses: {
-        /** @description The upserted cabin categories */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                shipId: string
-                code: string
-                name: string
-                /** @enum {string} */
-                roomType: "inside" | "oceanview" | "balcony" | "suite" | "penthouse" | "single"
-                description: string | null
-                minOccupancy: number
-                maxOccupancy: number
-                squareFeet: string | null
-                wheelchairAccessible: boolean
-                amenities: string[] | null
-                featureCodes: string[] | null
-                bedConfigurations: string[] | null
-                accessibilityFeatures: string[] | null
-                viewType: string | null
-                images: string[] | null
-                floorplanImages: string[] | null
-                gradeCodes: string[] | null
-                externalRefs: {
-                  [key: string]: string
-                } | null
-                customerPaymentPolicy?: unknown
-                createdAt: string
-                updatedAt: string
-              }[]
-            }
+      /** @description Key is not a valid local id */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
           }
         }
-        /** @description Key is not a valid local id */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
+      }
+      /** @description External sailing is read-only */
+      409: {
+        headers: {
+          [name: string]: unknown
         }
-        /** @description External cruise/ship is read-only */
-        409: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
           }
         }
       }
     }
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
   }
-  "/v1/admin/cruises/categories/{categoryId}": {
+  postAdminCruisesSailingsByKeyQuote: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        key: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          cabinCategoryId: string
+          cabinCategoryRef?: {
+            [key: string]: unknown
+          } | null
+          occupancy: number
+          guestCount?: number
+          passengerComposition?:
+            | ({
+                adults: number
+                children?: number
+                childAges?: number[]
+                infants?: number
+                seniors?: number
+              } & {
+                [key: string]: unknown
+              })
+            | null
+          fareCode?: string | null
+          /** @enum {string|null} */
+          fareVariant?: "cruise_only" | "air_inclusive" | null
+        }
+      }
+    }
+    responses: {
+      /** @description The composed cruise quote */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data?: unknown
+          }
+        }
+      }
+      /** @description Invalid key, or guestCount/passengerComposition missing */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description No matching price for the requested cabin/occupancy/fare */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Referenced adapter is not registered */
+      501: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  getAdminCruisesPrices: {
+    parameters: {
+      query?: {
+        sailingId?: string
+        cabinCategoryId?: string
+        occupancy?: number
+        fareCode?: string
+        fareVariant?: "cruise_only" | "air_inclusive"
+        availability?: "available" | "limited" | "on_request" | "wait_list" | "sold_out"
+        priceCatalogId?: string
+        limit?: number
+        offset?: number | null
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Paginated list of cruise prices */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              sailingId: string
+              cabinCategoryId: string
+              occupancy: number
+              fareCode: string | null
+              fareCodeName: string | null
+              /** @enum {string} */
+              fareVariant: "cruise_only" | "air_inclusive"
+              currency: string
+              pricePerPerson: string
+              originalPricePerPerson: string | null
+              secondGuestPricePerPerson: string | null
+              singlePricePerPerson: string | null
+              singleSupplementPercent: string | null
+              /** @enum {string} */
+              availability: "available" | "limited" | "on_request" | "wait_list" | "sold_out"
+              availabilityCount: number | null
+              priceCatalogId: string | null
+              priceScheduleId: string | null
+              bookingDeadline: string | null
+              earlyBookingDeadline: string | null
+              earlyBookingBonusDescription: string | null
+              requiresRequest: boolean
+              notes: string | null
+              externalRefs: {
+                [key: string]: string
+              } | null
+              lastSyncedAt: string | null
+              createdAt: string
+              updatedAt: string
+            }[]
+            total: number
+            limit: number
+            offset: number
+          }
+        }
+      }
+    }
+  }
+  postAdminCruisesPrices: {
     parameters: {
       query?: never
       header?: never
       path?: never
       cookie?: never
     }
-    get?: never
-    put: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          categoryId: string
+    requestBody: {
+      content: {
+        "application/json": {
+          sailingId: string
+          cabinCategoryId: string
+          occupancy: number
+          fareCode?: string | null
+          fareCodeName?: string | null
+          /**
+           * @default cruise_only
+           * @enum {string}
+           */
+          fareVariant?: "cruise_only" | "air_inclusive"
+          currency: string
+          pricePerPerson: string
+          originalPricePerPerson?: string | null
+          secondGuestPricePerPerson?: string | null
+          singlePricePerPerson?: string | null
+          singleSupplementPercent?: string | null
+          /**
+           * @default available
+           * @enum {string}
+           */
+          availability?: "available" | "limited" | "on_request" | "wait_list" | "sold_out"
+          availabilityCount?: number | null
+          priceCatalogId?: string | null
+          priceScheduleId?: string | null
+          bookingDeadline?: string | null
+          earlyBookingDeadline?: string | null
+          earlyBookingBonusDescription?: string | null
+          /** @default false */
+          requiresRequest?: boolean
+          notes?: string | null
+          /** @default {} */
+          externalRefs?: {
+            [key: string]: string
+          }
         }
-        cookie?: never
       }
-      requestBody: {
+    }
+    responses: {
+      /** @description The created price */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
         content: {
           "application/json": {
-            shipId?: string
-            code?: string
-            name?: string
+            data: {
+              id: string
+              sailingId: string
+              cabinCategoryId: string
+              occupancy: number
+              fareCode: string | null
+              fareCodeName: string | null
+              /** @enum {string} */
+              fareVariant: "cruise_only" | "air_inclusive"
+              currency: string
+              pricePerPerson: string
+              originalPricePerPerson: string | null
+              secondGuestPricePerPerson: string | null
+              singlePricePerPerson: string | null
+              singleSupplementPercent: string | null
+              /** @enum {string} */
+              availability: "available" | "limited" | "on_request" | "wait_list" | "sold_out"
+              availabilityCount: number | null
+              priceCatalogId: string | null
+              priceScheduleId: string | null
+              bookingDeadline: string | null
+              earlyBookingDeadline: string | null
+              earlyBookingBonusDescription: string | null
+              requiresRequest: boolean
+              notes: string | null
+              externalRefs: {
+                [key: string]: string
+              } | null
+              lastSyncedAt: string | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request: request body failed validation */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  putAdminCruisesPricesByPriceId: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        priceId: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          sailingId?: string
+          cabinCategoryId?: string
+          occupancy?: number
+          fareCode?: string | null
+          fareCodeName?: string | null
+          /**
+           * @default cruise_only
+           * @enum {string}
+           */
+          fareVariant?: "cruise_only" | "air_inclusive"
+          currency?: string
+          pricePerPerson?: string
+          originalPricePerPerson?: string | null
+          secondGuestPricePerPerson?: string | null
+          singlePricePerPerson?: string | null
+          singleSupplementPercent?: string | null
+          /**
+           * @default available
+           * @enum {string}
+           */
+          availability?: "available" | "limited" | "on_request" | "wait_list" | "sold_out"
+          availabilityCount?: number | null
+          priceCatalogId?: string | null
+          priceScheduleId?: string | null
+          bookingDeadline?: string | null
+          earlyBookingDeadline?: string | null
+          earlyBookingBonusDescription?: string | null
+          /** @default false */
+          requiresRequest?: boolean
+          notes?: string | null
+          /** @default {} */
+          externalRefs?: {
+            [key: string]: string
+          }
+        }
+      }
+    }
+    responses: {
+      /** @description The updated price */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              sailingId: string
+              cabinCategoryId: string
+              occupancy: number
+              fareCode: string | null
+              fareCodeName: string | null
+              /** @enum {string} */
+              fareVariant: "cruise_only" | "air_inclusive"
+              currency: string
+              pricePerPerson: string
+              originalPricePerPerson: string | null
+              secondGuestPricePerPerson: string | null
+              singlePricePerPerson: string | null
+              singleSupplementPercent: string | null
+              /** @enum {string} */
+              availability: "available" | "limited" | "on_request" | "wait_list" | "sold_out"
+              availabilityCount: number | null
+              priceCatalogId: string | null
+              priceScheduleId: string | null
+              bookingDeadline: string | null
+              earlyBookingDeadline: string | null
+              earlyBookingBonusDescription: string | null
+              requiresRequest: boolean
+              notes: string | null
+              externalRefs: {
+                [key: string]: string
+              } | null
+              lastSyncedAt: string | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request: request body failed validation */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Price not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  getAdminCruisesShips: {
+    parameters: {
+      query?: {
+        lineSupplierId?: string
+        shipType?: "ocean" | "river" | "expedition" | "yacht" | "sailing" | "coastal"
+        isActive?: boolean | null
+        search?: string
+        limit?: number
+        offset?: number | null
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Paginated list of cruise ships */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              lineSupplierId: string | null
+              name: string
+              slug: string
+              /** @enum {string} */
+              shipType: "ocean" | "river" | "expedition" | "yacht" | "sailing" | "coastal"
+              capacityGuests: number | null
+              capacityCrew: number | null
+              cabinCount: number | null
+              deckCount: number | null
+              lengthMeters: string | null
+              cruisingSpeedKnots: string | null
+              yearBuilt: number | null
+              yearRefurbished: number | null
+              imo: string | null
+              description: string | null
+              deckPlanUrl: string | null
+              gallery: string[] | null
+              amenities: {
+                [key: string]: unknown
+              } | null
+              externalRefs: {
+                [key: string]: string
+              } | null
+              isActive: boolean
+              createdAt: string
+              updatedAt: string
+            }[]
+            total: number
+            limit: number
+            offset: number
+          }
+        }
+      }
+    }
+  }
+  postAdminCruisesShips: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          lineSupplierId?: string | null
+          name: string
+          slug: string
+          /** @enum {string} */
+          shipType: "ocean" | "river" | "expedition" | "yacht" | "sailing" | "coastal"
+          capacityGuests?: number | null
+          capacityCrew?: number | null
+          cabinCount?: number | null
+          deckCount?: number | null
+          lengthMeters?: string | null
+          cruisingSpeedKnots?: string | null
+          yearBuilt?: number | null
+          yearRefurbished?: number | null
+          imo?: string | null
+          description?: string | null
+          /** Format: uri */
+          deckPlanUrl?: string | null
+          /** @default [] */
+          gallery?: string[]
+          /** @default {} */
+          amenities?: {
+            [key: string]: unknown
+          }
+          /** @default {} */
+          externalRefs?: {
+            [key: string]: string
+          }
+          /** @default true */
+          isActive?: boolean
+        }
+      }
+    }
+    responses: {
+      /** @description The created ship */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              lineSupplierId: string | null
+              name: string
+              slug: string
+              /** @enum {string} */
+              shipType: "ocean" | "river" | "expedition" | "yacht" | "sailing" | "coastal"
+              capacityGuests: number | null
+              capacityCrew: number | null
+              cabinCount: number | null
+              deckCount: number | null
+              lengthMeters: string | null
+              cruisingSpeedKnots: string | null
+              yearBuilt: number | null
+              yearRefurbished: number | null
+              imo: string | null
+              description: string | null
+              deckPlanUrl: string | null
+              gallery: string[] | null
+              amenities: {
+                [key: string]: unknown
+              } | null
+              externalRefs: {
+                [key: string]: string
+              } | null
+              isActive: boolean
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request: request body failed validation */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  getAdminCruisesShipsByKey: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        key: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description A ship by unified key (local row or external adapter shape) */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data:
+              | {
+                  id: string
+                  lineSupplierId: string | null
+                  name: string
+                  slug: string
+                  /** @enum {string} */
+                  shipType: "ocean" | "river" | "expedition" | "yacht" | "sailing" | "coastal"
+                  capacityGuests: number | null
+                  capacityCrew: number | null
+                  cabinCount: number | null
+                  deckCount: number | null
+                  lengthMeters: string | null
+                  cruisingSpeedKnots: string | null
+                  yearBuilt: number | null
+                  yearRefurbished: number | null
+                  imo: string | null
+                  description: string | null
+                  deckPlanUrl: string | null
+                  gallery: string[] | null
+                  amenities: {
+                    [key: string]: unknown
+                  } | null
+                  externalRefs: {
+                    [key: string]: string
+                  } | null
+                  isActive: boolean
+                  createdAt: string
+                  updatedAt: string
+                }
+              | {
+                  /** @enum {string} */
+                  source: "external"
+                  sourceProvider: string
+                  sourceRef?: unknown
+                  ship?: unknown
+                }
+          }
+        }
+      }
+      /** @description Key is not a valid local id or external key */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Ship not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Referenced adapter is not registered */
+      501: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  putAdminCruisesShipsByKey: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        key: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          lineSupplierId?: string | null
+          name?: string
+          slug?: string
+          /** @enum {string} */
+          shipType?: "ocean" | "river" | "expedition" | "yacht" | "sailing" | "coastal"
+          capacityGuests?: number | null
+          capacityCrew?: number | null
+          cabinCount?: number | null
+          deckCount?: number | null
+          lengthMeters?: string | null
+          cruisingSpeedKnots?: string | null
+          yearBuilt?: number | null
+          yearRefurbished?: number | null
+          imo?: string | null
+          description?: string | null
+          /** Format: uri */
+          deckPlanUrl?: string | null
+          /** @default [] */
+          gallery?: string[]
+          /** @default {} */
+          amenities?: {
+            [key: string]: unknown
+          }
+          /** @default {} */
+          externalRefs?: {
+            [key: string]: string
+          }
+          /** @default true */
+          isActive?: boolean
+        }
+      }
+    }
+    responses: {
+      /** @description The updated ship */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              lineSupplierId: string | null
+              name: string
+              slug: string
+              /** @enum {string} */
+              shipType: "ocean" | "river" | "expedition" | "yacht" | "sailing" | "coastal"
+              capacityGuests: number | null
+              capacityCrew: number | null
+              cabinCount: number | null
+              deckCount: number | null
+              lengthMeters: string | null
+              cruisingSpeedKnots: string | null
+              yearBuilt: number | null
+              yearRefurbished: number | null
+              imo: string | null
+              description: string | null
+              deckPlanUrl: string | null
+              gallery: string[] | null
+              amenities: {
+                [key: string]: unknown
+              } | null
+              externalRefs: {
+                [key: string]: string
+              } | null
+              isActive: boolean
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description Key is not a valid local id */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Ship not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description External cruise/ship is read-only */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  getAdminCruisesShipsByKeyEffective: {
+    parameters: {
+      query?: {
+        locale?: string
+        audience?: "customer" | "partner"
+        market?: string
+      }
+      header?: never
+      path: {
+        key: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Public effective ship presentation content */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data?: unknown
+          }
+        }
+      }
+      /** @description Key is not a valid local id */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Ship not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Referenced adapter is not registered */
+      501: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  getAdminCruisesShipsByKeyEditorialOverlays: {
+    parameters: {
+      query?: {
+        locale?: string
+        audience?: "staff" | "customer" | "partner" | "supplier" | "default"
+        market?: string
+      }
+      header?: never
+      path: {
+        key: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Ship source, overlays, and effective content */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data?: unknown
+          }
+        }
+      }
+      /** @description Key is not a valid local id */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Ship not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Referenced adapter is not registered */
+      501: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  putAdminCruisesShipsByKeyEditorialOverlays: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        key: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          fieldPath: string
+          /** @default en-GB */
+          locale?: string
+          /**
+           * @default customer
+           * @enum {string}
+           */
+          audience?: "staff" | "customer" | "partner" | "supplier" | "default"
+          /** @default default */
+          market?: string
+          value?: unknown
+          expectedVersion?: number | null
+          editorialNote?: string
+        }
+      }
+    }
+    responses: {
+      /** @description Ship editorial overlay written */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data?: unknown
+          }
+        }
+      }
+      /** @description Invalid overlay field or value */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Ship not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Overlay version conflict */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Referenced adapter is not registered */
+      501: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  deleteAdminCruisesShipsByKeyEditorialOverlays: {
+    parameters: {
+      query: {
+        locale?: string
+        audience?: "staff" | "customer" | "partner" | "supplier" | "default"
+        market?: string
+        fieldPath: string
+        expectedVersion?: number | null
+      }
+      header?: never
+      path: {
+        key: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Ship editorial overlay cleared */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data?: unknown
+          }
+        }
+      }
+      /** @description Key is not valid */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Ship not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Overlay version conflict */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Referenced adapter is not registered */
+      501: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  getAdminCruisesShipsByKeyEditorialOverlaysHistory: {
+    parameters: {
+      query?: {
+        locale?: string
+        audience?: "staff" | "customer" | "partner" | "supplier" | "default"
+        market?: string
+        fieldPath?: string
+        expectedVersion?: number | null
+      }
+      header?: never
+      path: {
+        key: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Ship editorial overlay history */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: unknown[]
+          }
+        }
+      }
+      /** @description Key is not valid */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Ship not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Referenced adapter is not registered */
+      501: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  getAdminCruisesShipsByKeyDecks: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        key: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Decks for the ship (local rows or external adapter decks) */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: unknown[]
+          }
+        }
+      }
+      /** @description Key is not a valid local id or external key */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Referenced adapter is not registered */
+      501: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  postAdminCruisesShipsByKeyDecks: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        key: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          name: string
+          level?: number | null
+          /** Format: uri */
+          planImageUrl?: string | null
+        }
+      }
+    }
+    responses: {
+      /** @description The created (or upserted) deck */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              shipId: string
+              name: string
+              level: number | null
+              planImageUrl: string | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description Key is not a valid local id */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description External cruise/ship is read-only */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  putAdminCruisesDecksByDeckId: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        deckId: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          shipId?: string
+          name?: string
+          level?: number | null
+          /** Format: uri */
+          planImageUrl?: string | null
+        }
+      }
+    }
+    responses: {
+      /** @description The updated deck */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              shipId: string
+              name: string
+              level: number | null
+              planImageUrl: string | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description Deck not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  getAdminCruisesShipsByKeyCategories: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        key: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Cabin categories for the ship (local rows or external adapter shapes) */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: unknown[]
+          }
+        }
+      }
+      /** @description Key is not a valid local id or external key */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Referenced adapter is not registered */
+      501: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  putAdminCruisesShipsByKeyCategoriesBulk: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        key: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          categories: {
+            shipId: string
+            code: string
+            name: string
             /** @enum {string} */
-            roomType?: "inside" | "oceanview" | "balcony" | "suite" | "penthouse" | "single"
+            roomType: "inside" | "oceanview" | "balcony" | "suite" | "penthouse" | "single"
             description?: string | null
             /** @default 1 */
             minOccupancy?: number
-            maxOccupancy?: number
+            maxOccupancy: number
             squareFeet?: string | null
             /** @default false */
             wheelchairAccessible?: boolean
@@ -3644,559 +3838,387 @@ export interface paths {
             externalRefs?: {
               [key: string]: string
             }
-          }
-        }
-      }
-      responses: {
-        /** @description The updated cabin category */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                shipId: string
-                code: string
-                name: string
-                /** @enum {string} */
-                roomType: "inside" | "oceanview" | "balcony" | "suite" | "penthouse" | "single"
-                description: string | null
-                minOccupancy: number
-                maxOccupancy: number
-                squareFeet: string | null
-                wheelchairAccessible: boolean
-                amenities: string[] | null
-                featureCodes: string[] | null
-                bedConfigurations: string[] | null
-                accessibilityFeatures: string[] | null
-                viewType: string | null
-                images: string[] | null
-                floorplanImages: string[] | null
-                gradeCodes: string[] | null
-                externalRefs: {
-                  [key: string]: string
-                } | null
-                customerPaymentPolicy?: unknown
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description Cabin category not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
+          }[]
         }
       }
     }
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  "/v1/admin/cruises/categories/{categoryId}/cabins": {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          categoryId: string
+    responses: {
+      /** @description The upserted cabin categories */
+      200: {
+        headers: {
+          [name: string]: unknown
         }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Cabins in the category */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                categoryId: string
-                cabinNumber: string
-                deckId: string | null
-                position: string | null
-                connectsTo: string | null
-                notes: string | null
-                isActive: boolean
-                createdAt: string
-                updatedAt: string
-              }[]
-            }
-          }
-        }
-      }
-    }
-    put?: never
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  "/v1/admin/cruises/categories/{categoryId}/cabins/bulk": {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          categoryId: string
-        }
-        cookie?: never
-      }
-      requestBody: {
         content: {
           "application/json": {
-            cabins: {
-              cabinNumber: string
-              deckId?: string | null
-              position?: string | null
-              connectsTo?: string | null
-              notes?: string | null
-              /** @default true */
-              isActive?: boolean
+            data: {
+              id: string
+              shipId: string
+              code: string
+              name: string
+              /** @enum {string} */
+              roomType: "inside" | "oceanview" | "balcony" | "suite" | "penthouse" | "single"
+              description: string | null
+              minOccupancy: number
+              maxOccupancy: number
+              squareFeet: string | null
+              wheelchairAccessible: boolean
+              amenities: string[] | null
+              featureCodes: string[] | null
+              bedConfigurations: string[] | null
+              accessibilityFeatures: string[] | null
+              viewType: string | null
+              images: string[] | null
+              floorplanImages: string[] | null
+              gradeCodes: string[] | null
+              externalRefs: {
+                [key: string]: string
+              } | null
+              customerPaymentPolicy?: unknown
+              createdAt: string
+              updatedAt: string
             }[]
           }
         }
       }
-      responses: {
-        /** @description The upserted cabins */
-        200: {
-          headers: {
-            [name: string]: unknown
+      /** @description Key is not a valid local id */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
           }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                categoryId: string
-                cabinNumber: string
-                deckId: string | null
-                position: string | null
-                connectsTo: string | null
-                notes: string | null
-                isActive: boolean
-                createdAt: string
-                updatedAt: string
-              }[]
+        }
+      }
+      /** @description External cruise/ship is read-only */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  putAdminCruisesCategoriesByCategoryId: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        categoryId: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          shipId?: string
+          code?: string
+          name?: string
+          /** @enum {string} */
+          roomType?: "inside" | "oceanview" | "balcony" | "suite" | "penthouse" | "single"
+          description?: string | null
+          /** @default 1 */
+          minOccupancy?: number
+          maxOccupancy?: number
+          squareFeet?: string | null
+          /** @default false */
+          wheelchairAccessible?: boolean
+          /** @default [] */
+          amenities?: string[]
+          /** @default [] */
+          featureCodes?: string[]
+          /** @default [] */
+          bedConfigurations?: (
+            | "single"
+            | "twin"
+            | "double"
+            | "queen"
+            | "king"
+            | "convertible_twins"
+            | "sofa_bed"
+            | "pullman"
+            | "bunk"
+            | "murphy"
+          )[]
+          /** @default [] */
+          accessibilityFeatures?: (
+            | "wheelchair_accessible"
+            | "step_free_access"
+            | "roll_in_shower"
+            | "grab_bars"
+            | "visual_alarm"
+            | "hearing_loop"
+            | "accessible_balcony"
+            | "accessible_bathroom"
+          )[]
+          /** @enum {string|null} */
+          viewType?:
+            | "none"
+            | "interior"
+            | "virtual"
+            | "porthole"
+            | "window"
+            | "oceanview"
+            | "river_view"
+            | "balcony"
+            | "french_balcony"
+            | "promenade"
+            | "obstructed"
+            | null
+          /** @default [] */
+          images?: string[]
+          /** @default [] */
+          floorplanImages?: string[]
+          /** @default [] */
+          gradeCodes?: string[]
+          /** @default {} */
+          externalRefs?: {
+            [key: string]: string
+          }
+        }
+      }
+    }
+    responses: {
+      /** @description The updated cabin category */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              shipId: string
+              code: string
+              name: string
+              /** @enum {string} */
+              roomType: "inside" | "oceanview" | "balcony" | "suite" | "penthouse" | "single"
+              description: string | null
+              minOccupancy: number
+              maxOccupancy: number
+              squareFeet: string | null
+              wheelchairAccessible: boolean
+              amenities: string[] | null
+              featureCodes: string[] | null
+              bedConfigurations: string[] | null
+              accessibilityFeatures: string[] | null
+              viewType: string | null
+              images: string[] | null
+              floorplanImages: string[] | null
+              gradeCodes: string[] | null
+              externalRefs: {
+                [key: string]: string
+              } | null
+              customerPaymentPolicy?: unknown
+              createdAt: string
+              updatedAt: string
             }
           }
         }
       }
+      /** @description Cabin category not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
     }
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
   }
-  "/v1/admin/cruises/cabins/{cabinId}": {
+  getAdminCruisesCategoriesByCategoryIdCabins: {
     parameters: {
       query?: never
       header?: never
-      path?: never
+      path: {
+        categoryId: string
+      }
       cookie?: never
     }
-    get?: never
-    put: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          cabinId: string
+    requestBody?: never
+    responses: {
+      /** @description Cabins in the category */
+      200: {
+        headers: {
+          [name: string]: unknown
         }
-        cookie?: never
-      }
-      requestBody: {
         content: {
           "application/json": {
-            categoryId?: string
-            cabinNumber?: string
+            data: {
+              id: string
+              categoryId: string
+              cabinNumber: string
+              deckId: string | null
+              position: string | null
+              connectsTo: string | null
+              notes: string | null
+              isActive: boolean
+              createdAt: string
+              updatedAt: string
+            }[]
+          }
+        }
+      }
+    }
+  }
+  putAdminCruisesCategoriesByCategoryIdCabinsBulk: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        categoryId: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          cabins: {
+            cabinNumber: string
             deckId?: string | null
             position?: string | null
             connectsTo?: string | null
             notes?: string | null
             /** @default true */
             isActive?: boolean
-          }
-        }
-      }
-      responses: {
-        /** @description The updated cabin */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                categoryId: string
-                cabinNumber: string
-                deckId: string | null
-                position: string | null
-                connectsTo: string | null
-                notes: string | null
-                isActive: boolean
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description Cabin not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
+          }[]
         }
       }
     }
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  "/v1/admin/cruises/search-index/bulk": {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody: {
+    responses: {
+      /** @description The upserted cabins */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
         content: {
           "application/json": {
-            entries: {
-              /** @enum {string} */
-              source: "local" | "external"
-              sourceProvider?: string | null
-              sourceRef?:
-                | ({
-                    connectionId?: string
-                    externalId?: string
-                  } & {
-                    [key: string]: unknown
-                  })
-                | null
-              localCruiseId?: string | null
-              slug: string
-              name: string
-              /** @enum {string} */
-              cruiseType: "ocean" | "river" | "expedition" | "coastal"
-              lineName: string
-              shipName: string
-              nights: number
-              embarkPortName?: string | null
-              embarkPortCanonicalPlaceId?: string | null
-              disembarkPortName?: string | null
-              disembarkPortCanonicalPlaceId?: string | null
-              /** @default [] */
-              regionIds?: string[]
-              /** @default [] */
-              waterwayIds?: string[]
-              /** @default [] */
-              portIds?: string[]
-              /** @default [] */
-              countryIso?: string[]
-              /** @default [] */
-              regions?: string[]
-              /** @default [] */
-              waterways?: string[]
-              /** @default [] */
-              ports?: string[]
-              /** @default [] */
-              countries?: string[]
-              /** @default [] */
-              themes?: string[]
-              earliestDeparture?: string | null
-              latestDeparture?: string | null
-              departureCount?: number | null
-              lowestPriceCents?: number | null
-              lowestPriceCurrency?: string | null
-              salesStatus?: string | null
-              /** Format: uri */
-              heroImageUrl?: string | null
+            data: {
+              id: string
+              categoryId: string
+              cabinNumber: string
+              deckId: string | null
+              position: string | null
+              connectsTo: string | null
+              notes: string | null
+              isActive: boolean
+              createdAt: string
+              updatedAt: string
             }[]
           }
         }
       }
-      responses: {
-        /** @description The number of upserted search-index entries */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                upserted: number
-              }
-            }
-          }
-        }
-        /** @description invalid_request: request body failed validation */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-      }
     }
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
   }
-  "/v1/admin/cruises/search-index/{crsiId}": {
+  putAdminCruisesCabinsByCabinId: {
     parameters: {
       query?: never
       header?: never
-      path?: never
+      path: {
+        cabinId: string
+      }
       cookie?: never
     }
-    get?: never
-    put?: never
-    post?: never
-    delete: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          crsiId: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Deleted */
-        204: {
-          headers: {
-            [name: string]: unknown
-          }
-          content?: never
-        }
-        /** @description Search-index entry not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
+    requestBody: {
+      content: {
+        "application/json": {
+          categoryId?: string
+          cabinNumber?: string
+          deckId?: string | null
+          position?: string | null
+          connectsTo?: string | null
+          notes?: string | null
+          /** @default true */
+          isActive?: boolean
         }
       }
     }
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  "/v1/admin/cruises/search-index/rebuild": {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Rebuild counts for local + external search-index entries */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                localUpserted: number
-                externalUpserted: number
-                externalRemoved: number
-                externalErrors: {
-                  adapter: string
-                  error: string
-                }[]
-              }
-            }
-          }
+    responses: {
+      /** @description The updated cabin */
+      200: {
+        headers: {
+          [name: string]: unknown
         }
-      }
-    }
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  "/v1/admin/cruises/{key}": {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          key: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description A cruise by unified key (local aggregate or external content) */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data?: unknown
-            }
-          }
-        }
-        /** @description Key is not a valid local id or external key */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-        /** @description Cruise not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-        /** @description Source-adapter registry is not configured */
-        503: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-      }
-    }
-    put: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          key: string
-        }
-        cookie?: never
-      }
-      requestBody: {
         content: {
           "application/json": {
-            slug?: string
-            name?: string
+            data: {
+              id: string
+              categoryId: string
+              cabinNumber: string
+              deckId: string | null
+              position: string | null
+              connectsTo: string | null
+              notes: string | null
+              isActive: boolean
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description Cabin not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  putAdminCruisesSearchIndexBulk: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          entries: {
             /** @enum {string} */
-            cruiseType?: "ocean" | "river" | "expedition" | "coastal"
-            lineSupplierId?: string | null
-            defaultShipId?: string | null
-            nights?: number
-            embarkPortFacilityId?: string | null
+            source: "local" | "external"
+            sourceProvider?: string | null
+            sourceRef?:
+              | ({
+                  connectionId?: string
+                  externalId?: string
+                } & {
+                  [key: string]: unknown
+                })
+              | null
+            localCruiseId?: string | null
+            slug: string
+            name: string
+            /** @enum {string} */
+            cruiseType: "ocean" | "river" | "expedition" | "coastal"
+            lineName: string
+            shipName: string
+            nights: number
+            embarkPortName?: string | null
             embarkPortCanonicalPlaceId?: string | null
-            disembarkPortFacilityId?: string | null
+            disembarkPortName?: string | null
             disembarkPortCanonicalPlaceId?: string | null
-            description?: string | null
-            shortDescription?: string | null
-            /** @default [] */
-            highlights?: string[]
-            inclusionsHtml?: string | null
-            exclusionsHtml?: string | null
             /** @default [] */
             regionIds?: string[]
             /** @default [] */
@@ -4215,790 +4237,992 @@ export interface paths {
             countries?: string[]
             /** @default [] */
             themes?: string[]
+            earliestDeparture?: string | null
+            latestDeparture?: string | null
+            departureCount?: number | null
+            lowestPriceCents?: number | null
+            lowestPriceCurrency?: string | null
+            salesStatus?: string | null
             /** Format: uri */
             heroImageUrl?: string | null
-            /** Format: uri */
-            mapImageUrl?: string | null
-            /**
-             * @default draft
-             * @enum {string}
-             */
-            status?: "draft" | "awaiting_review" | "live" | "archived"
-            /** @default {} */
-            externalRefs?: {
-              [key: string]: string
-            }
-          }
-        }
-      }
-      responses: {
-        /** @description The updated cruise */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                slug: string
-                name: string
-                /** @enum {string} */
-                cruiseType: "ocean" | "river" | "expedition" | "coastal"
-                lineSupplierId: string | null
-                defaultShipId: string | null
-                nights: number
-                embarkPortFacilityId: string | null
-                embarkPortCanonicalPlaceId: string | null
-                disembarkPortFacilityId: string | null
-                disembarkPortCanonicalPlaceId: string | null
-                description: string | null
-                shortDescription: string | null
-                highlights: string[] | null
-                inclusionsHtml: string | null
-                exclusionsHtml: string | null
-                regionIds: string[] | null
-                waterwayIds: string[] | null
-                portIds: string[] | null
-                countryIso: string[] | null
-                regions: string[] | null
-                waterways: string[] | null
-                ports: string[] | null
-                countries: string[] | null
-                themes: string[] | null
-                heroImageUrl: string | null
-                mapImageUrl: string | null
-                /** @enum {string} */
-                status: "draft" | "awaiting_review" | "live" | "archived"
-                lowestPriceCached: string | null
-                lowestPriceCurrencyCached: string | null
-                earliestDepartureCached: string | null
-                latestDepartureCached: string | null
-                externalRefs: {
-                  [key: string]: string
-                } | null
-                customerPaymentPolicy?: unknown
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description Key is not a valid local id */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-        /** @description Cruise not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-        /** @description External cruise is read-only */
-        409: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
+          }[]
         }
       }
     }
-    post?: never
-    delete: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          key: string
+    responses: {
+      /** @description The number of upserted search-index entries */
+      200: {
+        headers: {
+          [name: string]: unknown
         }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description The archived cruise */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                slug: string
-                name: string
-                /** @enum {string} */
-                cruiseType: "ocean" | "river" | "expedition" | "coastal"
-                lineSupplierId: string | null
-                defaultShipId: string | null
-                nights: number
-                embarkPortFacilityId: string | null
-                embarkPortCanonicalPlaceId: string | null
-                disembarkPortFacilityId: string | null
-                disembarkPortCanonicalPlaceId: string | null
-                description: string | null
-                shortDescription: string | null
-                highlights: string[] | null
-                inclusionsHtml: string | null
-                exclusionsHtml: string | null
-                regionIds: string[] | null
-                waterwayIds: string[] | null
-                portIds: string[] | null
-                countryIso: string[] | null
-                regions: string[] | null
-                waterways: string[] | null
-                ports: string[] | null
-                countries: string[] | null
-                themes: string[] | null
-                heroImageUrl: string | null
-                mapImageUrl: string | null
-                /** @enum {string} */
-                status: "draft" | "awaiting_review" | "live" | "archived"
-                lowestPriceCached: string | null
-                lowestPriceCurrencyCached: string | null
-                earliestDepartureCached: string | null
-                latestDepartureCached: string | null
-                externalRefs: {
-                  [key: string]: string
-                } | null
-                customerPaymentPolicy?: unknown
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description Key is not a valid local id */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-        /** @description Cruise not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-        /** @description External cruise is read-only */
-        409: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-      }
-    }
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  "/v1/admin/cruises/{key}/aggregates/recompute": {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          key: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description The cruise with recomputed aggregates */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                slug: string
-                name: string
-                /** @enum {string} */
-                cruiseType: "ocean" | "river" | "expedition" | "coastal"
-                lineSupplierId: string | null
-                defaultShipId: string | null
-                nights: number
-                embarkPortFacilityId: string | null
-                embarkPortCanonicalPlaceId: string | null
-                disembarkPortFacilityId: string | null
-                disembarkPortCanonicalPlaceId: string | null
-                description: string | null
-                shortDescription: string | null
-                highlights: string[] | null
-                inclusionsHtml: string | null
-                exclusionsHtml: string | null
-                regionIds: string[] | null
-                waterwayIds: string[] | null
-                portIds: string[] | null
-                countryIso: string[] | null
-                regions: string[] | null
-                waterways: string[] | null
-                ports: string[] | null
-                countries: string[] | null
-                themes: string[] | null
-                heroImageUrl: string | null
-                mapImageUrl: string | null
-                /** @enum {string} */
-                status: "draft" | "awaiting_review" | "live" | "archived"
-                lowestPriceCached: string | null
-                lowestPriceCurrencyCached: string | null
-                earliestDepartureCached: string | null
-                latestDepartureCached: string | null
-                externalRefs: {
-                  [key: string]: string
-                } | null
-                customerPaymentPolicy?: unknown
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description Key is not a valid local id */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-        /** @description Cruise not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-        /** @description External cruise is read-only */
-        409: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-      }
-    }
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  "/v1/admin/cruises/{key}/sailings": {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          key: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Sailings for the cruise (local rows or external adapter shapes) */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: unknown[]
-              total: number
-              limit?: number
-              offset?: number
-            }
-          }
-        }
-        /** @description Key is not a valid local id or external key */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-        /** @description Referenced adapter is not registered */
-        501: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-      }
-    }
-    put?: never
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  "/v1/admin/cruises/{key}/days/bulk": {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          key: string
-        }
-        cookie?: never
-      }
-      requestBody: {
         content: {
           "application/json": {
-            days: {
+            data: {
+              upserted: number
+            }
+          }
+        }
+      }
+      /** @description invalid_request: request body failed validation */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  deleteAdminCruisesSearchIndexByCrsiId: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        crsiId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Deleted */
+      204: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description Search-index entry not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  postAdminCruisesSearchIndexRebuild: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Rebuild counts for local + external search-index entries */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              localUpserted: number
+              externalUpserted: number
+              externalRemoved: number
+              externalErrors: {
+                adapter: string
+                error: string
+              }[]
+            }
+          }
+        }
+      }
+    }
+  }
+  getAdminCruisesByKey: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        key: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description A cruise by unified key (local aggregate or external content) */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data?: unknown
+          }
+        }
+      }
+      /** @description Key is not a valid local id or external key */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Cruise not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Source-adapter registry is not configured */
+      503: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  putAdminCruisesByKey: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        key: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          slug?: string
+          name?: string
+          /** @enum {string} */
+          cruiseType?: "ocean" | "river" | "expedition" | "coastal"
+          lineSupplierId?: string | null
+          defaultShipId?: string | null
+          nights?: number
+          embarkPortFacilityId?: string | null
+          embarkPortCanonicalPlaceId?: string | null
+          disembarkPortFacilityId?: string | null
+          disembarkPortCanonicalPlaceId?: string | null
+          description?: string | null
+          shortDescription?: string | null
+          /** @default [] */
+          highlights?: string[]
+          inclusionsHtml?: string | null
+          exclusionsHtml?: string | null
+          /** @default [] */
+          regionIds?: string[]
+          /** @default [] */
+          waterwayIds?: string[]
+          /** @default [] */
+          portIds?: string[]
+          /** @default [] */
+          countryIso?: string[]
+          /** @default [] */
+          regions?: string[]
+          /** @default [] */
+          waterways?: string[]
+          /** @default [] */
+          ports?: string[]
+          /** @default [] */
+          countries?: string[]
+          /** @default [] */
+          themes?: string[]
+          /** Format: uri */
+          heroImageUrl?: string | null
+          /** Format: uri */
+          mapImageUrl?: string | null
+          /**
+           * @default draft
+           * @enum {string}
+           */
+          status?: "draft" | "awaiting_review" | "live" | "archived"
+          /** @default {} */
+          externalRefs?: {
+            [key: string]: string
+          }
+        }
+      }
+    }
+    responses: {
+      /** @description The updated cruise */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              slug: string
+              name: string
+              /** @enum {string} */
+              cruiseType: "ocean" | "river" | "expedition" | "coastal"
+              lineSupplierId: string | null
+              defaultShipId: string | null
+              nights: number
+              embarkPortFacilityId: string | null
+              embarkPortCanonicalPlaceId: string | null
+              disembarkPortFacilityId: string | null
+              disembarkPortCanonicalPlaceId: string | null
+              description: string | null
+              shortDescription: string | null
+              highlights: string[] | null
+              inclusionsHtml: string | null
+              exclusionsHtml: string | null
+              regionIds: string[] | null
+              waterwayIds: string[] | null
+              portIds: string[] | null
+              countryIso: string[] | null
+              regions: string[] | null
+              waterways: string[] | null
+              ports: string[] | null
+              countries: string[] | null
+              themes: string[] | null
+              heroImageUrl: string | null
+              mapImageUrl: string | null
+              /** @enum {string} */
+              status: "draft" | "awaiting_review" | "live" | "archived"
+              lowestPriceCached: string | null
+              lowestPriceCurrencyCached: string | null
+              earliestDepartureCached: string | null
+              latestDepartureCached: string | null
+              externalRefs: {
+                [key: string]: string
+              } | null
+              customerPaymentPolicy?: unknown
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description Key is not a valid local id */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Cruise not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description External cruise is read-only */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  deleteAdminCruisesByKey: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        key: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description The archived cruise */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              slug: string
+              name: string
+              /** @enum {string} */
+              cruiseType: "ocean" | "river" | "expedition" | "coastal"
+              lineSupplierId: string | null
+              defaultShipId: string | null
+              nights: number
+              embarkPortFacilityId: string | null
+              embarkPortCanonicalPlaceId: string | null
+              disembarkPortFacilityId: string | null
+              disembarkPortCanonicalPlaceId: string | null
+              description: string | null
+              shortDescription: string | null
+              highlights: string[] | null
+              inclusionsHtml: string | null
+              exclusionsHtml: string | null
+              regionIds: string[] | null
+              waterwayIds: string[] | null
+              portIds: string[] | null
+              countryIso: string[] | null
+              regions: string[] | null
+              waterways: string[] | null
+              ports: string[] | null
+              countries: string[] | null
+              themes: string[] | null
+              heroImageUrl: string | null
+              mapImageUrl: string | null
+              /** @enum {string} */
+              status: "draft" | "awaiting_review" | "live" | "archived"
+              lowestPriceCached: string | null
+              lowestPriceCurrencyCached: string | null
+              earliestDepartureCached: string | null
+              latestDepartureCached: string | null
+              externalRefs: {
+                [key: string]: string
+              } | null
+              customerPaymentPolicy?: unknown
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description Key is not a valid local id */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Cruise not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description External cruise is read-only */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  postAdminCruisesByKeyAggregatesRecompute: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        key: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description The cruise with recomputed aggregates */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              slug: string
+              name: string
+              /** @enum {string} */
+              cruiseType: "ocean" | "river" | "expedition" | "coastal"
+              lineSupplierId: string | null
+              defaultShipId: string | null
+              nights: number
+              embarkPortFacilityId: string | null
+              embarkPortCanonicalPlaceId: string | null
+              disembarkPortFacilityId: string | null
+              disembarkPortCanonicalPlaceId: string | null
+              description: string | null
+              shortDescription: string | null
+              highlights: string[] | null
+              inclusionsHtml: string | null
+              exclusionsHtml: string | null
+              regionIds: string[] | null
+              waterwayIds: string[] | null
+              portIds: string[] | null
+              countryIso: string[] | null
+              regions: string[] | null
+              waterways: string[] | null
+              ports: string[] | null
+              countries: string[] | null
+              themes: string[] | null
+              heroImageUrl: string | null
+              mapImageUrl: string | null
+              /** @enum {string} */
+              status: "draft" | "awaiting_review" | "live" | "archived"
+              lowestPriceCached: string | null
+              lowestPriceCurrencyCached: string | null
+              earliestDepartureCached: string | null
+              latestDepartureCached: string | null
+              externalRefs: {
+                [key: string]: string
+              } | null
+              customerPaymentPolicy?: unknown
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description Key is not a valid local id */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Cruise not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description External cruise is read-only */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  getAdminCruisesByKeySailings: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        key: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Sailings for the cruise (local rows or external adapter shapes) */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: unknown[]
+            total: number
+            limit?: number
+            offset?: number
+          }
+        }
+      }
+      /** @description Key is not a valid local id or external key */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Referenced adapter is not registered */
+      501: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  putAdminCruisesByKeyDaysBulk: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        key: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          days: {
+            dayNumber: number
+            title?: string | null
+            description?: string | null
+            portFacilityId?: string | null
+            portCanonicalPlaceId?: string | null
+            arrivalTime?: string | null
+            departureTime?: string | null
+            /** @default false */
+            isOvernight?: boolean
+            /** @default false */
+            isSeaDay?: boolean
+            /** @default false */
+            isExpeditionLanding?: boolean
+            /** @default {} */
+            meals?: {
+              breakfast?: boolean
+              lunch?: boolean
+              dinner?: boolean
+            }
+          }[]
+        }
+      }
+    }
+    responses: {
+      /** @description The replaced itinerary days */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              cruiseId: string
               dayNumber: number
-              title?: string | null
-              description?: string | null
-              portFacilityId?: string | null
-              portCanonicalPlaceId?: string | null
-              arrivalTime?: string | null
-              departureTime?: string | null
-              /** @default false */
-              isOvernight?: boolean
-              /** @default false */
-              isSeaDay?: boolean
-              /** @default false */
-              isExpeditionLanding?: boolean
-              /** @default {} */
-              meals?: {
+              title: string | null
+              description: string | null
+              portFacilityId: string | null
+              portCanonicalPlaceId: string | null
+              arrivalTime: string | null
+              departureTime: string | null
+              isOvernight: boolean
+              isSeaDay: boolean
+              isExpeditionLanding: boolean
+              meals: {
                 breakfast?: boolean
                 lunch?: boolean
                 dinner?: boolean
-              }
+              } | null
+              createdAt: string
+              updatedAt: string
             }[]
           }
         }
       }
-      responses: {
-        /** @description The replaced itinerary days */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                cruiseId: string
-                dayNumber: number
-                title: string | null
-                description: string | null
-                portFacilityId: string | null
-                portCanonicalPlaceId: string | null
-                arrivalTime: string | null
-                departureTime: string | null
-                isOvernight: boolean
-                isSeaDay: boolean
-                isExpeditionLanding: boolean
-                meals: {
-                  breakfast?: boolean
-                  lunch?: boolean
-                  dinner?: boolean
-                } | null
-                createdAt: string
-                updatedAt: string
-              }[]
-            }
-          }
+      /** @description Key is not a valid local id */
+      400: {
+        headers: {
+          [name: string]: unknown
         }
-        /** @description Key is not a valid local id */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-        /** @description External cruise is read-only */
-        409: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-      }
-    }
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  "/v1/admin/cruises/{key}/refresh": {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          key: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description The refreshed external cruise content */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data?: unknown
-            }
-          }
-        }
-        /** @description Key is not an external cruise key */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-        /** @description No sourced-entry row for the cruise */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-        /** @description Source-adapter registry is not configured */
-        503: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-      }
-    }
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  "/v1/admin/cruises/{key}/detach": {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          key: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description The detached (now-local) cruise */
-        201: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                slug: string
-                name: string
-                /** @enum {string} */
-                cruiseType: "ocean" | "river" | "expedition" | "coastal"
-                lineSupplierId: string | null
-                defaultShipId: string | null
-                nights: number
-                embarkPortFacilityId: string | null
-                embarkPortCanonicalPlaceId: string | null
-                disembarkPortFacilityId: string | null
-                disembarkPortCanonicalPlaceId: string | null
-                description: string | null
-                shortDescription: string | null
-                highlights: string[] | null
-                inclusionsHtml: string | null
-                exclusionsHtml: string | null
-                regionIds: string[] | null
-                waterwayIds: string[] | null
-                portIds: string[] | null
-                countryIso: string[] | null
-                regions: string[] | null
-                waterways: string[] | null
-                ports: string[] | null
-                countries: string[] | null
-                themes: string[] | null
-                heroImageUrl: string | null
-                mapImageUrl: string | null
-                /** @enum {string} */
-                status: "draft" | "awaiting_review" | "live" | "archived"
-                lowestPriceCached: string | null
-                lowestPriceCurrencyCached: string | null
-                earliestDepartureCached: string | null
-                latestDepartureCached: string | null
-                externalRefs: {
-                  [key: string]: string
-                } | null
-                customerPaymentPolicy?: unknown
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description Key is not an external cruise key */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-        /** @description Referenced adapter is not registered */
-        501: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-      }
-    }
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  "/v1/admin/cruises/{key}/enrichment": {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          key: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Enrichment programs for the cruise (empty for external cruises) */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                cruiseId: string
-                /** @enum {string} */
-                kind: "naturalist" | "historian" | "photographer" | "lecturer" | "expert" | "other"
-                name: string
-                title: string | null
-                description: string | null
-                bioImageUrl: string | null
-                sortOrder: number
-                createdAt: string
-                updatedAt: string
-              }[]
-            }
-          }
-        }
-        /** @description Key is not a valid local id or external key */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-        /** @description Referenced adapter is not registered */
-        501: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-      }
-    }
-    put?: never
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          key: string
-        }
-        cookie?: never
-      }
-      requestBody: {
         content: {
           "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description External cruise is read-only */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  postAdminCruisesByKeyRefresh: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        key: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description The refreshed external cruise content */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data?: unknown
+          }
+        }
+      }
+      /** @description Key is not an external cruise key */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description No sourced-entry row for the cruise */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Source-adapter registry is not configured */
+      503: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  postAdminCruisesByKeyDetach: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        key: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description The detached (now-local) cruise */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              slug: string
+              name: string
+              /** @enum {string} */
+              cruiseType: "ocean" | "river" | "expedition" | "coastal"
+              lineSupplierId: string | null
+              defaultShipId: string | null
+              nights: number
+              embarkPortFacilityId: string | null
+              embarkPortCanonicalPlaceId: string | null
+              disembarkPortFacilityId: string | null
+              disembarkPortCanonicalPlaceId: string | null
+              description: string | null
+              shortDescription: string | null
+              highlights: string[] | null
+              inclusionsHtml: string | null
+              exclusionsHtml: string | null
+              regionIds: string[] | null
+              waterwayIds: string[] | null
+              portIds: string[] | null
+              countryIso: string[] | null
+              regions: string[] | null
+              waterways: string[] | null
+              ports: string[] | null
+              countries: string[] | null
+              themes: string[] | null
+              heroImageUrl: string | null
+              mapImageUrl: string | null
+              /** @enum {string} */
+              status: "draft" | "awaiting_review" | "live" | "archived"
+              lowestPriceCached: string | null
+              lowestPriceCurrencyCached: string | null
+              earliestDepartureCached: string | null
+              latestDepartureCached: string | null
+              externalRefs: {
+                [key: string]: string
+              } | null
+              customerPaymentPolicy?: unknown
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description Key is not an external cruise key */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Referenced adapter is not registered */
+      501: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  getAdminCruisesByKeyEnrichment: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        key: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Enrichment programs for the cruise (empty for external cruises) */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              cruiseId: string
+              /** @enum {string} */
+              kind: "naturalist" | "historian" | "photographer" | "lecturer" | "expert" | "other"
+              name: string
+              title: string | null
+              description: string | null
+              bioImageUrl: string | null
+              sortOrder: number
+              createdAt: string
+              updatedAt: string
+            }[]
+          }
+        }
+      }
+      /** @description Key is not a valid local id or external key */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Referenced adapter is not registered */
+      501: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  postAdminCruisesByKeyEnrichment: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        key: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          /** @enum {string} */
+          kind: "naturalist" | "historian" | "photographer" | "lecturer" | "expert" | "other"
+          name: string
+          title?: string | null
+          description?: string | null
+          /** Format: uri */
+          bioImageUrl?: string | null
+          /** @default 0 */
+          sortOrder?: number
+        }
+      }
+    }
+    responses: {
+      /** @description The created enrichment program */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              cruiseId: string
+              /** @enum {string} */
+              kind: "naturalist" | "historian" | "photographer" | "lecturer" | "expert" | "other"
+              name: string
+              title: string | null
+              description: string | null
+              bioImageUrl: string | null
+              sortOrder: number
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description Key is not a valid local id */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description External cruise is read-only */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  putAdminCruisesByKeyEnrichmentBulk: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        key: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          programs: {
             /** @enum {string} */
             kind: "naturalist" | "historian" | "photographer" | "lecturer" | "expert" | "other"
             name: string
@@ -5008,169 +5232,60 @@ export interface paths {
             bioImageUrl?: string | null
             /** @default 0 */
             sortOrder?: number
-          }
-        }
-      }
-      responses: {
-        /** @description The created enrichment program */
-        201: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                cruiseId: string
-                /** @enum {string} */
-                kind: "naturalist" | "historian" | "photographer" | "lecturer" | "expert" | "other"
-                name: string
-                title: string | null
-                description: string | null
-                bioImageUrl: string | null
-                sortOrder: number
-                createdAt: string
-                updatedAt: string
-              }
-            }
-          }
-        }
-        /** @description Key is not a valid local id */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
-        }
-        /** @description External cruise is read-only */
-        409: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
+          }[]
         }
       }
     }
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  "/v1/admin/cruises/{key}/enrichment/bulk": {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          key: string
+    responses: {
+      /** @description The replaced enrichment programs */
+      200: {
+        headers: {
+          [name: string]: unknown
         }
-        cookie?: never
-      }
-      requestBody: {
         content: {
           "application/json": {
-            programs: {
+            data: {
+              id: string
+              cruiseId: string
               /** @enum {string} */
               kind: "naturalist" | "historian" | "photographer" | "lecturer" | "expert" | "other"
               name: string
-              title?: string | null
-              description?: string | null
-              /** Format: uri */
-              bioImageUrl?: string | null
-              /** @default 0 */
-              sortOrder?: number
+              title: string | null
+              description: string | null
+              bioImageUrl: string | null
+              sortOrder: number
+              createdAt: string
+              updatedAt: string
             }[]
           }
         }
       }
-      responses: {
-        /** @description The replaced enrichment programs */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: {
-                id: string
-                cruiseId: string
-                /** @enum {string} */
-                kind: "naturalist" | "historian" | "photographer" | "lecturer" | "expert" | "other"
-                name: string
-                title: string | null
-                description: string | null
-                bioImageUrl: string | null
-                sortOrder: number
-                createdAt: string
-                updatedAt: string
-              }[]
-            }
+      /** @description Key is not a valid local id */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
           }
         }
-        /** @description Key is not a valid local id */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
-          }
+      }
+      /** @description External cruise is read-only */
+      409: {
+        headers: {
+          [name: string]: unknown
         }
-        /** @description External cruise is read-only */
-        409: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              error: string
-            } & {
-              [key: string]: unknown
-            }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
           }
         }
       }
     }
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
   }
 }
-export type webhooks = Record<string, never>
-export interface components {
-  schemas: never
-  responses: never
-  parameters: never
-  requestBodies: never
-  headers: never
-  pathItems: never
-}
-export type $defs = Record<string, never>
-export type operations = Record<string, never>

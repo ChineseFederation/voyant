@@ -95,16 +95,18 @@ describe("managed Booking Session settlement composition", () => {
       [catalogLegalRuntimeExtensionPort.id]: {},
       [catalogOperationsRuntimeExtensionPort.id]: { listAvailabilitySlots: vi.fn() },
       [financeOperatorSettingsRuntimePort.id]: {},
-      [bookingsRelationshipsRuntimePort.id]: relationships,
     }
     const contribution = createCatalogRuntimePortContribution({
       primitives: {
         env: () => ({}),
         database: { resolve: () => db },
       } as never,
-      hasRuntimePort: (port) => port.id === bookingsRelationshipsRuntimePort.id,
+      hasRuntimePort: (port) => Object.hasOwn(extensions, port.id),
       getRuntimePort: (port) => extensions[port.id] as never,
     })
+    // Generated contributors are installed in package-name order. Catalog is
+    // constructed before Relationships, which contributes this port later.
+    extensions[bookingsRelationshipsRuntimePort.id] = relationships
     const settlement = contribution[catalogBookingSessionSettlementRuntimePort.id] as {
       commitPaidSession(input: {
         bookingSessionId: string
@@ -137,11 +139,24 @@ describe("managed Booking Session settlement composition", () => {
     )
   })
 
-  it("preserves an absent optional Relationships runtime", async () => {
+  it("keeps an absent optional Relationships runtime non-throwing", async () => {
     const db = { source: "managed" }
     productionModuleFactory.mockImplementation((deps: ProductionBookingSessionModuleDeps) => ({
       async commitPaidSession(): Promise<{ bookingId: string }> {
-        expect(deps.relationships).toBeUndefined()
+        expect(deps.relationships).toBeDefined()
+        await expect(
+          deps.relationships?.upsertPersonFromContact(
+            db as never,
+            {
+              firstName: "No",
+              lastName: "Runtime",
+              email: "missing@example.test",
+              phone: null,
+              preferredLanguage: null,
+            },
+            { source: "booking-session-v1", sourceRef: "bses_without_relationships" },
+          ),
+        ).resolves.toBeNull()
         expect(deps.financeRuntime).toEqual({})
         return { bookingId: "book_without_relationships" }
       },

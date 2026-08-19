@@ -314,6 +314,7 @@ export const bookingsUiRoSections = {
       perPerson: "per calator",
       perUnit: "per camera",
       perBooking: "per rezervare",
+      supplement: "supliment",
     },
   },
   bookingDocumentDialog: {

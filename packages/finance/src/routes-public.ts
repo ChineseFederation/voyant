@@ -290,10 +290,6 @@ const paymentSessionByIdRoute = createRoute({
       description: "A redacted public payment-session projection",
       content: { "application/json": { schema: z.object({ data: publicPaymentSessionSchema }) } },
     },
-    403: {
-      description: "Missing or mismatched active storefront channel context",
-      content: { "application/json": { schema: errorResponseSchema } },
-    },
     404: {
       description: "Payment session not found",
       content: { "application/json": { schema: errorResponseSchema } },
@@ -490,13 +486,11 @@ export function createPublicFinanceRoutes(options: PublicFinanceRouteOptions = {
         : notFound(c, "Booking payment options not found")
     })
     .openapi(paymentSessionByIdRoute, async (c) => {
-      // No capability check: the session id is itself the bearer
-      // credential — anyone the operator shared `/pay/:sessionId` with
-      // needs to read it, and the projection is already redacted
-      // (no PII beyond payerEmail/payerName which the operator chose
-      // to share when issuing the link). Trip-issued sessions already
-      // worked this way (no bookingId attached → no check); admin-
-      // initiated booking sessions need the same access.
+      // The high-entropy session id is the bearer credential for this redacted
+      // projection. Do not add a checkout-capability or channel-origin check:
+      // processor returns and forwarded `/pay/:sessionId` links must remain
+      // readable after settlement attaches a booking, including when the payer
+      // no longer has the channel context that originally created it.
       const paymentSessionId = c.req.valid("param").sessionId
       if (options.refreshPaymentSessionStatus) {
         try {
@@ -513,21 +507,6 @@ export function createPublicFinanceRoutes(options: PublicFinanceRouteOptions = {
       }
 
       const session = await publicFinanceService.getPaymentSession(c.get("db"), paymentSessionId)
-      if (session?.bookingId) {
-        const denied = await requireBookingPublicApiOrigin(c, session.bookingId)
-        if (denied) return denied
-      }
-      if (!session?.bookingId && session?.invoiceId) {
-        const bookingId = await publicFinanceService.getInvoiceBookingId(
-          c.get("db"),
-          session.invoiceId,
-        )
-        if (bookingId) {
-          const denied = await requireBookingPublicApiOrigin(c, bookingId)
-          if (denied) return denied
-        }
-      }
-
       return session ? c.json({ data: session }, 200) : notFound(c, "Payment session not found")
     })
 

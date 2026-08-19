@@ -17,6 +17,7 @@ import { optionPriceRulesRef, priceCatalogsRef } from "../../src/pricing-ref.js"
 import { productOptionsRef, productsRef } from "../../src/products-ref.js"
 import type { BookingsFinanceRuntime } from "../../src/runtime-port.js"
 import { bookingAllocations, bookingItems, bookings } from "../../src/schema.js"
+import { bookingsService } from "../../src/service.js"
 import { bookingAmendmentService } from "../../src/service-amendments.js"
 
 const DB_AVAILABLE = Boolean(process.env.TEST_DATABASE_URL)
@@ -77,7 +78,9 @@ describe.skipIf(!DB_AVAILABLE)("Booking item addition Amendments", () => {
     }
   }
 
-  async function seed(options: { remainingPax?: number; withSlot?: boolean } = {}) {
+  async function seed(
+    options: { remainingPax?: number; withSlot?: boolean; existingPax?: number } = {},
+  ) {
     sequence += 1
     const remainingPax = options.remainingPax ?? 10
     const withSlot = options.withSlot ?? true
@@ -89,6 +92,7 @@ describe.skipIf(!DB_AVAILABLE)("Booking item addition Amendments", () => {
         sellCurrency: "EUR",
         status: "confirmed",
         sellAmountCents: 50_000,
+        pax: options.existingPax ?? null,
       })
       .returning()
 
@@ -154,7 +158,51 @@ describe.skipIf(!DB_AVAILABLE)("Booking item addition Amendments", () => {
           .returning()
       : [null]
 
-    return { booking: booking!, product: product!, option: option!, slot }
+    let existingItem: typeof bookingItems.$inferSelect | null = null
+    let existingAllocation: typeof bookingAllocations.$inferSelect | null = null
+    if (slot && options.existingPax) {
+      ;[existingItem] = await db
+        .insert(bookingItems)
+        .values({
+          bookingId: booking!.id,
+          title: "Original tour service",
+          status: "confirmed",
+          quantity: 1,
+          sellCurrency: "EUR",
+          unitSellAmountCents: 50_000,
+          totalSellAmountCents: 50_000,
+          productId: product!.id,
+          optionId: option!.id,
+          availabilitySlotId: slot.id,
+        })
+        .returning()
+      ;[existingAllocation] = await db
+        .insert(bookingAllocations)
+        .values({
+          bookingId: booking!.id,
+          bookingItemId: existingItem!.id,
+          productId: product!.id,
+          optionId: option!.id,
+          availabilitySlotId: slot.id,
+          quantity: options.existingPax,
+          status: "confirmed",
+          metadata: { availabilityHoldId: "avhd_converted" },
+        })
+        .returning()
+      await db
+        .update(availabilitySlotsRef)
+        .set({ remainingPax: remainingPax - options.existingPax })
+        .where(eq(availabilitySlotsRef.id, slot.id))
+    }
+
+    return {
+      booking: booking!,
+      product: product!,
+      option: option!,
+      slot,
+      existingItem,
+      existingAllocation,
+    }
   }
 
   function context(key: string) {
@@ -280,6 +328,118 @@ describe.skipIf(!DB_AVAILABLE)("Booking item addition Amendments", () => {
     // next move.
     if (applied.status !== "ok") throw new Error("Expected an applied amendment")
     expect(applied.amendment.nextActions).toContain("collect_payment")
+  })
+
+  it("does not spend the same booking pax twice when adding a line on its departure", async () => {
+    const seeded = await seed({ remainingPax: 48, existingPax: 3 })
+    const preview = await previewAddition(seeded, { quantity: 3 })
+    if (preview.status !== "ok") throw new Error("Expected a quote")
+    const proposed = preview.amendment.revisions?.find(
+      (revision) => revision.role === "proposed_after",
+    )
+    if (!proposed) throw new Error("Expected a proposed revision")
+
+    await bookingAmendmentService.accept(
+      db,
+      preview.amendment.id,
+      proposed.id,
+      context("accept-existing-capacity"),
+      { finance: financeRuntime() },
+    )
+    await expect(
+      bookingAmendmentService.apply(
+        db,
+        preview.amendment.id,
+        { expectedBookingRevision: 1, proposedRevisionId: proposed.id },
+        context("apply-existing-capacity"),
+        { finance: financeRuntime() },
+      ),
+    ).resolves.toMatchObject({ status: "ok" })
+
+    const allocations = await db
+      .select()
+      .from(bookingAllocations)
+      .where(eq(bookingAllocations.bookingId, seeded.booking.id))
+    expect(allocations).toHaveLength(2)
+    expect(allocations.reduce((sum, allocation) => sum + allocation.quantity, 0)).toBe(3)
+
+    const [slotAfterAdd] = await db
+      .select()
+      .from(availabilitySlotsRef)
+      .where(eq(availabilitySlotsRef.id, seeded.slot!.id))
+    expect(slotAfterAdd?.remainingPax).toBe(45)
+
+    await bookingsService.deleteItem(db, seeded.existingItem!.id)
+    const [allocationAfterCarrierDelete] = await db
+      .select()
+      .from(bookingAllocations)
+      .where(eq(bookingAllocations.bookingId, seeded.booking.id))
+    expect(allocationAfterCarrierDelete?.quantity).toBe(3)
+    const [slotAfterCarrierDelete] = await db
+      .select()
+      .from(availabilitySlotsRef)
+      .where(eq(availabilitySlotsRef.id, seeded.slot!.id))
+    expect(slotAfterCarrierDelete?.remainingPax).toBe(45)
+
+    const [remainingItem] = await db
+      .select()
+      .from(bookingItems)
+      .where(eq(bookingItems.bookingId, seeded.booking.id))
+    await bookingsService.deleteItem(db, remainingItem!.id)
+    const [slotAfterLastDelete] = await db
+      .select()
+      .from(availabilitySlotsRef)
+      .where(eq(availabilitySlotsRef.id, seeded.slot!.id))
+    expect(slotAfterLastDelete?.remainingPax).toBe(48)
+  })
+
+  it("does not normalize a legacy overclaim after the departure closes", async () => {
+    const seeded = await seed({ remainingPax: 48, existingPax: 3 })
+    await db
+      .update(bookingAllocations)
+      .set({ quantity: 5 })
+      .where(eq(bookingAllocations.id, seeded.existingAllocation!.id))
+    await db
+      .update(availabilitySlotsRef)
+      .set({ remainingPax: 43 })
+      .where(eq(availabilitySlotsRef.id, seeded.slot!.id))
+
+    const preview = await previewAddition(seeded, { quantity: 3 })
+    if (preview.status !== "ok") throw new Error("Expected a quote")
+    const proposed = preview.amendment.revisions?.find((r) => r.role === "proposed_after")
+    if (!proposed) throw new Error("Expected a proposed revision")
+    await db
+      .update(availabilitySlotsRef)
+      .set({ status: "closed" })
+      .where(eq(availabilitySlotsRef.id, seeded.slot!.id))
+
+    await bookingAmendmentService.accept(
+      db,
+      preview.amendment.id,
+      proposed.id,
+      context("accept-closed-overclaim"),
+      { finance: financeRuntime() },
+    )
+    await expect(
+      bookingAmendmentService.apply(
+        db,
+        preview.amendment.id,
+        { expectedBookingRevision: 1, proposedRevisionId: proposed.id },
+        context("apply-closed-overclaim"),
+        { finance: financeRuntime() },
+      ),
+    ).resolves.toMatchObject({ status: "availability_changed" })
+
+    const [slot] = await db
+      .select()
+      .from(availabilitySlotsRef)
+      .where(eq(availabilitySlotsRef.id, seeded.slot!.id))
+    expect(slot?.remainingPax).toBe(43)
+    const items = await db
+      .select()
+      .from(bookingItems)
+      .where(eq(bookingItems.bookingId, seeded.booking.id))
+    expect(items).toHaveLength(1)
   })
 
   it("refuses a departure that cannot seat the addition", async () => {

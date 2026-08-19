@@ -6,7 +6,7 @@ import {
 } from "@voyant-travel/finance/runtime-port"
 import {
   publicApiOpaqueReferenceIssuerPort,
-  publicApiTripSelectionsRuntimePort,
+  publicApiShoppingRuntimePort,
 } from "@voyant-travel/public-api/shopping/runtime-port"
 import { durableTripActionRuntimePort } from "./durable-action-runtime-port.js"
 import { publicApiTripOfferResolverPort } from "./public-api-trip-offer-resolver-port.js"
@@ -117,7 +117,6 @@ export const tripsVoyantModule = defineModule({
       providePort(financePaymentReconciliationJobRuntimePort),
       providePort(publicApiOpaqueReferenceIssuerPort),
       providePort(publicApiTripOfferResolverPort),
-      providePort(publicApiTripSelectionsRuntimePort),
       providePort(tripsRoutesRuntimePort),
       providePort(tripsDatabaseRuntimePort),
       providePort(tripsSourcingJobRuntimePort),
@@ -129,6 +128,11 @@ export const tripsVoyantModule = defineModule({
     requirePort(tripsDatabaseRuntimePort),
     requirePort(tripsSourcingJobRuntimePort),
     requirePort(durableTripActionRuntimePort, { optional: true }),
+    // Trip selections arrived here with voyant#4627 and need the shopping layer
+    // to resolve a requested scope into the market, locale and currency the
+    // channel actually serves. Optional because a deployment without a shopping
+    // provider simply has no selections to make — the routes answer 503.
+    requirePort(publicApiShoppingRuntimePort, { optional: true }),
     { ...paymentAdapterRuntimePortReference, optional: true },
     catalogRuntimeServicesPortReference,
     catalogCompositeBookingSessionRuntimePortReference,

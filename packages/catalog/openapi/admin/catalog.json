@@ -127,6 +127,393 @@
     "parameters": {}
   },
   "paths": {
+    "/v1/admin/catalog/package-offers": {
+      "post": {
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {}
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Live dated offers for one accommodation (+ hero fields), or a soft fallback",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "product": {},
+                    "offers": {
+                      "type": "array",
+                      "items": {}
+                    },
+                    "retryable": {
+                      "type": "boolean"
+                    },
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["offers"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid_request — body failed validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "details": {}
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postAdminCatalogPackageOffers",
+        "summary": "POST /v1/admin/catalog/package-offers",
+        "tags": ["catalog"],
+        "x-voyant-module": "catalog",
+        "x-voyant-surface": "admin"
+      }
+    },
+    "/v1/admin/catalog/package-detail": {
+      "post": {
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {}
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Full accommodation detail + live offers + resolved provenance",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "product": {},
+                    "offers": {
+                      "type": "array",
+                      "items": {}
+                    },
+                    "retryable": {
+                      "type": "boolean"
+                    },
+                    "source": {
+                      "type": "object",
+                      "properties": {
+                        "connectionId": {
+                          "type": "string"
+                        },
+                        "ref": {
+                          "type": ["string", "null"]
+                        }
+                      },
+                      "required": ["connectionId", "ref"]
+                    },
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["offers"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid_request — body failed validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "details": {}
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postAdminCatalogPackageDetail",
+        "summary": "POST /v1/admin/catalog/package-detail",
+        "tags": ["catalog"],
+        "x-voyant-module": "catalog",
+        "x-voyant-surface": "admin"
+      }
+    },
+    "/v1/admin/catalog/package-search": {
+      "post": {
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {}
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cheapest live offer per (hotel, date, origin) across a destination",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "offers": {
+                      "type": "array",
+                      "items": {}
+                    },
+                    "departureAirports": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "code": {
+                            "type": "string"
+                          },
+                          "label": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["code", "label"]
+                      }
+                    },
+                    "currency": {
+                      "type": "string"
+                    },
+                    "sampledHotels": {
+                      "type": "number"
+                    },
+                    "retryable": {
+                      "type": "boolean"
+                    },
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["offers"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid_request — body failed validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "details": {}
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postAdminCatalogPackageSearch",
+        "summary": "POST /v1/admin/catalog/package-search",
+        "tags": ["catalog"],
+        "x-voyant-module": "catalog",
+        "x-voyant-surface": "admin"
+      }
+    },
+    "/v1/admin/catalog/departure-airports": {
+      "post": {
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {}
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Distinct departure airports for a destination (soft-empty on any failure)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "departureAirports": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "code": {
+                            "type": "string"
+                          },
+                          "label": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["code", "label"]
+                      }
+                    }
+                  },
+                  "required": ["departureAirports"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postAdminCatalogDepartureAirports",
+        "summary": "POST /v1/admin/catalog/departure-airports",
+        "tags": ["catalog"],
+        "x-voyant-module": "catalog",
+        "x-voyant-surface": "admin"
+      }
+    },
+    "/v1/admin/catalog/cruise-price": {
+      "post": {
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {}
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cruise-level from-price from the Connect summary (nulls when unavailable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "fromAmountMinor": {
+                      "type": ["number", "null"]
+                    },
+                    "currency": {
+                      "type": ["string", "null"]
+                    }
+                  },
+                  "required": ["fromAmountMinor", "currency"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid_request — body failed validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "details": {}
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postAdminCatalogCruisePrice",
+        "summary": "POST /v1/admin/catalog/cruise-price",
+        "tags": ["catalog"],
+        "x-voyant-module": "catalog",
+        "x-voyant-surface": "admin"
+      }
+    },
+    "/v1/admin/catalog/cruise-sailing-pricing": {
+      "post": {
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {}
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cheapest available price per cabin for one sailing in a single currency",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "cabins": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "code": {
+                            "type": "string"
+                          },
+                          "fromAmountMinor": {
+                            "type": "number"
+                          },
+                          "available": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": ["code", "fromAmountMinor", "available"]
+                      }
+                    },
+                    "currency": {
+                      "type": ["string", "null"]
+                    },
+                    "retryable": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": ["cabins", "currency"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid_request — body failed validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "details": {}
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postAdminCatalogCruiseSailingPricing",
+        "summary": "POST /v1/admin/catalog/cruise-sailing-pricing",
+        "tags": ["catalog"],
+        "x-voyant-module": "catalog",
+        "x-voyant-surface": "admin"
+      }
+    },
     "/v1/admin/catalog/search": {
       "post": {
         "requestBody": {
@@ -524,7 +911,33 @@
                     },
                     "reason": {
                       "type": "string",
-                      "const": "not_independently_sellable"
+                      "enum": ["not_independently_sellable"]
+                    },
+                    "vertical": {
+                      "type": "string"
+                    },
+                    "ownedBy": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Public storefront channel context is missing or inactive",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "reason": {
+                      "type": "string",
+                      "enum": ["not_independently_sellable"]
                     },
                     "vertical": {
                       "type": "string"
@@ -550,7 +963,7 @@
                     },
                     "reason": {
                       "type": "string",
-                      "const": "not_independently_sellable"
+                      "enum": ["not_independently_sellable"]
                     },
                     "vertical": {
                       "type": "string"
@@ -576,7 +989,7 @@
                     },
                     "reason": {
                       "type": "string",
-                      "const": "not_independently_sellable"
+                      "enum": ["not_independently_sellable"]
                     },
                     "vertical": {
                       "type": "string"
@@ -593,393 +1006,6 @@
         },
         "operationId": "postAdminCatalogSearch",
         "summary": "POST /v1/admin/catalog/search",
-        "tags": ["catalog"],
-        "x-voyant-module": "catalog",
-        "x-voyant-surface": "admin"
-      }
-    },
-    "/v1/admin/catalog/package-offers": {
-      "post": {
-        "requestBody": {
-          "required": false,
-          "content": {
-            "application/json": {
-              "schema": {}
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Live dated offers for one accommodation (+ hero fields), or a soft fallback",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "product": {},
-                    "offers": {
-                      "type": "array",
-                      "items": {}
-                    },
-                    "retryable": {
-                      "type": "boolean"
-                    },
-                    "error": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["offers"]
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "invalid_request — body failed validation",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {}
-                  },
-                  "required": ["error"]
-                }
-              }
-            }
-          }
-        },
-        "operationId": "postAdminCatalogPackageOffers",
-        "summary": "POST /v1/admin/catalog/package-offers",
-        "tags": ["catalog"],
-        "x-voyant-module": "catalog",
-        "x-voyant-surface": "admin"
-      }
-    },
-    "/v1/admin/catalog/package-detail": {
-      "post": {
-        "requestBody": {
-          "required": false,
-          "content": {
-            "application/json": {
-              "schema": {}
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Full accommodation detail + live offers + resolved provenance",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "product": {},
-                    "offers": {
-                      "type": "array",
-                      "items": {}
-                    },
-                    "retryable": {
-                      "type": "boolean"
-                    },
-                    "source": {
-                      "type": "object",
-                      "properties": {
-                        "connectionId": {
-                          "type": "string"
-                        },
-                        "ref": {
-                          "type": ["string", "null"]
-                        }
-                      },
-                      "required": ["connectionId", "ref"]
-                    },
-                    "error": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["offers"]
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "invalid_request — body failed validation",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {}
-                  },
-                  "required": ["error"]
-                }
-              }
-            }
-          }
-        },
-        "operationId": "postAdminCatalogPackageDetail",
-        "summary": "POST /v1/admin/catalog/package-detail",
-        "tags": ["catalog"],
-        "x-voyant-module": "catalog",
-        "x-voyant-surface": "admin"
-      }
-    },
-    "/v1/admin/catalog/package-search": {
-      "post": {
-        "requestBody": {
-          "required": false,
-          "content": {
-            "application/json": {
-              "schema": {}
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Cheapest live offer per (hotel, date, origin) across a destination",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "offers": {
-                      "type": "array",
-                      "items": {}
-                    },
-                    "departureAirports": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "code": {
-                            "type": "string"
-                          },
-                          "label": {
-                            "type": "string"
-                          }
-                        },
-                        "required": ["code", "label"]
-                      }
-                    },
-                    "currency": {
-                      "type": "string"
-                    },
-                    "sampledHotels": {
-                      "type": "number"
-                    },
-                    "retryable": {
-                      "type": "boolean"
-                    },
-                    "error": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["offers"]
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "invalid_request — body failed validation",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {}
-                  },
-                  "required": ["error"]
-                }
-              }
-            }
-          }
-        },
-        "operationId": "postAdminCatalogPackageSearch",
-        "summary": "POST /v1/admin/catalog/package-search",
-        "tags": ["catalog"],
-        "x-voyant-module": "catalog",
-        "x-voyant-surface": "admin"
-      }
-    },
-    "/v1/admin/catalog/departure-airports": {
-      "post": {
-        "requestBody": {
-          "required": false,
-          "content": {
-            "application/json": {
-              "schema": {}
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Distinct departure airports for a destination (soft-empty on any failure)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "departureAirports": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "code": {
-                            "type": "string"
-                          },
-                          "label": {
-                            "type": "string"
-                          }
-                        },
-                        "required": ["code", "label"]
-                      }
-                    }
-                  },
-                  "required": ["departureAirports"]
-                }
-              }
-            }
-          }
-        },
-        "operationId": "postAdminCatalogDepartureAirports",
-        "summary": "POST /v1/admin/catalog/departure-airports",
-        "tags": ["catalog"],
-        "x-voyant-module": "catalog",
-        "x-voyant-surface": "admin"
-      }
-    },
-    "/v1/admin/catalog/cruise-price": {
-      "post": {
-        "requestBody": {
-          "required": false,
-          "content": {
-            "application/json": {
-              "schema": {}
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Cruise-level from-price from the Connect summary (nulls when unavailable)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "fromAmountMinor": {
-                      "type": ["number", "null"]
-                    },
-                    "currency": {
-                      "type": ["string", "null"]
-                    }
-                  },
-                  "required": ["fromAmountMinor", "currency"]
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "invalid_request — body failed validation",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {}
-                  },
-                  "required": ["error"]
-                }
-              }
-            }
-          }
-        },
-        "operationId": "postAdminCatalogCruisePrice",
-        "summary": "POST /v1/admin/catalog/cruise-price",
-        "tags": ["catalog"],
-        "x-voyant-module": "catalog",
-        "x-voyant-surface": "admin"
-      }
-    },
-    "/v1/admin/catalog/cruise-sailing-pricing": {
-      "post": {
-        "requestBody": {
-          "required": false,
-          "content": {
-            "application/json": {
-              "schema": {}
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Cheapest available price per cabin for one sailing in a single currency",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "cabins": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "code": {
-                            "type": "string"
-                          },
-                          "fromAmountMinor": {
-                            "type": "number"
-                          },
-                          "available": {
-                            "type": "boolean"
-                          }
-                        },
-                        "required": ["code", "fromAmountMinor", "available"]
-                      }
-                    },
-                    "currency": {
-                      "type": ["string", "null"]
-                    },
-                    "retryable": {
-                      "type": "boolean"
-                    }
-                  },
-                  "required": ["cabins", "currency"]
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "invalid_request — body failed validation",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "details": {}
-                  },
-                  "required": ["error"]
-                }
-              }
-            }
-          }
-        },
-        "operationId": "postAdminCatalogCruiseSailingPricing",
-        "summary": "POST /v1/admin/catalog/cruise-sailing-pricing",
         "tags": ["catalog"],
         "x-voyant-module": "catalog",
         "x-voyant-surface": "admin"

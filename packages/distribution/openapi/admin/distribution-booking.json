@@ -6,54 +6,222 @@
   },
   "paths": {
     "/v1/admin/bookings/{bookingId}/distribution-details": {
-      "parameters": [
-        {
-          "name": "bookingId",
-          "in": "path",
-          "required": true,
-          "schema": { "type": "string" }
-        }
-      ],
       "get": {
-        "summary": "Get distribution details for a booking",
         "x-voyant-api-id": "@voyant-travel/distribution#extension.api",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "bookingId",
+            "in": "path"
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Distribution details, or null when none are recorded",
+            "description": "Booking distribution details",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": ["data"],
                   "properties": {
-                    "data": { "$ref": "#/components/schemas/BookingDistributionDetails" }
+                    "data": {
+                      "type": ["object", "null"],
+                      "properties": {
+                        "bookingId": {
+                          "type": "string"
+                        },
+                        "marketId": {
+                          "type": ["string", "null"]
+                        },
+                        "sourceChannelId": {
+                          "type": ["string", "null"]
+                        },
+                        "fxRateSetId": {
+                          "type": ["string", "null"]
+                        },
+                        "paymentOwner": {
+                          "type": "string",
+                          "enum": ["operator", "channel", "split"]
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "bookingId",
+                        "marketId",
+                        "sourceChannelId",
+                        "fxRateSetId",
+                        "paymentOwner",
+                        "createdAt",
+                        "updatedAt"
+                      ]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getAdminBookingsByBookingIdDistributionDetails",
+        "summary": "Get distribution details for a booking",
+        "tags": ["bookings"],
+        "x-voyant-module": "bookings",
+        "x-voyant-surface": "admin"
+      },
+      "put": {
+        "x-voyant-api-id": "@voyant-travel/distribution#extension.api",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "bookingId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "marketId": {
+                    "type": ["string", "null"]
+                  },
+                  "sourceChannelId": {
+                    "type": ["string", "null"]
+                  },
+                  "fxRateSetId": {
+                    "type": ["string", "null"]
+                  },
+                  "paymentOwner": {
+                    "type": "string",
+                    "enum": ["operator", "channel", "split"],
+                    "default": "operator"
                   }
                 }
               }
             }
           }
-        }
-      },
-      "put": {
-        "summary": "Create or replace distribution details for a booking",
-        "x-voyant-api-id": "@voyant-travel/distribution#extension.api",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": { "$ref": "#/components/schemas/BookingDistributionDetailsInput" }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated booking distribution details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": ["object", "null"],
+                      "properties": {
+                        "bookingId": {
+                          "type": "string"
+                        },
+                        "marketId": {
+                          "type": ["string", "null"]
+                        },
+                        "sourceChannelId": {
+                          "type": ["string", "null"]
+                        },
+                        "fxRateSetId": {
+                          "type": ["string", "null"]
+                        },
+                        "paymentOwner": {
+                          "type": "string",
+                          "enum": ["operator", "channel", "split"]
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "bookingId",
+                        "marketId",
+                        "sourceChannelId",
+                        "fxRateSetId",
+                        "paymentOwner",
+                        "createdAt",
+                        "updatedAt"
+                      ]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
             }
           }
         },
-        "responses": { "200": { "description": "Distribution details were stored" } }
+        "operationId": "putAdminBookingsByBookingIdDistributionDetails",
+        "summary": "Create or replace distribution details for a booking",
+        "tags": ["bookings"],
+        "x-voyant-module": "bookings",
+        "x-voyant-surface": "admin"
       },
       "delete": {
-        "summary": "Remove distribution details from a booking",
         "x-voyant-api-id": "@voyant-travel/distribution#extension.api",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "bookingId",
+            "in": "path"
+          }
+        ],
         "responses": {
-          "200": { "description": "Distribution details were removed" },
-          "404": { "description": "No distribution details exist for the booking" }
-        }
+          "200": {
+            "description": "Booking distribution details deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [true]
+                    }
+                  },
+                  "required": ["success"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Booking distribution details not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "deleteAdminBookingsByBookingIdDistributionDetails",
+        "summary": "Remove distribution details from a booking",
+        "tags": ["bookings"],
+        "x-voyant-module": "bookings",
+        "x-voyant-surface": "admin"
       }
     }
   },
@@ -62,9 +230,15 @@
       "BookingDistributionDetailsInput": {
         "type": "object",
         "properties": {
-          "marketId": { "type": ["string", "null"] },
-          "sourceChannelId": { "type": ["string", "null"] },
-          "fxRateSetId": { "type": ["string", "null"] },
+          "marketId": {
+            "type": ["string", "null"]
+          },
+          "sourceChannelId": {
+            "type": ["string", "null"]
+          },
+          "fxRateSetId": {
+            "type": ["string", "null"]
+          },
           "paymentOwner": {
             "type": "string",
             "enum": ["operator", "channel", "split"],
@@ -74,17 +248,29 @@
       },
       "BookingDistributionDetails": {
         "anyOf": [
-          { "type": "null" },
+          {
+            "type": "null"
+          },
           {
             "allOf": [
-              { "$ref": "#/components/schemas/BookingDistributionDetailsInput" },
+              {
+                "$ref": "#/components/schemas/BookingDistributionDetailsInput"
+              },
               {
                 "type": "object",
                 "required": ["bookingId", "paymentOwner", "createdAt", "updatedAt"],
                 "properties": {
-                  "bookingId": { "type": "string" },
-                  "createdAt": { "type": "string", "format": "date-time" },
-                  "updatedAt": { "type": "string", "format": "date-time" }
+                  "bookingId": {
+                    "type": "string"
+                  },
+                  "createdAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "updatedAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  }
                 }
               }
             ]

@@ -11,6 +11,7 @@ export interface paths {
       path?: never
       cookie?: never
     }
+    /** GET /v1/admin/team/capabilities */
     get: operations["getTeamManagementCapabilities"]
     put?: never
     post?: never
@@ -27,6 +28,7 @@ export interface paths {
       path?: never
       cookie?: never
     }
+    /** GET /v1/admin/team/members */
     get: operations["listTeamMembers"]
     put?: never
     post?: never
@@ -43,6 +45,7 @@ export interface paths {
       path?: never
       cookie?: never
     }
+    /** GET /v1/admin/team/roles */
     get: operations["listTeamRoles"]
     put?: never
     post?: never
@@ -59,8 +62,10 @@ export interface paths {
       path?: never
       cookie?: never
     }
+    /** GET /v1/admin/team/invitations */
     get: operations["listTeamInvitations"]
     put?: never
+    /** POST /v1/admin/team/invitations */
     post: operations["createTeamInvitation"]
     delete?: never
     options?: never
@@ -78,6 +83,7 @@ export interface paths {
     get?: never
     put?: never
     post?: never
+    /** DELETE /v1/admin/team/invitations/{invitationId} */
     delete: operations["revokeTeamInvitation"]
     options?: never
     head?: never
@@ -92,6 +98,7 @@ export interface paths {
       cookie?: never
     }
     get?: never
+    /** PUT /v1/admin/team/members/{memberId}/role */
     put: operations["updateTeamMemberRole"]
     post?: never
     delete?: never
@@ -110,6 +117,7 @@ export interface paths {
     get?: never
     put?: never
     post?: never
+    /** DELETE /v1/admin/team/members/{memberId} */
     delete: operations["deactivateTeamMember"]
     options?: never
     head?: never
@@ -124,6 +132,7 @@ export interface paths {
       cookie?: never
     }
     get?: never
+    /** PUT /v1/admin/team/members/{memberId}/activation */
     put: operations["activateTeamMember"]
     post?: never
     delete?: never
@@ -153,8 +162,29 @@ export interface operations {
     }
     requestBody?: never
     responses: {
-      /** @description Team-management capabilities. */
+      /** @description HTTP 200 */
       200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 401 */
+      401: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 403 */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 501 */
+      501: {
         headers: {
           [name: string]: unknown
         }
@@ -171,8 +201,29 @@ export interface operations {
     }
     requestBody?: never
     responses: {
-      /** @description Team members. */
+      /** @description HTTP 200 */
       200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 401 */
+      401: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 403 */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 501 */
+      501: {
         headers: {
           [name: string]: unknown
         }
@@ -189,8 +240,29 @@ export interface operations {
     }
     requestBody?: never
     responses: {
-      /** @description Available team roles. */
+      /** @description HTTP 200 */
       200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 401 */
+      401: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 403 */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 501 */
+      501: {
         headers: {
           [name: string]: unknown
         }
@@ -207,8 +279,29 @@ export interface operations {
     }
     requestBody?: never
     responses: {
-      /** @description Team invitations. */
+      /** @description HTTP 200 */
       200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 401 */
+      401: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 403 */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 501 */
+      501: {
         headers: {
           [name: string]: unknown
         }
@@ -234,8 +327,50 @@ export interface operations {
       }
     }
     responses: {
-      /** @description Created team invitation. */
+      /** @description HTTP 201 */
       201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 400 */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 401 */
+      401: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 403 */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 404 */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 409 */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 501 */
+      501: {
         headers: {
           [name: string]: unknown
         }
@@ -254,8 +389,36 @@ export interface operations {
     }
     requestBody?: never
     responses: {
-      /** @description Invitation revoked. */
+      /** @description HTTP 204 */
       204: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 401 */
+      401: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 403 */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 404 */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 501 */
+      501: {
         headers: {
           [name: string]: unknown
         }
@@ -280,8 +443,50 @@ export interface operations {
       }
     }
     responses: {
-      /** @description Updated team member. */
+      /** @description HTTP 200 */
       200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 400 */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 401 */
+      401: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 403 */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 404 */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 409 */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 501 */
+      501: {
         headers: {
           [name: string]: unknown
         }
@@ -300,8 +505,43 @@ export interface operations {
     }
     requestBody?: never
     responses: {
-      /** @description Deactivated team member. */
+      /** @description HTTP 200 */
       200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 401 */
+      401: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 403 */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 404 */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 409 */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 501 */
+      501: {
         headers: {
           [name: string]: unknown
         }
@@ -320,8 +560,43 @@ export interface operations {
     }
     requestBody?: never
     responses: {
-      /** @description Activated team member. */
+      /** @description HTTP 200 */
       200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 401 */
+      401: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 403 */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 404 */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 409 */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 501 */
+      501: {
         headers: {
           [name: string]: unknown
         }

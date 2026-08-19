@@ -5,8 +5,6 @@ import { describe, expect, it, vi } from "vitest"
 import {
   createPublicApiShoppingPublicRoutes,
   type PublicApiShoppingRuntime,
-  PublicApiTripSelectionRevisionConflictError,
-  type PublicApiTripSelectionsRuntime,
 } from "../../src/shopping/index.js"
 
 const scope = {
@@ -28,40 +26,6 @@ function runtime(): PublicApiShoppingRuntime {
       kind: "indexed-inspiration" as const,
       scope,
       groups: [{ group: "tours" as const, items: [], total: 0 }],
-    })),
-  }
-}
-
-function tripRuntime(): PublicApiTripSelectionsRuntime {
-  return {
-    create: vi.fn(async (_context, input) => ({
-      selectionRef: "selection_ref_123456789",
-      revision: 0,
-      scope: input.scope,
-      items: [],
-    })),
-    update: vi.fn(async (_context, input) => ({
-      selectionRef: input.selectionRef,
-      revision: input.expectedRevision + 1,
-      scope,
-      items: [],
-    })),
-    book: vi.fn(async () => ({
-      bookingSessionCapability: `bcap_${"a".repeat(43)}`,
-      outcome: {
-        kind: "session_created" as const,
-        session: {
-          id: "booking_sessions_public_1",
-          target: { kind: "managed_itinerary" as const },
-          actorKind: "anonymous" as const,
-          state: "active" as const,
-          revision: 1,
-          scope: { locale: "ro-RO", market: "market_ro", currency: "EUR" },
-          expiresAt: "2026-08-08T10:30:00.000Z",
-          createdAt: "2026-08-08T10:00:00.000Z",
-          updatedAt: "2026-08-08T10:00:00.000Z",
-        },
-      },
     })),
   }
 }
@@ -113,12 +77,10 @@ describe("Storefront shopping public routes", () => {
           .filter(({ method }) => method !== "ALL")
           .map(({ method, path }) => `${method} ${path}`),
       ),
-    ]).toEqual([
-      "POST /search",
-      "POST /trip-selections",
-      "PATCH /trip-selections",
-      "POST /trip-selections/book",
-    ])
+      // Narrowed to its name (voyant#4627): of the three routes this module
+      // used to serve, only `/search` is the NDC shopping phase. The
+      // order-phase trip-selection routes moved to `@voyant-travel/trips`.
+    ]).toEqual(["POST /search"])
   })
 
   it("requires an active server-resolved Storefront Channel and ignores no browser selector", async () => {
@@ -251,75 +213,5 @@ describe("Storefront shopping public routes", () => {
       jsonRequest("/v1/public/shopping/search", liveBody),
     )
     expect(live.headers.get("cache-control")).toBe("private, no-store")
-  })
-
-  it("rejects cross-site Trip mutations and maps provider CAS conflicts to 409", async () => {
-    const trips = tripRuntime()
-    const createBody = {
-      scope: {},
-      offers: [{ kind: "product", offerRef: "offer_ref_123456789" }],
-    }
-    const crossSite = await app({ shopping: runtime(), tripSelections: trips }).request(
-      jsonRequest("/v1/public/shopping/trip-selections", createBody, {
-        headers: { origin: "https://evil.example", "sec-fetch-site": "cross-site" },
-      }),
-    )
-    expect(crossSite.status).toBe(403)
-    expect(trips.create).not.toHaveBeenCalled()
-
-    trips.update = vi.fn(async () => {
-      throw new PublicApiTripSelectionRevisionConflictError()
-    })
-    const conflict = await app({ shopping: runtime(), tripSelections: trips }).request(
-      jsonRequest(
-        "/v1/public/shopping/trip-selections",
-        {
-          selectionRef: "selection_ref_123456789",
-          expectedRevision: 3,
-          mutation: { kind: "remove", itemRef: "selection_item_123456" },
-        },
-        { method: "PATCH", headers: { origin: "https://shop.example" } },
-      ),
-    )
-    expect(conflict.status).toBe(409)
-    expect(await conflict.json()).toMatchObject({
-      error: "trip_selection_revision_conflict",
-      requestId: expect.any(String),
-    })
-    expect(conflict.headers.get("cache-control")).toBe("private, no-store")
-  })
-
-  it("creates a managed itinerary Session without accepting authority selectors", async () => {
-    const trips = tripRuntime()
-    const request = {
-      selectionRef: "selection_ref_123456789",
-      expectedRevision: 3,
-      idempotencyKey: "book_trip_once",
-    }
-    const response = await app({ shopping: runtime(), tripSelections: trips }).request(
-      jsonRequest("/v1/public/shopping/trip-selections/book", request, {
-        headers: { origin: "https://shop.example" },
-      }),
-    )
-    expect(response.status).toBe(200)
-    expect(await response.json()).toMatchObject({
-      data: {
-        bookingSessionCapability: expect.stringMatching(/^bcap_/),
-        outcome: {
-          kind: "session_created",
-          session: { target: { kind: "managed_itinerary" } },
-        },
-      },
-    })
-
-    const injected = await app({ shopping: runtime(), tripSelections: trips }).request(
-      jsonRequest(
-        "/v1/public/shopping/trip-selections/book",
-        { ...request, providerId: "provider_browser" },
-        { headers: { origin: "https://shop.example" } },
-      ),
-    )
-    expect(injected.status).toBe(400)
-    expect(trips.book).toHaveBeenCalledOnce()
   })
 })

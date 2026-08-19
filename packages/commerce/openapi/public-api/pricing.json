@@ -129,6 +129,7 @@
   "paths": {
     "/v1/public/pricing/products/{productId}/pricing": {
       "get": {
+        "x-voyant-api-id": "@voyant-travel/commerce#api.pricing.public",
         "parameters": [
           {
             "schema": {
@@ -264,6 +265,10 @@
                                         "free",
                                         "on_request"
                                       ]
+                                    },
+                                    "occupancyPriceBasis": {
+                                      "type": ["string", "null"],
+                                      "enum": ["supplement", "all_in", null]
                                     },
                                     "baseSellAmountCents": {
                                       "type": ["integer", "null"]
@@ -432,6 +437,7 @@
                                     "name",
                                     "description",
                                     "pricingMode",
+                                    "occupancyPriceBasis",
                                     "baseSellAmountCents",
                                     "minPerBooking",
                                     "maxPerBooking",

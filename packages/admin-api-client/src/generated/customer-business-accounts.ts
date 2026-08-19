@@ -11,6 +11,7 @@ export interface paths {
       path?: never
       cookie?: never
     }
+    /** GET /v1/admin/customer-business-accounts/capabilities */
     get: operations["getCustomerBusinessAccountCapabilities"]
     put?: never
     post?: never
@@ -27,6 +28,7 @@ export interface paths {
       path?: never
       cookie?: never
     }
+    /** GET /v1/admin/customer-business-accounts/requests */
     get: operations["listCustomerBusinessAccountRequests"]
     put?: never
     post?: never
@@ -45,6 +47,7 @@ export interface paths {
     }
     get?: never
     put?: never
+    /** POST /v1/admin/customer-business-accounts/requests/{requestId}/approve */
     post: operations["approveCustomerBusinessAccountRequest"]
     delete?: never
     options?: never
@@ -61,6 +64,7 @@ export interface paths {
     }
     get?: never
     put?: never
+    /** POST /v1/admin/customer-business-accounts/requests/{requestId}/reject */
     post: operations["rejectCustomerBusinessAccountRequest"]
     delete?: never
     options?: never
@@ -77,6 +81,7 @@ export interface paths {
     }
     get?: never
     put?: never
+    /** POST /v1/admin/customer-business-accounts/accounts */
     post: operations["provisionCustomerBusinessAccount"]
     delete?: never
     options?: never
@@ -112,11 +117,27 @@ export interface operations {
         }
         content?: never
       }
+      /** @description HTTP 401 */
+      401: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 403 */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
     }
   }
   listCustomerBusinessAccountRequests: {
     parameters: {
-      query?: never
+      query?: {
+        status?: "pending" | "approved" | "rejected" | "canceled"
+      }
       header?: never
       path?: never
       cookie?: never
@@ -125,6 +146,20 @@ export interface operations {
     responses: {
       /** @description HTTP 200 */
       200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 401 */
+      401: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 403 */
+      403: {
         headers: {
           [name: string]: unknown
         }
@@ -136,13 +171,56 @@ export interface operations {
     parameters: {
       query?: never
       header?: never
-      path?: never
+      path: {
+        requestId: string
+      }
       cookie?: never
     }
-    requestBody?: never
+    requestBody: {
+      content: {
+        "application/json": {
+          reason?: string | null
+        }
+      }
+    }
     responses: {
       /** @description HTTP 200 */
       200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 400 */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 401 */
+      401: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 403 */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 404 */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 409 */
+      409: {
         headers: {
           [name: string]: unknown
         }
@@ -154,13 +232,56 @@ export interface operations {
     parameters: {
       query?: never
       header?: never
-      path?: never
+      path: {
+        requestId: string
+      }
       cookie?: never
     }
-    requestBody?: never
+    requestBody: {
+      content: {
+        "application/json": {
+          reason?: string | null
+        }
+      }
+    }
     responses: {
       /** @description HTTP 200 */
       200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 400 */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 401 */
+      401: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 403 */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 404 */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 409 */
+      409: {
         headers: {
           [name: string]: unknown
         }
@@ -175,10 +296,66 @@ export interface operations {
       path?: never
       cookie?: never
     }
-    requestBody?: never
+    requestBody: {
+      content: {
+        "application/json": {
+          idempotencyKey: string
+          /** Format: uri */
+          publicApiOrigin: string
+          owner: {
+            userId?: string
+            /** Format: email */
+            email?: string
+          }
+          relationshipOrganizationId?: string
+          profile?: {
+            name: string
+            legalName?: string | null
+            taxId?: string | null
+            /** Format: uri */
+            website?: string | null
+          }
+        }
+      }
+    }
     responses: {
       /** @description HTTP 201 */
       201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 400 */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 401 */
+      401: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 403 */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 404 */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 409 */
+      409: {
         headers: {
           [name: string]: unknown
         }

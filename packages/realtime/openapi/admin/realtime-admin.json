@@ -135,11 +135,11 @@
           "200": {
             "description": "A short-lived capability-scoped client token."
           },
+          "204": {
+            "description": "Realtime is not configured for this deployment."
+          },
           "401": {
             "description": "Authentication is required."
-          },
-          "503": {
-            "description": "No realtime transport is configured."
           }
         },
         "operationId": "postAdminRealtimeToken",

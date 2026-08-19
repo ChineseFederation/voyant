@@ -111,7 +111,12 @@ jobs:
   architecture:
     name: architecture
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    # `verify:architecture` has grown from 62 chain links to 102, and two of them
+    # drive the real OpenAPI generators. At 10 minutes the job started being
+    # CANCELLED rather than failing, which the `checks` and `db-checks`
+    # aggregates then render as a red X with no failing step under it — main
+    # itself went red that way and read as a flake for two runs.
+    timeout-minutes: 25
     env:
       HUSKY: 0
       NODE_OPTIONS: --conditions=development --max-old-space-size=12288
@@ -188,7 +193,7 @@ jobs:
     name: packaged-acceptance
     needs: build-graph
     runs-on: ubuntu-24.04
-    timeout-minutes: 12
+    timeout-minutes: 25
     env:
       HUSKY: 0
       NODE_OPTIONS: --max-old-space-size=12288
@@ -311,7 +316,7 @@ jobs:
     # against a hang rather than a budget the lane is already spending.
     #
     # Raised again to 30 for the same reason, with the arithmetic spelled out so
-    # the next person does not have to rediscover it: the lane now names 54
+    # the next person does not have to rediscover it: the lane now names 58
     # files, each paying its own process start and database setup, and the
     # insurance work (voyant#4750, voyant#4756) added four. At 20 it was being
     # cancelled mid-suite with every test passing — a budget, not a backstop.
@@ -324,19 +329,19 @@ jobs:
       TURBO_API: ${{ vars.TURBO_API }}
       TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
       TURBO_TEAM: ${{ vars.TURBO_TEAM }}
-      TEST_DATABASE_URL: postgresql://voyant:voyant@localhost:5432/voyant_test
-      DATABASE_URL: postgresql://voyant:voyant@localhost:5432/voyant_test
+      TEST_DATABASE_URL: postgresql://test:test@localhost:5432/voyant_test
+      DATABASE_URL: postgresql://test:test@localhost:5432/voyant_test
     services:
-      postgres:
+      test-db:
         image: ${{ matrix.postgres_image }}
         env:
-          POSTGRES_USER: voyant
-          POSTGRES_PASSWORD: voyant
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
           POSTGRES_DB: voyant_test
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U voyant -d voyant_test"
+          --health-cmd "pg_isready -U test -d voyant_test"
           --health-interval 1s
           --health-timeout 1s
           --health-retries 30
@@ -372,6 +377,8 @@ jobs:
                 tests/integration/postgres-indexer.test.ts
               pnpm --filter @voyant-travel/catalog exec vitest run \
                 tests/integration/postgres-pgtrgm-indexer.test.ts
+              pnpm --filter @voyant-travel/catalog exec vitest run \
+                tests/integration/booking-sessions-v1.test.ts
               pnpm --filter @voyant-travel/commerce exec vitest run \
                 tests/integration/promotion-created-command.test.ts
               pnpm --filter @voyant-travel/commerce exec vitest run \
@@ -380,6 +387,8 @@ jobs:
                 tests/integration/fx-rate-capture.test.ts
               pnpm --filter @voyant-travel/commerce exec vitest run \
                 tests/integration/ancillary-checkout-fulfilment.test.ts
+              pnpm --filter @voyant-travel/commerce exec vitest run \
+                tests/integration/checkout-finalization-store.test.ts
               pnpm --filter @voyant-travel/cruises exec vitest run \
                 tests/integration/created-target-tools.test.ts
               pnpm --filter @voyant-travel/auth exec vitest run \
@@ -396,6 +405,10 @@ jobs:
                 tests/integration/mcp-lookup.test.ts
               pnpm --filter @voyant-travel/inventory exec vitest run \
                 tests/integration/catalog-plane-pricing-occupancy.test.ts
+              pnpm --filter @voyant-travel/finance exec vitest run \
+                tests/integration/booking-session-payment.test.ts
+              pnpm --filter @voyant-travel/finance exec vitest run \
+                tests/integration/payment-adapter-initiation.test.ts
               pnpm --filter @voyant-travel/finance exec vitest run \
                 tests/integration/booking-create.test.ts
               pnpm --filter @voyant-travel/finance exec vitest run \

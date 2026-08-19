@@ -21,12 +21,13 @@
     "./openapi/public-api": "./openapi/public-api/realtime-public.json"
   },
   "scripts": {
-    "typecheck": "tsc -p tsconfig.typecheck.json",
-    "lint": "biome check src/",
-    "test": "vitest run",
     "build": "tsc -p tsconfig.build.json",
     "clean": "rm -rf dist tsconfig.tsbuildinfo",
-    "prepack": "pnpm run build"
+    "generate:openapi": "node --import tsx scripts/generate-admin-openapi.ts && node --import tsx scripts/generate-public-openapi.ts && biome format --write openapi/admin/realtime-admin.json openapi/public-api/realtime-public.json",
+    "lint": "biome check src/",
+    "prepack": "pnpm run build",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.typecheck.json"
   },
   "dependencies": {
     "@hono/zod-openapi": "catalog:",

@@ -16,7 +16,17 @@ const metadataSchema = z.record(z.string(), z.unknown()).optional().nullable()
  * a self-service create. Bound here at start so a verified challenge cannot be
  * redirected at a different draft later.
  */
-const subjectRefSchema = z.string().trim().min(1).max(255).optional().nullable()
+const subjectRefSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(255)
+  .optional()
+  .nullable()
+  .describe(
+    "What this challenge authorizes beyond its purpose - the booking draft id for a self-service create. " +
+      "Bound at start so a verified challenge cannot be redirected at another draft.",
+  )
 
 export const startEmailVerificationChallengeSchema = z.object({
   email: z.email(),

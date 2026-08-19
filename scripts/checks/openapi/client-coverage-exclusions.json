@@ -1,0 +1,5 @@
+{
+  "$comment": "Surface paths deliberately absent from a generated API client, and why. check-api-client-coverage.mjs requires every other path on a client's surface to be in its types. `limit` is the ratchet — it may only fall, in the same commit that removes an entry.",
+  "limit": 0,
+  "paths": {}
+}

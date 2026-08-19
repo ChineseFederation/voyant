@@ -5,7 +5,7 @@ import {
   publicApiFetchWithValidation,
   type VoyantPublicApiError,
   withPublicApiQueryParams,
-} from "../../src/index.js"
+} from "../../../src/legacy-client/index.js"
 
 describe("withPublicApiQueryParams", () => {
   it("serializes scalar and repeated query parameters", () => {

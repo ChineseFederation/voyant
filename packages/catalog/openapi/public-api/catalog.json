@@ -524,7 +524,33 @@
                     },
                     "reason": {
                       "type": "string",
-                      "const": "not_independently_sellable"
+                      "enum": ["not_independently_sellable"]
+                    },
+                    "vertical": {
+                      "type": "string"
+                    },
+                    "ownedBy": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Public storefront channel context is missing or inactive",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "reason": {
+                      "type": "string",
+                      "enum": ["not_independently_sellable"]
                     },
                     "vertical": {
                       "type": "string"
@@ -550,7 +576,7 @@
                     },
                     "reason": {
                       "type": "string",
-                      "const": "not_independently_sellable"
+                      "enum": ["not_independently_sellable"]
                     },
                     "vertical": {
                       "type": "string"
@@ -576,7 +602,7 @@
                     },
                     "reason": {
                       "type": "string",
-                      "const": "not_independently_sellable"
+                      "enum": ["not_independently_sellable"]
                     },
                     "vertical": {
                       "type": "string"
@@ -600,6 +626,7 @@
     },
     "/v1/public/catalog/checkout/start": {
       "post": {
+        "x-voyant-api-id": "@voyant-travel/commerce#catalog-checkout-extension.api",
         "requestBody": {
           "required": true,
           "content": {
@@ -613,7 +640,7 @@
                   },
                   "paymentIntent": {
                     "type": "string",
-                    "enum": ["card", "bank_transfer", "hold", "inquiry"]
+                    "enum": ["card", "bank_transfer"]
                   },
                   "contractAcceptance": {
                     "type": "object",
@@ -760,38 +787,6 @@
                         "paymentSessionId",
                         "instructions"
                       ]
-                    },
-                    {
-                      "type": "object",
-                      "properties": {
-                        "kind": {
-                          "type": "string",
-                          "enum": ["inquiry_received"]
-                        },
-                        "bookingId": {
-                          "type": "string"
-                        },
-                        "inquiryId": {
-                          "type": "string"
-                        },
-                        "note": {
-                          "type": "string"
-                        }
-                      },
-                      "required": ["kind", "bookingId", "inquiryId"]
-                    },
-                    {
-                      "type": "object",
-                      "properties": {
-                        "kind": {
-                          "type": "string",
-                          "enum": ["hold_placed"]
-                        },
-                        "bookingId": {
-                          "type": "string"
-                        }
-                      },
-                      "required": ["kind", "bookingId"]
                     }
                   ]
                 }
@@ -893,56 +888,13 @@
                 }
               }
             }
-          },
-          "401": {
-            "description": "Missing checkout session capability",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["error"]
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Capability was issued for a different booking or lacks payment:start",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["error"]
-                }
-              }
-            }
           }
         },
         "operationId": "postPublicCatalogCheckoutStart",
         "summary": "POST /v1/public/catalog/checkout/start",
         "tags": ["catalog"],
         "x-voyant-module": "catalog",
-        "x-voyant-surface": "public-api",
-        "parameters": [
-          {
-            "name": "X-Voyant-Checkout-Capability",
-            "in": "header",
-            "required": true,
-            "schema": {
-              "type": "string"
-            },
-            "description": "Booking-scoped checkout capability granting payment:start, as issued by booking creation. May also be presented as the voyant_checkout_session cookie."
-          }
-        ]
+        "x-voyant-surface": "public-api"
       }
     }
   },

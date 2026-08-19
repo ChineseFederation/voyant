@@ -227,11 +227,15 @@ export async function resolveDeparturePlannedCosts(
     executeBoundaryRows<{ slot_id: string; pax: number }>(
       db,
       sql`
-        SELECT ba.availability_slot_id AS slot_id, COALESCE(SUM(b.pax), 0)::int AS pax
-        FROM booking_allocations ba
-        JOIN bookings b ON b.id = ba.booking_id
-        WHERE ba.availability_slot_id IN (${sqlList(versionBoundIds)}) AND ba.status <> 'cancelled'
-        GROUP BY ba.availability_slot_id
+        SELECT claims.slot_id, COALESCE(SUM(b.pax), 0)::int AS pax
+        FROM (
+          SELECT DISTINCT ba.availability_slot_id AS slot_id, ba.booking_id
+          FROM booking_allocations ba
+          WHERE ba.availability_slot_id IN (${sqlList(versionBoundIds)})
+            AND ba.status <> 'cancelled'
+        ) claims
+        JOIN bookings b ON b.id = claims.booking_id
+        GROUP BY claims.slot_id
       `,
     ),
   ])

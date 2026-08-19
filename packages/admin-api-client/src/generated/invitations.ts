@@ -60,14 +60,14 @@ export interface operations {
     }
     requestBody?: never
     responses: {
-      /** @description The most recent user invitations. */
+      /** @description HTTP 200 */
       200: {
         headers: {
           [name: string]: unknown
         }
         content?: never
       }
-      /** @description The caller is not a super administrator. */
+      /** @description HTTP 403 */
       403: {
         headers: {
           [name: string]: unknown
@@ -96,21 +96,21 @@ export interface operations {
       }
     }
     responses: {
-      /** @description The invitation and its acceptance URL. */
+      /** @description HTTP 200 */
       200: {
         headers: {
           [name: string]: unknown
         }
         content?: never
       }
-      /** @description The caller is not a super administrator. */
+      /** @description HTTP 403 */
       403: {
         headers: {
           [name: string]: unknown
         }
         content?: never
       }
-      /** @description A user already exists for the email address. */
+      /** @description HTTP 409 */
       409: {
         headers: {
           [name: string]: unknown
@@ -130,14 +130,14 @@ export interface operations {
     }
     requestBody?: never
     responses: {
-      /** @description The deleted invitation identifier. */
+      /** @description HTTP 200 */
       200: {
         headers: {
           [name: string]: unknown
         }
         content?: never
       }
-      /** @description The caller is not a super administrator. */
+      /** @description HTTP 403 */
       403: {
         headers: {
           [name: string]: unknown

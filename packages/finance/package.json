@@ -1,6 +1,6 @@
 {
   "name": "@voyant-travel/finance",
-  "version": "0.262.1",
+  "version": "0.262.2",
   "license": "Apache-2.0",
   "type": "module",
   "exports": {
@@ -52,7 +52,7 @@
     "build": "NODE_OPTIONS=--max-old-space-size=8192 tsc -p tsconfig.build.json",
     "clean": "rm -rf dist tsconfig.tsbuildinfo",
     "prepack": "pnpm run build",
-    "generate:openapi": "node --import tsx scripts/generate-openapi.ts && biome format --write openapi/public-api/finance.json",
+    "generate:openapi": "node --import tsx scripts/generate-openapi.ts && node --import tsx scripts/generate-booking-tax-settings-openapi.ts && node --import tsx scripts/generate-booking-tax-preview-openapi.ts && node --import tsx scripts/generate-payment-link-openapi.ts && biome format --write openapi/public-api/payment-link.json openapi/admin/booking-tax-settings.json openapi/admin/booking-tax-preview.json openapi/public-api/finance.json",
     "migrate:travel-credits": "node --experimental-strip-types --experimental-transform-types scripts/migrate-travel-credits.ts",
     "db:generate": "drizzle-kit generate --config=drizzle.migrations.config.ts --name=finance_baseline && node ../../scripts/migrations/guard-create-type.mjs ./migrations && node ../../scripts/migrations/ensure-extensions.mjs ./migrations"
   },

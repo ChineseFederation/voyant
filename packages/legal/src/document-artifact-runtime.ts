@@ -10,6 +10,7 @@ import {
   type LegalDocumentArtifactProvider,
   type LegalDocumentRenderDescriptor,
 } from "./contracts/document-artifact-provider.js"
+import { LEGAL_DOCUMENT_RENDER_TIMEOUT_MS } from "./document-timeouts.js"
 
 function escapeHtml(value: string) {
   return value
@@ -114,7 +115,7 @@ export async function createStandardLegalDocumentArtifactProvider(input: {
       const bytes = await renderer.renderPdf({
         html: descriptorHtml(descriptor),
         page: { format: "a4", printBackground: true },
-        navigation: { waitUntil: "networkidle0", timeoutMs: 30_000 },
+        navigation: { waitUntil: "networkidle0", timeoutMs: LEGAL_DOCUMENT_RENDER_TIMEOUT_MS },
         mediaType: "print",
       })
       return {

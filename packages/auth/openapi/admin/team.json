@@ -8,37 +8,100 @@
     "/v1/admin/team/capabilities": {
       "get": {
         "operationId": "getTeamManagementCapabilities",
-        "tags": ["Team"],
         "x-voyant-api-id": "@voyant-travel/auth#team.api.admin",
-        "responses": { "200": { "description": "Team-management capabilities." } }
+        "responses": {
+          "200": {
+            "description": "HTTP 200"
+          },
+          "401": {
+            "description": "HTTP 401"
+          },
+          "403": {
+            "description": "HTTP 403"
+          },
+          "501": {
+            "description": "HTTP 501"
+          }
+        },
+        "summary": "GET /v1/admin/team/capabilities",
+        "tags": ["Team"],
+        "x-voyant-module": "team",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/team/members": {
       "get": {
         "operationId": "listTeamMembers",
-        "tags": ["Team"],
         "x-voyant-api-id": "@voyant-travel/auth#team.api.admin",
-        "responses": { "200": { "description": "Team members." } }
+        "responses": {
+          "200": {
+            "description": "HTTP 200"
+          },
+          "401": {
+            "description": "HTTP 401"
+          },
+          "403": {
+            "description": "HTTP 403"
+          },
+          "501": {
+            "description": "HTTP 501"
+          }
+        },
+        "summary": "GET /v1/admin/team/members",
+        "tags": ["Team"],
+        "x-voyant-module": "team",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/team/roles": {
       "get": {
         "operationId": "listTeamRoles",
-        "tags": ["Team"],
         "x-voyant-api-id": "@voyant-travel/auth#team.api.admin",
-        "responses": { "200": { "description": "Available team roles." } }
+        "responses": {
+          "200": {
+            "description": "HTTP 200"
+          },
+          "401": {
+            "description": "HTTP 401"
+          },
+          "403": {
+            "description": "HTTP 403"
+          },
+          "501": {
+            "description": "HTTP 501"
+          }
+        },
+        "summary": "GET /v1/admin/team/roles",
+        "tags": ["Team"],
+        "x-voyant-module": "team",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/team/invitations": {
       "get": {
         "operationId": "listTeamInvitations",
-        "tags": ["Team"],
         "x-voyant-api-id": "@voyant-travel/auth#team.api.admin",
-        "responses": { "200": { "description": "Team invitations." } }
+        "responses": {
+          "200": {
+            "description": "HTTP 200"
+          },
+          "401": {
+            "description": "HTTP 401"
+          },
+          "403": {
+            "description": "HTTP 403"
+          },
+          "501": {
+            "description": "HTTP 501"
+          }
+        },
+        "summary": "GET /v1/admin/team/invitations",
+        "tags": ["Team"],
+        "x-voyant-module": "team",
+        "x-voyant-surface": "admin"
       },
       "post": {
         "operationId": "createTeamInvitation",
-        "tags": ["Team"],
         "x-voyant-api-id": "@voyant-travel/auth#team.api.admin",
         "requestBody": {
           "required": true,
@@ -46,46 +109,105 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["email", "roleId"],
                 "properties": {
-                  "email": { "type": "string", "format": "email" },
-                  "roleId": { "type": "string", "minLength": 1, "maxLength": 120 },
-                  "expiresInDays": { "type": "integer", "minimum": 1, "maximum": 30 }
-                }
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "roleId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "expiresInDays": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 30
+                  }
+                },
+                "required": ["email", "roleId"]
               }
             }
           }
         },
-        "responses": { "201": { "description": "Created team invitation." } }
+        "responses": {
+          "201": {
+            "description": "HTTP 201"
+          },
+          "400": {
+            "description": "HTTP 400"
+          },
+          "401": {
+            "description": "HTTP 401"
+          },
+          "403": {
+            "description": "HTTP 403"
+          },
+          "404": {
+            "description": "HTTP 404"
+          },
+          "409": {
+            "description": "HTTP 409"
+          },
+          "501": {
+            "description": "HTTP 501"
+          }
+        },
+        "summary": "POST /v1/admin/team/invitations",
+        "tags": ["Team"],
+        "x-voyant-module": "team",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/team/invitations/{invitationId}": {
       "delete": {
         "operationId": "revokeTeamInvitation",
-        "tags": ["Team"],
         "x-voyant-api-id": "@voyant-travel/auth#team.api.admin",
         "parameters": [
           {
-            "name": "invitationId",
-            "in": "path",
+            "schema": {
+              "type": "string"
+            },
             "required": true,
-            "schema": { "type": "string" }
+            "name": "invitationId",
+            "in": "path"
           }
         ],
-        "responses": { "204": { "description": "Invitation revoked." } }
+        "responses": {
+          "204": {
+            "description": "HTTP 204"
+          },
+          "401": {
+            "description": "HTTP 401"
+          },
+          "403": {
+            "description": "HTTP 403"
+          },
+          "404": {
+            "description": "HTTP 404"
+          },
+          "501": {
+            "description": "HTTP 501"
+          }
+        },
+        "summary": "DELETE /v1/admin/team/invitations/{invitationId}",
+        "tags": ["Team"],
+        "x-voyant-module": "team",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/team/members/{memberId}/role": {
       "put": {
         "operationId": "updateTeamMemberRole",
-        "tags": ["Team"],
         "x-voyant-api-id": "@voyant-travel/auth#team.api.admin",
         "parameters": [
           {
-            "name": "memberId",
-            "in": "path",
+            "schema": {
+              "type": "string"
+            },
             "required": true,
-            "schema": { "type": "string" }
+            "name": "memberId",
+            "in": "path"
           }
         ],
         "requestBody": {
@@ -94,45 +216,125 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["roleId"],
-                "properties": { "roleId": { "type": "string", "minLength": 1 } }
+                "properties": {
+                  "roleId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  }
+                },
+                "required": ["roleId"]
               }
             }
           }
         },
-        "responses": { "200": { "description": "Updated team member." } }
+        "responses": {
+          "200": {
+            "description": "HTTP 200"
+          },
+          "400": {
+            "description": "HTTP 400"
+          },
+          "401": {
+            "description": "HTTP 401"
+          },
+          "403": {
+            "description": "HTTP 403"
+          },
+          "404": {
+            "description": "HTTP 404"
+          },
+          "409": {
+            "description": "HTTP 409"
+          },
+          "501": {
+            "description": "HTTP 501"
+          }
+        },
+        "summary": "PUT /v1/admin/team/members/{memberId}/role",
+        "tags": ["Team"],
+        "x-voyant-module": "team",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/team/members/{memberId}": {
       "delete": {
         "operationId": "deactivateTeamMember",
-        "tags": ["Team"],
         "x-voyant-api-id": "@voyant-travel/auth#team.api.admin",
         "parameters": [
           {
-            "name": "memberId",
-            "in": "path",
+            "schema": {
+              "type": "string"
+            },
             "required": true,
-            "schema": { "type": "string" }
+            "name": "memberId",
+            "in": "path"
           }
         ],
-        "responses": { "200": { "description": "Deactivated team member." } }
+        "responses": {
+          "200": {
+            "description": "HTTP 200"
+          },
+          "401": {
+            "description": "HTTP 401"
+          },
+          "403": {
+            "description": "HTTP 403"
+          },
+          "404": {
+            "description": "HTTP 404"
+          },
+          "409": {
+            "description": "HTTP 409"
+          },
+          "501": {
+            "description": "HTTP 501"
+          }
+        },
+        "summary": "DELETE /v1/admin/team/members/{memberId}",
+        "tags": ["Team"],
+        "x-voyant-module": "team",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/team/members/{memberId}/activation": {
       "put": {
         "operationId": "activateTeamMember",
-        "tags": ["Team"],
         "x-voyant-api-id": "@voyant-travel/auth#team.api.admin",
         "parameters": [
           {
-            "name": "memberId",
-            "in": "path",
+            "schema": {
+              "type": "string"
+            },
             "required": true,
-            "schema": { "type": "string" }
+            "name": "memberId",
+            "in": "path"
           }
         ],
-        "responses": { "200": { "description": "Activated team member." } }
+        "responses": {
+          "200": {
+            "description": "HTTP 200"
+          },
+          "401": {
+            "description": "HTTP 401"
+          },
+          "403": {
+            "description": "HTTP 403"
+          },
+          "404": {
+            "description": "HTTP 404"
+          },
+          "409": {
+            "description": "HTTP 409"
+          },
+          "501": {
+            "description": "HTTP 501"
+          }
+        },
+        "summary": "PUT /v1/admin/team/members/{memberId}/activation",
+        "tags": ["Team"],
+        "x-voyant-module": "team",
+        "x-voyant-surface": "admin"
       }
     }
   }

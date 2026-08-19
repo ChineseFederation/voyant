@@ -5,11 +5,6 @@ import type {
   PublicApiResolvedScope,
   PublicApiShoppingIntent,
   PublicApiShoppingResult,
-  PublicApiTripBooking,
-  PublicApiTripBookingCreate,
-  PublicApiTripSelection,
-  PublicApiTripSelectionCreate,
-  PublicApiTripSelectionUpdate,
 } from "./schemas.js"
 
 // Package manifests consume graph-safe provider contracts through this
@@ -74,22 +69,6 @@ export interface PublicApiShoppingRuntime {
   ): Promise<PublicApiShoppingResult>
 }
 
-/** Separate stateful seam: shopping remains read-only and stateless. */
-export interface PublicApiTripSelectionsRuntime {
-  create(
-    context: PublicApiShoppingContext,
-    input: Omit<PublicApiTripSelectionCreate, "scope"> & { scope: PublicApiResolvedScope },
-  ): Promise<PublicApiTripSelection>
-  update(
-    context: PublicApiShoppingContext,
-    input: PublicApiTripSelectionUpdate,
-  ): Promise<PublicApiTripSelection>
-  book(
-    context: PublicApiShoppingContext,
-    input: PublicApiTripBookingCreate,
-  ): Promise<PublicApiTripBooking>
-}
-
 function requireMethods(id: string, provider: object, methods: readonly string[]): void {
   for (const method of methods) {
     if (typeof (provider as Record<string, unknown>)[method] !== "function") {
@@ -121,15 +100,5 @@ export const publicApiOpaqueReferenceIssuerPort = definePort<PublicApiOpaqueRefe
         "storefront.shopping.opaque-reference-issuer provider must implement issue() and redeem().",
       )
     }
-  },
-})
-
-export const publicApiTripSelectionsRuntimePort = definePort<PublicApiTripSelectionsRuntime>({
-  id: "public-api.trip-selections.runtime",
-  test(provider) {
-    if (provider === null || typeof provider !== "object") {
-      throw new Error("storefront.trip-selections.runtime provider must be an options object.")
-    }
-    requireMethods("public-api.trip-selections.runtime", provider, ["create", "update", "book"])
   },
 })

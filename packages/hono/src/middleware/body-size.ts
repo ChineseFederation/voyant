@@ -83,3 +83,51 @@ function tooLargeResponse(c: Context, maxBytes: number): Response {
     413,
   )
 }
+
+/**
+ * A hard byte ceiling for a JSON route, applied by reading the body once.
+ *
+ * `requestBodyLimit` above is the app-wide guard. This is the per-route form for
+ * surfaces that accept an unauthenticated body and want a far tighter cap than
+ * the global one — public shopping and trip selection both cap at 64 KiB.
+ *
+ * It reads the stream itself rather than delegating to Hono's `bodyLimit`
+ * because it then seeds `c.req.bodyCache.text` with the bounded buffer. OpenAPI
+ * validation reads through `HonoRequest.json()`, whose first cache key is
+ * `text`; without the seed the validator re-reads a stream this middleware has
+ * already consumed. Hono's runtime body cache stores promises even though its
+ * public type describes the resolved values, hence the cast.
+ *
+ * Shared rather than copied: two packages mount it, and the cache-seeding is
+ * pinned to Hono internals, so a second copy would drift silently the next time
+ * those change.
+ */
+export function boundedJsonBody(maxBytes: number): MiddlewareHandler {
+  return async (c, next) => {
+    const declaredLength = Number(c.req.header("content-length"))
+    if (Number.isFinite(declaredLength) && declaredLength > maxBytes) {
+      return tooLargeResponse(c, maxBytes)
+    }
+
+    const body = c.req.raw.body
+    if (!body) return next()
+    const reader = body.getReader()
+    const decoder = new TextDecoder()
+    let bytesRead = 0
+    let text = ""
+    while (true) {
+      const chunk = await reader.read()
+      if (chunk.done) break
+      bytesRead += chunk.value.byteLength
+      if (bytesRead > maxBytes) {
+        await reader.cancel().catch(() => {})
+        return tooLargeResponse(c, maxBytes)
+      }
+      text += decoder.decode(chunk.value, { stream: true })
+    }
+    text += decoder.decode()
+
+    c.req.bodyCache.text = Promise.resolve(text) as unknown as string
+    return next()
+  }
+}

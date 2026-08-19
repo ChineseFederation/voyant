@@ -1,5 +1,12 @@
 # @voyant-travel/payments
 
+## 0.13.3
+
+### Patch Changes
+
+- Updated dependencies [d3288fb]
+  - @voyant-travel/graph-contracts@0.8.0
+
 ## 0.13.2
 
 ### Patch Changes

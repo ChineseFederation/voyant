@@ -12,29 +12,7 @@ export interface paths {
       cookie?: never
     }
     /** List channel booking links and status counts */
-    get: {
-      parameters: {
-        query?: {
-          status?: string
-          channelId?: string
-          bookingId?: string
-          limit?: number
-        }
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Channel booking links and counts */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content?: never
-        }
-      }
-    }
+    get: operations["getAdminDistributionLinks"]
     put?: never
     post?: never
     delete?: never
@@ -53,33 +31,7 @@ export interface paths {
     get?: never
     put?: never
     /** Retry channel delivery for a booking */
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          bookingId: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description The retry attempt completed */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content?: never
-        }
-        /** @description The retry attempt failed */
-        500: {
-          headers: {
-            [name: string]: unknown
-          }
-          content?: never
-        }
-      }
-    }
+    post: operations["postAdminDistributionRetryByBookingId"]
     delete?: never
     options?: never
     head?: never
@@ -94,28 +46,7 @@ export interface paths {
       cookie?: never
     }
     /** List channel webhook deliveries */
-    get: {
-      parameters: {
-        query?: {
-          bookingId?: string
-          channelId?: string
-          limit?: number
-        }
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Matching webhook deliveries */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content?: never
-        }
-      }
-    }
+    get: operations["getAdminDistributionDeliveries"]
     put?: never
     post?: never
     delete?: never
@@ -132,26 +63,7 @@ export interface paths {
       cookie?: never
     }
     /** Inspect recent per-channel throttling */
-    get: {
-      parameters: {
-        query?: {
-          sinceMs?: number
-        }
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Per-channel throttling counts */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content?: never
-        }
-      }
-    }
+    get: operations["getAdminDistributionThrottling"]
     put?: never
     post?: never
     delete?: never
@@ -170,40 +82,7 @@ export interface paths {
     get?: never
     put?: never
     /** Run a channel reconciliation flow */
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          flow: "bookings" | "availability" | "content"
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description The reconciliation flow completed */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content?: never
-        }
-        /** @description The flow name is unknown */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content?: never
-        }
-        /** @description The reconciliation flow failed */
-        500: {
-          headers: {
-            [name: string]: unknown
-          }
-          content?: never
-        }
-      }
-    }
+    post: operations["postAdminDistributionReconcileByFlow"]
     delete?: never
     options?: never
     head?: never
@@ -221,4 +100,277 @@ export interface components {
   pathItems: never
 }
 export type $defs = Record<string, never>
-export type operations = Record<string, never>
+export interface operations {
+  getAdminDistributionLinks: {
+    parameters: {
+      query?: {
+        status?: string
+        channelId?: string
+        bookingId?: string
+        limit?: string
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Channel booking links and status counts */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              link: {
+                id: string
+                channelId: string
+                bookingId: string
+                bookingItemId: string | null
+                externalBookingId: string | null
+                externalReference: string | null
+                externalStatus: string | null
+                bookedAtExternal: string | null
+                lastSyncedAt: string | null
+                sourceKind: string | null
+                sourceConnectionId: string | null
+                pushStatus: string
+                pushAttempts: number
+                lastPushAt: string | null
+                lastError: string | null
+                pushedPayloadHash: string | null
+                idempotencyKey: string | null
+                createdAt: string
+                updatedAt: string
+              }
+              channelName: string
+              /** @enum {string} */
+              channelKind:
+                | "direct"
+                | "affiliate"
+                | "ota"
+                | "reseller"
+                | "marketplace"
+                | "api_partner"
+                | "connect"
+            }[]
+            counts: {
+              [key: string]: number
+            }
+          }
+        }
+      }
+    }
+  }
+  postAdminDistributionRetryByBookingId: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        bookingId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Booking push retry result */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              ok: boolean
+              bookingId: string
+              attempted: number
+              succeeded: number
+              failed: number
+              compensated: number
+              outcomes: {
+                channelId: string
+                bookingItemId: string | null
+                /** @enum {string} */
+                status: "ok" | "failed" | "skipped" | "compensated"
+                upstreamRef?: string
+                error?: string
+              }[]
+              targetCount: number
+              insertedLinks: number
+              /** @enum {string} */
+              reason?: "no_pending_links" | "booking_missing" | "no_targets"
+            }
+          }
+        }
+      }
+      /** @description Booking push retry failed */
+      500: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getAdminDistributionDeliveries: {
+    parameters: {
+      query?: {
+        bookingId?: string
+        channelId?: string
+        limit?: string
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Channel push webhook deliveries */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              sourceModule: string
+              sourceEvent: string
+              sourceEntityModule: string | null
+              sourceEntityId: string | null
+              subscriptionId: string | null
+              targetUrl: string
+              targetKind: string | null
+              targetRef: string | null
+              requestMethod: string
+              requestHeaders: {
+                [key: string]: string
+              } | null
+              requestBodyHash: string | null
+              requestBodyExcerpt: string | null
+              requestPayload: {
+                [key: string]: unknown
+              } | null
+              deliveryContract: {
+                [key: string]: unknown
+              } | null
+              responseStatus: number | null
+              responseHeaders: {
+                [key: string]: string
+              } | null
+              responseBodyExcerpt: string | null
+              attemptNumber: number
+              parentDeliveryId: string | null
+              idempotencyKey: string | null
+              /** @enum {string} */
+              status: "pending" | "in_flight" | "succeeded" | "failed" | "abandoned"
+              /** Format: date-time */
+              scheduledFor: string | null
+              /** Format: date-time */
+              startedAt: string | null
+              /** Format: date-time */
+              finishedAt: string | null
+              durationMs: number | null
+              /** @enum {string|null} */
+              errorClass:
+                | "network"
+                | "timeout"
+                | "4xx"
+                | "5xx"
+                | "adapter_error"
+                | "rate_limited"
+                | null
+              errorMessage: string | null
+              /** Format: date-time */
+              createdAt: string
+              /** Format: date-time */
+              updatedAt: string
+            }[]
+          }
+        }
+      }
+    }
+  }
+  getAdminDistributionThrottling: {
+    parameters: {
+      query?: {
+        sinceMs?: string
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Recent rate limiting by channel */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              channelId: string
+              count: number
+            }[]
+            sinceMs: number
+          }
+        }
+      }
+    }
+  }
+  postAdminDistributionReconcileByFlow: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        flow: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Channel push reconciliation result */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              scanned: number
+              triggered: number
+            }
+          }
+        }
+      }
+      /** @description Unknown channel push flow */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Channel push reconciliation failed */
+      500: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+}

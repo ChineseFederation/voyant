@@ -88,6 +88,8 @@ export interface Subscription {
  * Per-subscription options.
  */
 export interface SubscribeOptions {
+  /** Stable identity included in timeout diagnostics. */
+  label?: string
   /**
    * Inline handlers complete before `emit()` resolves even when the
    * emitter supplies a deferral scheduler (see {@link EmitOptions}).
@@ -289,6 +291,7 @@ const DEFAULT_HANDLER_TIMEOUT_MS = 15_000
 
 interface RegisteredHandler {
   inline: boolean
+  label?: string
   /** Per-subscription override of the bus timeout; absent means the default. */
   timeoutMs?: number | false
 }
@@ -366,7 +369,8 @@ export function createEventBus(options: EventBusOptions = {}): EventBus {
           // be worse if the detached run also fails. Reported as a timeout so
           // the retry is not mistaken for a clean one — it will run alongside
           // the attempt still in flight (voyant#4640).
-          const message = `subscriber for "${event}" exceeded ${effectiveTimeoutMs}ms; not awaited`
+          const identity = registered?.label ? ` ${registered.label}` : ""
+          const message = `subscriber${identity} for "${event}" exceeded ${effectiveTimeoutMs}ms; not awaited`
           console.error(`[events] ${message}`)
           notifySubscriberError(event, new Error(message))
           return { message, timedOut: true, permanent: false }
@@ -553,6 +557,7 @@ export function createEventBus(options: EventBusOptions = {}): EventBus {
       }
       registered.set(handler as EventHandler, {
         inline: subscribeOptions?.inline ?? false,
+        ...(subscribeOptions?.label === undefined ? {} : { label: subscribeOptions.label }),
         ...(subscribeOptions?.timeoutMs === undefined
           ? {}
           : { timeoutMs: subscribeOptions.timeoutMs }),

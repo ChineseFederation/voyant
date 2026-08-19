@@ -31,13 +31,14 @@
     "./catalog-runtime-extension": "./src/catalog-runtime-extension.ts"
   },
   "scripts": {
-    "typecheck": "tsc -p tsconfig.typecheck.json",
-    "lint": "biome check src/",
-    "test": "vitest run",
     "build": "tsc -p tsconfig.build.json",
     "clean": "rm -rf dist tsconfig.tsbuildinfo",
+    "db:generate": "drizzle-kit generate --config=drizzle.migrations.config.ts --name=accommodations_baseline && node ../../scripts/migrations/guard-create-type.mjs ./migrations && node ../../scripts/migrations/ensure-extensions.mjs ./migrations",
+    "generate:openapi": "node --import tsx scripts/generate-openapi.ts && node --import tsx scripts/generate-public-openapi.ts && biome format --write openapi/admin/accommodations.json openapi/public-api/accommodations-content-public.json",
+    "lint": "biome check src/",
     "prepack": "pnpm run build",
-    "db:generate": "drizzle-kit generate --config=drizzle.migrations.config.ts --name=accommodations_baseline && node ../../scripts/migrations/guard-create-type.mjs ./migrations && node ../../scripts/migrations/ensure-extensions.mjs ./migrations"
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.typecheck.json"
   },
   "dependencies": {
     "@voyant-travel/action-ledger": "workspace:^",

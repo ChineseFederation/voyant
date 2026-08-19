@@ -1,6 +1,6 @@
 {
   "name": "@voyant-travel/operator-settings-react",
-  "version": "0.168.1",
+  "version": "0.169.0",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
@@ -41,6 +41,7 @@
     "@voyant-travel/react": "workspace:^"
   },
   "devDependencies": {
+    "@voyant-travel/auth-react": "workspace:^",
     "@tanstack/react-query": "^5.101.2",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",

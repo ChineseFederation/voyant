@@ -1,0 +1,19 @@
+{
+  "$comment": [
+    "How many API bundles the selected deployment graph must own outright, rather",
+    "than falling back to the Operator compatibility partition. A ratchet: it may",
+    "only rise, and it rises in the same commit that migrates a bundle.",
+    "",
+    "It lived as a constant inside check-deployment-graph-openapi-coverage.mjs, and",
+    "check-retail-openapi-authority.mjs pinned it by matching the assignment's",
+    "source text. That broke on the value changing rather than on the rule being",
+    "weakened, which is the failure mode AGENTS.md describes for substring",
+    "assertions. Both checkers now read this file.",
+    "",
+    "`floor` is a deliberate second copy, and the only reason it exists: lowering",
+    "the ratchet has to be two edits in two files, so it cannot ride along in a",
+    "diff about something else. Raising `minimum` alone is always fine."
+  ],
+  "minimum": 97,
+  "floor": 97
+}

@@ -11,6 +11,7 @@ export interface paths {
       path?: never
       cookie?: never
     }
+    /** GET /v1/admin/navigation-preferences */
     get: operations["getNavigationPreferences"]
     put?: never
     post?: never
@@ -28,6 +29,7 @@ export interface paths {
       cookie?: never
     }
     get?: never
+    /** PUT /v1/admin/navigation-preferences/organization */
     put: operations["setOrganizationNavigationPreferences"]
     post?: never
     delete?: never
@@ -44,6 +46,7 @@ export interface paths {
       cookie?: never
     }
     get?: never
+    /** PUT /v1/admin/navigation-preferences/me */
     put: operations["setOwnNavigationPreferences"]
     post?: never
     delete?: never

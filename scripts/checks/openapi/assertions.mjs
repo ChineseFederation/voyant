@@ -11,6 +11,113 @@ export function driftedFiles(snapshots) {
   return snapshots.flatMap(({ file, before, after }) => {
     if (after === null) return [`${file}: the generator did not produce this file`]
     if (before === null) return [`${file}: generated but not checked in`]
-    return before.equals(after) ? [] : [`${file}: checked-in document is stale`]
+    if (before.equals(after)) return []
+    return [`${file}: checked-in document is stale`, ...firstDifference(before, after)]
   })
+}
+
+/**
+ * Where the two versions first disagree, and what each says there.
+ *
+ * "Stale" alone is not actionable when the file regenerates identically on the
+ * machine you are standing at — which is exactly the case that matters, because
+ * it means the difference is environmental and you cannot see it locally. The
+ * excerpt is what turns "CI disagrees" into a fact you can act on.
+ *
+ * Capped at a few lines: these documents run to hundreds of kilobytes, and a
+ * full diff in a CI log is as unreadable as no diff at all.
+ */
+function firstDifference(before, after, context = 3) {
+  const oldLines = before.toString("utf8").split("\n")
+  const newLines = after.toString("utf8").split("\n")
+  const limit = Math.max(oldLines.length, newLines.length)
+
+  for (let index = 0; index < limit; index += 1) {
+    if (oldLines[index] === newLines[index]) continue
+    const excerpt = [`      first difference at line ${index + 1}:`]
+    for (let offset = 0; offset < context; offset += 1) {
+      const at = index + offset
+      if (oldLines[at] !== undefined) excerpt.push(`      - ${oldLines[at]}`)
+      if (newLines[at] !== undefined) excerpt.push(`      + ${newLines[at]}`)
+    }
+    excerpt.push(`      (checked-in ${oldLines.length} lines, regenerated ${newLines.length})`)
+    return excerpt
+  }
+  // Same lines, different bytes: a trailing newline or line ending.
+  return [`      lines match; bytes differ (${before.length} vs ${after.length})`]
+}
+/**
+ * Pure part of the document-closure check, so the cases that matter can be
+ * tested without a repository.
+ *
+ * @param {{
+ *   documents: ReadonlyArray<string>,
+ *   registered: ReadonlySet<string>,
+ *   exempt: Readonly<Record<string, { reason?: string, issue?: string }>>,
+ *   limit: number,
+ * }} input
+ * @returns {string[]} one line per violation
+ */
+export function closureViolations({ documents, registered, exempt, limit }) {
+  const violations = []
+
+  // A closure check that enumerated nothing would pass while checking nothing,
+  // and it would read as coverage — the worst of the two ways to be wrong.
+  if (documents.length === 0) {
+    return ["matched no tracked OpenAPI documents, which cannot be right"]
+  }
+
+  for (const file of documents) {
+    const isGenerated = registered.has(file)
+    const isExempt = Object.hasOwn(exempt, file)
+
+    if (isGenerated && isExempt) {
+      violations.push(
+        `${file} is registered in generated-specs.json AND recorded in not-generatable.json. ` +
+          `It is generated, so delete its not-generatable entry — an exemption that outlives ` +
+          `its reason quietly makes the document look unchecked when it is checked.`,
+      )
+      continue
+    }
+    if (!isGenerated && !isExempt) {
+      violations.push(
+        `${file} is in neither generated-specs.json nor not-generatable.json, so nothing ` +
+          `verifies it and nothing says why. Register a generator for it, or record it in ` +
+          `not-generatable.json with the reason it cannot be generated.`,
+      )
+    }
+  }
+
+  const tracked = new Set(documents)
+  for (const [file, entry] of Object.entries(exempt)) {
+    if (!tracked.has(file)) {
+      violations.push(`not-generatable.json names ${file}, which is not a tracked document`)
+      continue
+    }
+    // The reason is the whole point of the file. Without it the entry records
+    // that someone once decided something, which is not a fact anyone can act on.
+    if (typeof entry?.reason !== "string" || entry.reason.trim() === "") {
+      violations.push(`not-generatable.json entry for ${file} has no \`reason\``)
+    }
+  }
+
+  // A ratchet, in the repository's usual shape. The entries ARE the declaration,
+  // so unlike the nullable baseline there is nothing derived to compare them
+  // against — `limit` supplies the second number, which is what makes ADDING one
+  // a deliberate, reviewable act rather than a way to legitimise a hand-written
+  // document.
+  const count = Object.keys(exempt).length
+  if (count > limit) {
+    violations.push(
+      `not-generatable.json holds ${count} entries, above its limit of ${limit}. ` +
+        `The exemption list may only shrink.`,
+    )
+  } else if (count < limit) {
+    violations.push(
+      `not-generatable.json holds ${count} entries, below its limit of ${limit}. ` +
+        `Lower \`limit\` in the same commit that removes an entry.`,
+    )
+  }
+
+  return violations
 }

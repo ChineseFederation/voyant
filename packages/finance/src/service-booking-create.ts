@@ -968,9 +968,9 @@ async function diagnoseProductRefusal(
     lineOptionIds: readonly string[]
   },
 ): Promise<string> {
-  const [product] = (await tx.execute(sql`
+  const [product] = await tx.execute<{ id: string; status: string }>(sql`
     SELECT id, status FROM products WHERE id = ${input.productId} LIMIT 1
-  `)) as unknown as Array<{ id: string; status: string }>
+  `)
   if (!product) {
     return `No product exists with id ${input.productId}. Find the id with inventory_query before retrying.`
   }
@@ -979,14 +979,14 @@ async function diagnoseProductRefusal(
     ...new Set([...(input.optionId ? [input.optionId] : []), ...input.lineOptionIds]),
   ]
   if (optionIds.length > 0) {
-    const owned = (await tx.execute(sql`
+    const owned = await tx.execute<{ id: string }>(sql`
       SELECT id FROM product_options
       WHERE product_id = ${input.productId}
         AND id IN (${sql.join(
           optionIds.map((optionId) => sql`${optionId}`),
           sql`, `,
         )})
-    `)) as unknown as Array<{ id: string }>
+    `)
     const ownedIds = new Set(owned.map((row) => row.id))
     const foreign = optionIds.filter((id) => !ownedIds.has(id))
     if (foreign.length > 0) {
@@ -995,10 +995,14 @@ async function diagnoseProductRefusal(
   }
 
   if (input.slotId) {
-    const [slot] = (await tx.execute(sql`
+    const [slot] = await tx.execute<{
+      id: string
+      productId: string
+      optionId: string | null
+    }>(sql`
       SELECT id, product_id AS "productId", option_id AS "optionId"
       FROM availability_slots WHERE id = ${input.slotId} LIMIT 1
-    `)) as unknown as Array<{ id: string; productId: string; optionId: string | null }>
+    `)
     if (!slot) {
       return `No departure exists with id ${input.slotId}.`
     }
@@ -1061,7 +1065,11 @@ async function loadProductOptionUnits(
 }
 
 function isInventoryOptionUnit(unit: PricingAssignmentUnit): boolean {
-  return unit.unitType === "room" || unit.unitType === "vehicle"
+  return isInventoryUnitType(unit.unitType)
+}
+
+function isInventoryUnitType(unitType: string | null | undefined): boolean {
+  return unitType === "room" || unitType === "vehicle"
 }
 
 function isPersonOptionUnit(unit: PricingAssignmentUnit): boolean {
@@ -1071,6 +1079,7 @@ function isPersonOptionUnit(unit: PricingAssignmentUnit): boolean {
 function normalizeAccommodationItemLinesToInventoryUnits(options: {
   itemLines: NonNullable<BookingCreateInput["itemLines"]> | undefined
   units: readonly BookingCreateProductOptionUnit[]
+  occupancyPriceBasisByOptionId?: ReadonlyMap<string, "supplement" | "all_in" | null>
 }): NonNullable<BookingCreateInput["itemLines"]> | undefined {
   if (!options.itemLines?.length || options.units.length === 0) return options.itemLines
 
@@ -1093,15 +1102,35 @@ function normalizeAccommodationItemLinesToInventoryUnits(options: {
     }
   }
 
-  return options.itemLines.map((line) => {
+  const optionsWithExplicitInventoryLines = new Set(
+    options.itemLines.flatMap((line) => {
+      const unit = unitById.get(line.optionUnitId)
+      return unit && isInventoryOptionUnit(unit) ? [unit.optionId ?? unit.optionUnitId] : []
+    }),
+  )
+
+  return options.itemLines.flatMap((line) => {
     const submittedUnit = unitById.get(line.optionUnitId)
     const targetInventory = unitToPrimaryInventory.get(line.optionUnitId)
-    if (!submittedUnit || !targetInventory) return line
-    if (isInventoryOptionUnit(submittedUnit) || !isPersonOptionUnit(submittedUnit)) return line
-    return {
-      ...line,
-      optionUnitId: targetInventory.optionUnitId,
+    if (!submittedUnit || !targetInventory) return [line]
+    if (isInventoryOptionUnit(submittedUnit) || !isPersonOptionUnit(submittedUnit)) return [line]
+    // Adult-only payloads from the legacy accommodation UI used the person
+    // unit as a proxy for the primary room and still need normalization. A
+    // payload that also names a room/vehicle explicitly is the modern mixed
+    // fare + supplement shape: rewriting its person fare would lose a priced
+    // booking item and inflate the room quantity (voyant#4869).
+    const optionId = submittedUnit.optionId ?? submittedUnit.optionUnitId
+    if (optionsWithExplicitInventoryLines.has(optionId)) {
+      const occupancyPriceBasis = options.occupancyPriceBasisByOptionId?.get(optionId)
+      if (occupancyPriceBasis === "supplement") return [line]
+      if (occupancyPriceBasis === "all_in") return []
     }
+    return [
+      {
+        ...line,
+        optionUnitId: targetInventory.optionUnitId,
+      },
+    ]
   })
 }
 
@@ -1646,7 +1675,7 @@ async function reconcileBookingCreatePricing(
           ],
         }
       }
-      if (categoryRules.some((rule) => rule.unitType === "room") && optionBaseState) {
+      if (categoryRules.some((rule) => isInventoryUnitType(rule.unitType)) && optionBaseState) {
         const occupancyPrice = classifyOccupancyPrice({
           occupancyPriceBasis: persistedPricing?.occupancyPriceBasis ?? null,
           travelerBaseFareAmountCents: persistedPricing?.baseSellAmountCents ?? 0,
@@ -1684,7 +1713,7 @@ async function reconcileBookingCreatePricing(
       chargeQuantity,
     })
     if (flatUnitPrice.status === "priced") {
-      if (unitRule?.unitType === "room" && optionBaseState) {
+      if (unitRule && isInventoryUnitType(unitRule.unitType) && optionBaseState) {
         const occupancyPrice = classifyOccupancyPrice({
           occupancyPriceBasis: persistedPricing?.occupancyPriceBasis ?? null,
           travelerBaseFareAmountCents: persistedPricing?.baseSellAmountCents ?? 0,
@@ -2628,9 +2657,38 @@ export async function createBookingMutation(
       }
 
       const productOptionUnits = await loadProductOptionUnits(tx, input.productId)
+      const selectedUnits = (input.itemLines ?? []).flatMap((line) => {
+        const unit = productOptionUnits.find(
+          (candidate) => candidate.optionUnitId === line.optionUnitId,
+        )
+        return unit ? [unit] : []
+      })
+      const selectedInventoryOptionIds = new Set(
+        selectedUnits.flatMap((unit) =>
+          unit.optionId && isInventoryOptionUnit(unit) ? [unit.optionId] : [],
+        ),
+      )
+      const selectedOptionIds = new Set(
+        selectedUnits.flatMap((unit) =>
+          unit.optionId && isPersonOptionUnit(unit) && selectedInventoryOptionIds.has(unit.optionId)
+            ? [unit.optionId]
+            : [],
+        ),
+      )
+      const occupancyPriceBasisByOptionId = new Map<string, "supplement" | "all_in" | null>()
+      for (const optionId of selectedOptionIds) {
+        const pricing = await loadPersistedBookingCreatePricing(tx, {
+          productId: input.productId,
+          optionId,
+          slotId: input.slotId ?? null,
+          catalogId: input.catalogId ?? null,
+        })
+        occupancyPriceBasisByOptionId.set(optionId, pricing?.occupancyPriceBasis ?? null)
+      }
       const normalizedItemLines = normalizeAccommodationItemLinesToInventoryUnits({
         itemLines: input.itemLines,
         units: productOptionUnits,
+        occupancyPriceBasisByOptionId,
       })
       const roomOccupancyIssue = validateRoomOccupancyForCreate({
         itemLines: normalizedItemLines,

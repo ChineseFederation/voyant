@@ -8,67 +8,273 @@
     "/v1/admin/public-api-keys/keys": {
       "get": {
         "operationId": "listPublicApiKeys",
-        "tags": ["Public API"],
         "x-voyant-api-id": "@voyant-travel/auth#public-api-keys.api.admin",
         "responses": {
           "200": {
-            "description": "Issued public API keys."
+            "description": "HTTP 200"
+          },
+          "401": {
+            "description": "HTTP 401"
+          },
+          "403": {
+            "description": "HTTP 403"
           }
-        }
+        },
+        "summary": "GET /v1/admin/public-api-keys/keys",
+        "tags": ["Public API"],
+        "x-voyant-module": "public-api-keys",
+        "x-voyant-surface": "admin"
       },
       "post": {
         "operationId": "issuePublicApiKey",
-        "tags": ["Public API"],
         "x-voyant-api-id": "@voyant-travel/auth#public-api-keys.api.admin",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": ["publishable", "secret"]
+                  },
+                  "name": {
+                    "type": ["string", "null"],
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "allowedOrigins": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 255
+                    },
+                    "maxItems": 50
+                  },
+                  "channelId": {
+                    "type": ["string", "null"],
+                    "minLength": 1
+                  },
+                  "hostOnlyCookies": {
+                    "type": "boolean"
+                  },
+                  "scopes": {
+                    "type": ["object", "null"],
+                    "additionalProperties": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                "required": ["kind"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
         "responses": {
           "201": {
-            "description": "Issued key, including its plaintext token exactly once."
+            "description": "HTTP 201"
+          },
+          "400": {
+            "description": "HTTP 400"
+          },
+          "401": {
+            "description": "HTTP 401"
+          },
+          "403": {
+            "description": "HTTP 403"
           }
-        }
+        },
+        "summary": "POST /v1/admin/public-api-keys/keys",
+        "tags": ["Public API"],
+        "x-voyant-module": "public-api-keys",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/public-api-keys/keys/{keyId}": {
       "get": {
         "operationId": "getPublicApiKey",
-        "tags": ["Public API"],
         "x-voyant-api-id": "@voyant-travel/auth#public-api-keys.api.admin",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "keyId",
+            "in": "path"
+          }
+        ],
         "responses": {
           "200": {
-            "description": "One public API key."
+            "description": "HTTP 200"
+          },
+          "401": {
+            "description": "HTTP 401"
+          },
+          "403": {
+            "description": "HTTP 403"
+          },
+          "404": {
+            "description": "HTTP 404"
           }
-        }
+        },
+        "summary": "GET /v1/admin/public-api-keys/keys/{keyId}",
+        "tags": ["Public API"],
+        "x-voyant-module": "public-api-keys",
+        "x-voyant-surface": "admin"
       },
       "patch": {
         "operationId": "updatePublicApiKey",
-        "tags": ["Public API"],
         "x-voyant-api-id": "@voyant-travel/auth#public-api-keys.api.admin",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "keyId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": ["string", "null"],
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "allowedOrigins": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 255
+                    },
+                    "maxItems": 50
+                  },
+                  "channelId": {
+                    "type": ["string", "null"],
+                    "minLength": 1
+                  },
+                  "hostOnlyCookies": {
+                    "type": "boolean"
+                  },
+                  "scopes": {
+                    "type": ["object", "null"],
+                    "additionalProperties": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
-            "description": "Updated public API key."
+            "description": "HTTP 200"
+          },
+          "400": {
+            "description": "HTTP 400"
+          },
+          "401": {
+            "description": "HTTP 401"
+          },
+          "403": {
+            "description": "HTTP 403"
+          },
+          "404": {
+            "description": "HTTP 404"
           }
-        }
+        },
+        "summary": "PATCH /v1/admin/public-api-keys/keys/{keyId}",
+        "tags": ["Public API"],
+        "x-voyant-module": "public-api-keys",
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "operationId": "revokePublicApiKey",
-        "tags": ["Public API"],
         "x-voyant-api-id": "@voyant-travel/auth#public-api-keys.api.admin",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "keyId",
+            "in": "path"
+          }
+        ],
         "responses": {
           "204": {
-            "description": "Key revoked."
+            "description": "HTTP 204"
+          },
+          "401": {
+            "description": "HTTP 401"
+          },
+          "403": {
+            "description": "HTTP 403"
+          },
+          "404": {
+            "description": "HTTP 404"
           }
-        }
+        },
+        "summary": "DELETE /v1/admin/public-api-keys/keys/{keyId}",
+        "tags": ["Public API"],
+        "x-voyant-module": "public-api-keys",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/public-api-keys/keys/{keyId}/rotate": {
       "post": {
         "operationId": "rotatePublicApiKey",
-        "tags": ["Public API"],
         "x-voyant-api-id": "@voyant-travel/auth#public-api-keys.api.admin",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "keyId",
+            "in": "path"
+          }
+        ],
         "responses": {
           "201": {
-            "description": "Rotated key, including its new plaintext token exactly once."
+            "description": "HTTP 201"
+          },
+          "400": {
+            "description": "HTTP 400"
+          },
+          "401": {
+            "description": "HTTP 401"
+          },
+          "403": {
+            "description": "HTTP 403"
+          },
+          "404": {
+            "description": "HTTP 404"
           }
-        }
+        },
+        "summary": "POST /v1/admin/public-api-keys/keys/{keyId}/rotate",
+        "tags": ["Public API"],
+        "x-voyant-module": "public-api-keys",
+        "x-voyant-surface": "admin"
       }
     }
   }

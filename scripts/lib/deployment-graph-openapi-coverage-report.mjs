@@ -11,7 +11,6 @@ export function buildDeploymentGraphOpenApiCoverageReport(input, relativePath) {
     packageName: bundle.packageName,
     mount: bundle.mount,
     ...(bundle.openapiDocument ? { openapiDocument: bundle.openapiDocument } : {}),
-    candidateModules: [...bundle.candidateModules].sort(),
   })
   const sortedBundles = (bundles) =>
     [...bundles].sort((left, right) => left.apiId.localeCompare(right.apiId))
@@ -31,7 +30,9 @@ export function buildDeploymentGraphOpenApiCoverageReport(input, relativePath) {
           code: "VOYANT_GRAPH_OPENAPI_MISSING_DOCS",
           severity: "error",
           ...bundleSummary(failure.bundle),
-          message: `No documented OpenAPI paths match ${failure.bundle.apiId}.`,
+          expected: expectedKey(failure.bundle),
+          ...(failure.nearby?.length ? { foundOnOtherSurfaces: failure.nearby } : {}),
+          message: `No OpenAPI document ${expectedKey(failure.bundle)} for ${failure.bundle.apiId}.`,
         }
       }
       if (failure.kind === "unknown-docs") {
@@ -85,6 +86,7 @@ export function buildDeploymentGraphOpenApiCoverageReport(input, relativePath) {
           code: "VOYANT_GRAPH_OPENAPI_STALE_ALLOWLIST",
           severity: "error",
           ...bundleSummary(failure.bundle),
+          expected: expectedKey(failure.bundle),
           message: `${failure.bundle.apiId} is allowlisted but now has documented OpenAPI paths.`,
         }
       }
@@ -132,7 +134,7 @@ export function formatDeploymentGraphOpenApiCoverageFailure(failure) {
   if (failure.kind === "authority-regression") {
     return `[deployment-graph-openapi-coverage:authority-regression] selected graph owns ${failure.actual} OpenAPI route bundles; expected at least ${failure.minimum}`
   }
-  if (failure.kind === "missing-docs") return formatGap(failure.bundle)
+  if (failure.kind === "missing-docs") return formatGap(failure)
   if (failure.kind === "unknown-docs") {
     return `[deployment-graph-openapi-coverage:unknown-authority] ${failure.apiId} is documented by ${failure.files.join(", ")} but is absent from the selected graph`
   }
@@ -149,11 +151,39 @@ export function formatDeploymentGraphOpenApiCoverageFailure(failure) {
     return `[deployment-graph-openapi-coverage:duplicate-document-owner] ${failure.document} is owned by multiple packages: ${failure.owners.join(", ")}`
   }
   if (failure.bundle) {
-    return `[deployment-graph-openapi-coverage:stale-allowlist] ${failure.bundle.apiId} is allowlisted but now has documented ${failure.bundle.surface} paths for one of: ${failure.bundle.candidateModules.join(", ")}`
+    return `[deployment-graph-openapi-coverage:stale-allowlist] ${failure.bundle.apiId} is allowlisted but ${expectedKey(failure.bundle)} now exists`
   }
   return `[deployment-graph-openapi-coverage:stale-allowlist] ${failure.apiId} is allowlisted but no longer appears in the deployment graph`
 }
 
-function formatGap(bundle) {
-  return `  - [deployment-graph-openapi-coverage:missing-docs] ${bundle.apiId} (${bundle.graphSurface} -> ${bundle.surface}, ${bundle.localId || bundle.moduleId}) has no documented OpenAPI paths for candidates: ${bundle.candidateModules.join(", ")}.`
+/**
+ * The one document key a bundle asks for. The lookup is exact, so this is the
+ * whole question — anything vaguer sends the reader looking for a document that
+ * was never being searched for.
+ */
+function expectedKey(bundle) {
+  return `${bundle.surface}:${bundle.openapiDocument || "(no document declared)"}`
+}
+
+/**
+ * A missing or allowlisted document gap, in one line.
+ *
+ * Shared by the failure path and the warning path so an allowlisted gap and a
+ * hard failure describe the same thing the same way; they differed before, and
+ * only one of them named the surface.
+ */
+export function formatDeploymentGraphOpenApiCoverageGap(bundle, { reason, nearby } = {}) {
+  const code = reason ? "allowlisted-gap" : "missing-docs"
+  const where = `${bundle.graphSurface} -> ${bundle.surface}, ${bundle.localId || bundle.moduleId}`
+  const hint = nearby?.length
+    ? ` It exists on another surface: ${nearby.join(", ")}.`
+    : bundle.openapiDocument
+      ? " No document of that name exists on any surface."
+      : ""
+  const suffix = reason ? ` Allowlist reason: ${reason}.` : ""
+  return `  - [deployment-graph-openapi-coverage:${code}] ${bundle.apiId} (${where}) expects OpenAPI document ${expectedKey(bundle)}, which is not present.${hint}${suffix}`
+}
+
+function formatGap(failure) {
+  return formatDeploymentGraphOpenApiCoverageGap(failure.bundle, { nearby: failure.nearby })
 }

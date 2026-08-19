@@ -24,13 +24,14 @@
     "./openapi/admin/health": "./openapi/admin/action-ledger-health.json"
   },
   "scripts": {
-    "typecheck": "tsc -p tsconfig.typecheck.json",
-    "lint": "biome check src/ tests/",
-    "test": "vitest run --passWithNoTests",
     "build": "tsc -p tsconfig.build.json",
     "clean": "rm -rf dist tsconfig.tsbuildinfo",
+    "db:generate": "drizzle-kit generate --config=drizzle.migrations.config.ts --name=action_ledger_baseline && node ../../scripts/migrations/guard-create-type.mjs ./migrations && node ../../scripts/migrations/ensure-extensions.mjs ./migrations",
+    "generate:openapi": "node --import tsx scripts/generate-openapi.ts && node --import tsx scripts/generate-health-openapi.ts && biome format --write openapi/admin/action-ledger.json openapi/admin/action-ledger-health.json",
+    "lint": "biome check src/ tests/",
     "prepack": "pnpm run build",
-    "db:generate": "drizzle-kit generate --config=drizzle.migrations.config.ts --name=action_ledger_baseline && node ../../scripts/migrations/guard-create-type.mjs ./migrations && node ../../scripts/migrations/ensure-extensions.mjs ./migrations"
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc -p tsconfig.typecheck.json"
   },
   "dependencies": {
     "@hono/zod-openapi": "catalog:",

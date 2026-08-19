@@ -63,6 +63,8 @@ export interface OptionUnitsStepperSectionProps {
    */
   restrictToOption?: boolean
   enabled?: boolean
+  /** Owned occupancy-priced options whose person controls are managed by travelers. */
+  travelerManagedPersonOptionIds?: ReadonlySet<string>
   onUnitsChange?: (units: OptionUnitsStepperUnit[]) => void
   labels?: {
     heading?: string
@@ -137,6 +139,7 @@ export function OptionUnitsStepperSection({
   optionId,
   restrictToOption = false,
   enabled = true,
+  travelerManagedPersonOptionIds,
   onUnitsChange,
   labels,
   slotHasFiniteCapacity = false,
@@ -276,8 +279,8 @@ export function OptionUnitsStepperSection({
   // options are different: rooms and vehicles are physical containers,
   // so each room/vehicle unit must be selectable independently.
   const optionRows = React.useMemo(
-    () => buildOptionUnitsStepperRows(units, productOptions),
-    [units, productOptions],
+    () => buildOptionUnitsStepperRows(units, productOptions, travelerManagedPersonOptionIds),
+    [units, productOptions, travelerManagedPersonOptionIds],
   )
 
   // The section is a group of steppers rather than a single control, so the
@@ -513,6 +516,7 @@ function isInventoryUnit(unit: Pick<OptionUnitsStepperUnit, "unitType">): boolea
 export function buildOptionUnitsStepperRows(
   units: ReadonlyArray<OptionUnitsStepperUnit>,
   productOptions: ReadonlyArray<Pick<ProductOptionRecord, "id" | "name">>,
+  travelerManagedPersonOptionIds?: ReadonlySet<string>,
 ): OptionUnitsStepperRow[] {
   const groups = new Map<
     string,
@@ -540,7 +544,15 @@ export function buildOptionUnitsStepperRows(
       allUnits: [unit],
       totalRemaining: unit.remaining,
     }))
-    const countUnits = group.allUnits.filter((unit) => !isInventoryUnit(unit))
+    // Owned supplement and all-in occupancy pricing both take traveler counts
+    // from the roster. Supplements derive a separate person fare in the draft;
+    // all-in options do not. Supplier and legacy options keep their explicit
+    // controls/selection contract.
+    const managesPersonQuantities = travelerManagedPersonOptionIds?.has(optionKey) === true
+    const countUnits =
+      inventoryRows.length && managesPersonQuantities
+        ? group.allUnits.filter((unit) => !isInventoryUnit(unit) && !isPersonUnit(unit))
+        : group.allUnits.filter((unit) => !isInventoryUnit(unit))
     if (countUnits.length === 0) return inventoryRows
 
     const countPrimary = countUnits.find(isAdultUnit) ?? countUnits[0]

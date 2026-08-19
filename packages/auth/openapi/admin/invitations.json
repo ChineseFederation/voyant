@@ -8,22 +8,22 @@
     "/v1/admin/invitations": {
       "get": {
         "operationId": "listAuthInvitations",
-        "summary": "List user invitations",
-        "tags": ["Auth invitations"],
         "x-voyant-api-id": "@voyant-travel/auth#invitations.api.admin",
         "responses": {
           "200": {
-            "description": "The most recent user invitations."
+            "description": "HTTP 200"
           },
           "403": {
-            "description": "The caller is not a super administrator."
+            "description": "HTTP 403"
           }
-        }
+        },
+        "summary": "List user invitations",
+        "tags": ["Auth invitations"],
+        "x-voyant-module": "auth",
+        "x-voyant-surface": "admin"
       },
       "post": {
         "operationId": "createAuthInvitation",
-        "summary": "Create a user invitation",
-        "tags": ["Auth invitations"],
         "x-voyant-api-id": "@voyant-travel/auth#invitations.api.admin",
         "requestBody": {
           "required": true,
@@ -31,58 +31,69 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["email"],
                 "properties": {
-                  "email": { "type": "string", "format": "email" },
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
                   "expiresInHours": {
                     "type": "integer",
-                    "minimum": 1,
+                    "exclusiveMinimum": 0,
                     "maximum": 720
                   },
                   "metadata": {
                     "type": "object",
-                    "additionalProperties": true
+                    "additionalProperties": {}
                   }
-                }
+                },
+                "required": ["email"]
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "The invitation and its acceptance URL."
+            "description": "HTTP 200"
           },
           "403": {
-            "description": "The caller is not a super administrator."
+            "description": "HTTP 403"
           },
           "409": {
-            "description": "A user already exists for the email address."
+            "description": "HTTP 409"
           }
-        }
+        },
+        "summary": "Create a user invitation",
+        "tags": ["Auth invitations"],
+        "x-voyant-module": "auth",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/invitations/{id}": {
       "delete": {
         "operationId": "deleteAuthInvitation",
-        "summary": "Delete a user invitation",
-        "tags": ["Auth invitations"],
         "x-voyant-api-id": "@voyant-travel/auth#invitations.api.admin",
         "parameters": [
           {
-            "name": "id",
-            "in": "path",
+            "schema": {
+              "type": "string"
+            },
             "required": true,
-            "schema": { "type": "string" }
+            "name": "id",
+            "in": "path"
           }
         ],
         "responses": {
           "200": {
-            "description": "The deleted invitation identifier."
+            "description": "HTTP 200"
           },
           "403": {
-            "description": "The caller is not a super administrator."
+            "description": "HTTP 403"
           }
-        }
+        },
+        "summary": "Delete a user invitation",
+        "tags": ["Auth invitations"],
+        "x-voyant-module": "invitations",
+        "x-voyant-surface": "admin"
       }
     }
   }

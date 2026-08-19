@@ -195,7 +195,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postAdminAccommodationsRoomBlocks",
+        "summary": "POST /v1/admin/accommodations/room-blocks",
+        "tags": ["accommodations"],
+        "x-voyant-module": "accommodations",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/accommodations/room-blocks/{id}": {
@@ -381,7 +386,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminAccommodationsRoomBlocksById",
+        "summary": "GET /v1/admin/accommodations/room-blocks/{id}",
+        "tags": ["accommodations"],
+        "x-voyant-module": "accommodations",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/accommodations/room-blocks/{id}/nights": {
@@ -527,7 +537,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "putAdminAccommodationsRoomBlocksByIdNights",
+        "summary": "PUT /v1/admin/accommodations/room-blocks/{id}/nights",
+        "tags": ["accommodations"],
+        "x-voyant-module": "accommodations",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/accommodations/room-blocks/{id}/pickups": {
@@ -777,7 +792,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postAdminAccommodationsRoomBlocksByIdPickups",
+        "summary": "POST /v1/admin/accommodations/room-blocks/{id}/pickups",
+        "tags": ["accommodations"],
+        "x-voyant-module": "accommodations",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/accommodations/room-blocks/{id}/pickups/reverse": {
@@ -908,7 +928,12 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postAdminAccommodationsRoomBlocksByIdPickupsReverse",
+        "summary": "POST /v1/admin/accommodations/room-blocks/{id}/pickups/reverse",
+        "tags": ["accommodations"],
+        "x-voyant-module": "accommodations",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/accommodations/room-blocks/{id}/release": {
@@ -1053,12 +1078,16 @@
               }
             }
           }
-        }
+        },
+        "operationId": "postAdminAccommodationsRoomBlocksByIdRelease",
+        "summary": "POST /v1/admin/accommodations/room-blocks/{id}/release",
+        "tags": ["accommodations"],
+        "x-voyant-module": "accommodations",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/accommodations/properties/{id}/effective": {
       "get": {
-        "x-voyant-api-id": "@voyant-travel/accommodations#content-extension.api.admin",
         "parameters": [
           {
             "schema": {
@@ -1166,7 +1195,8 @@
                               "type": ["string", "null"]
                             },
                             "hero_image_url": {
-                              "type": ["string", "null"]
+                              "type": ["string", "null"],
+                              "format": "uri"
                             },
                             "gallery": {
                               "type": "array",
@@ -1256,12 +1286,17 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminAccommodationsPropertiesByIdEffective",
+        "summary": "GET /v1/admin/accommodations/properties/{id}/effective",
+        "tags": ["accommodations"],
+        "x-voyant-module": "accommodations",
+        "x-voyant-surface": "admin",
+        "x-voyant-api-id": "@voyant-travel/accommodations#content-extension.api.admin"
       }
     },
     "/v1/admin/accommodations/properties/{id}/editorial-overlays": {
       "get": {
-        "x-voyant-api-id": "@voyant-travel/accommodations#content-extension.api.admin",
         "parameters": [
           {
             "schema": {
@@ -1360,10 +1395,15 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminAccommodationsPropertiesByIdEditorialOverlays",
+        "summary": "GET /v1/admin/accommodations/properties/{id}/editorial-overlays",
+        "tags": ["accommodations"],
+        "x-voyant-module": "accommodations",
+        "x-voyant-surface": "admin",
+        "x-voyant-api-id": "@voyant-travel/accommodations#content-extension.api.admin"
       },
       "put": {
-        "x-voyant-api-id": "@voyant-travel/accommodations#content-extension.api.admin",
         "parameters": [
           {
             "schema": {
@@ -1577,10 +1617,15 @@
               }
             }
           }
-        }
+        },
+        "operationId": "putAdminAccommodationsPropertiesByIdEditorialOverlays",
+        "summary": "PUT /v1/admin/accommodations/properties/{id}/editorial-overlays",
+        "tags": ["accommodations"],
+        "x-voyant-module": "accommodations",
+        "x-voyant-surface": "admin",
+        "x-voyant-api-id": "@voyant-travel/accommodations#content-extension.api.admin"
       },
       "delete": {
-        "x-voyant-api-id": "@voyant-travel/accommodations#content-extension.api.admin",
         "parameters": [
           {
             "schema": {
@@ -1724,12 +1769,17 @@
               }
             }
           }
-        }
+        },
+        "operationId": "deleteAdminAccommodationsPropertiesByIdEditorialOverlays",
+        "summary": "DELETE /v1/admin/accommodations/properties/{id}/editorial-overlays",
+        "tags": ["accommodations"],
+        "x-voyant-module": "accommodations",
+        "x-voyant-surface": "admin",
+        "x-voyant-api-id": "@voyant-travel/accommodations#content-extension.api.admin"
       }
     },
     "/v1/admin/accommodations/properties/{id}/editorial-overlays/history": {
       "get": {
-        "x-voyant-api-id": "@voyant-travel/accommodations#content-extension.api.admin",
         "parameters": [
           {
             "schema": {
@@ -1823,13 +1873,18 @@
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminAccommodationsPropertiesByIdEditorialOverlaysHistory",
+        "summary": "GET /v1/admin/accommodations/properties/{id}/editorial-overlays/history",
+        "tags": ["accommodations"],
+        "x-voyant-module": "accommodations",
+        "x-voyant-surface": "admin",
+        "x-voyant-api-id": "@voyant-travel/accommodations#content-extension.api.admin"
       }
     },
     "/v1/admin/accommodations/{id}/content": {
       "get": {
         "summary": "Get accommodation content",
-        "x-voyant-api-id": "@voyant-travel/accommodations#content-extension.api.admin",
         "responses": {
           "200": {
             "description": "Localized accommodation content and provenance."
@@ -1837,7 +1892,12 @@
           "404": {
             "description": "Accommodation content was not found."
           }
-        }
+        },
+        "operationId": "getAdminAccommodationsByIdContent",
+        "tags": ["accommodations"],
+        "x-voyant-module": "accommodations",
+        "x-voyant-surface": "admin",
+        "x-voyant-api-id": "@voyant-travel/accommodations#content-extension.api.admin"
       }
     }
   },

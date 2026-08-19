@@ -12,83 +12,12 @@ export interface paths {
       cookie?: never
     }
     /** Get Proposal details for a booking */
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          bookingId: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description The booking's Proposal details, or null when none exist. */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content?: never
-        }
-      }
-    }
+    get: operations["getAdminBookingsByBookingIdProposalDetails"]
     /** Create or update Proposal details for a booking */
-    put: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          bookingId: string
-        }
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            proposalId?: string | null
-            proposalVersionId?: string | null
-          }
-        }
-      }
-      responses: {
-        /** @description The saved booking Proposal details. */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content?: never
-        }
-      }
-    }
+    put: operations["putAdminBookingsByBookingIdProposalDetails"]
     post?: never
     /** Remove Proposal details from a booking */
-    delete: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          bookingId: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description The Proposal details were removed. */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content?: never
-        }
-        /** @description No Proposal details exist for the booking. */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content?: never
-        }
-      }
-    }
+    delete: operations["deleteAdminBookingsByBookingIdProposalDetails"]
     options?: never
     head?: never
     patch?: never
@@ -105,4 +34,59 @@ export interface components {
   pathItems: never
 }
 export type $defs = Record<string, never>
-export type operations = Record<string, never>
+export interface operations {
+  getAdminBookingsByBookingIdProposalDetails: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Proposal booking detail response. */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+    }
+  }
+  putAdminBookingsByBookingIdProposalDetails: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Proposal booking detail response. */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+    }
+  }
+  deleteAdminBookingsByBookingIdProposalDetails: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Proposal booking detail response. */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+    }
+  }
+}

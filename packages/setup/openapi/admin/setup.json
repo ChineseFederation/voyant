@@ -116,7 +116,11 @@
               }
             }
           }
-        }
+        },
+        "summary": "GET /v1/admin/setup",
+        "tags": ["setup"],
+        "x-voyant-module": "setup",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/setup/initialize": {
@@ -259,7 +263,11 @@
               }
             }
           }
-        }
+        },
+        "summary": "POST /v1/admin/setup/initialize",
+        "tags": ["setup"],
+        "x-voyant-module": "setup",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/setup/steps/{stepId}/complete": {
@@ -354,7 +362,11 @@
               }
             }
           }
-        }
+        },
+        "summary": "POST /v1/admin/setup/steps/{stepId}/complete",
+        "tags": ["setup"],
+        "x-voyant-module": "setup",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/setup/steps/{stepId}/skip": {
@@ -449,7 +461,11 @@
               }
             }
           }
-        }
+        },
+        "summary": "POST /v1/admin/setup/steps/{stepId}/skip",
+        "tags": ["setup"],
+        "x-voyant-module": "setup",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/setup/dismiss": {
@@ -563,7 +579,11 @@
               }
             }
           }
-        }
+        },
+        "summary": "POST /v1/admin/setup/dismiss",
+        "tags": ["setup"],
+        "x-voyant-module": "setup",
+        "x-voyant-surface": "admin"
       }
     }
   }

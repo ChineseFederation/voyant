@@ -26,24 +26,26 @@ port="${VOYANT_IMAGE_UPGRADE_PORT:-8081}"
 container="voyant-operator-upgrade-${GITHUB_RUN_ID:-local}-${GITHUB_RUN_ATTEMPT:-1}"
 log_dir="$(mktemp -d)"
 
-# A dedicated database: the fresh-database stage shares this Postgres service
-# and has usually already migrated the acceptance database with the candidate,
-# which would make an older image's plan meaningless here.
-admin_url="${VOYANT_UPGRADE_ADMIN_URL:-postgresql://voyant:voyant@localhost:5432/postgres}"
-database_name="${VOYANT_UPGRADE_DATABASE:-voyant_starter_upgrade}"
-database_url="${VOYANT_UPGRADE_DATABASE_URL:-postgresql://voyant:voyant@localhost:5432/$database_name}"
-
 # shellcheck source=scripts/lib/operator-image-acceptance.sh
 source "$root/scripts/lib/operator-image-acceptance.sh"
 
+# A dedicated database: the fresh-database stage shares this Postgres service
+# and has usually already migrated the acceptance database with the candidate,
+# which would make an older image's plan meaningless here.
+database_host="$(operator_image_database_host)"
+admin_url="${VOYANT_UPGRADE_ADMIN_URL:-postgresql://voyant:voyant@$database_host:5432/postgres}"
+database_name="${VOYANT_UPGRADE_DATABASE:-voyant_starter_upgrade}"
+database_url="${VOYANT_UPGRADE_DATABASE_URL:-postgresql://voyant:voyant@$database_host:5432/$database_name}"
+
 cleanup() {
   status=$?
+  trap - EXIT
   if ((status != 0)); then
     docker logs "$container" 2>/dev/null || true
   fi
   docker rm -f "$container" >/dev/null 2>&1 || true
   rm -rf "$log_dir"
-  return "$status"
+  exit "$status"
 }
 trap cleanup EXIT
 
@@ -95,7 +97,8 @@ operator_image_pull "$candidate_ref"
 for statement in \
   "DROP DATABASE IF EXISTS \"$database_name\" WITH (FORCE)" \
   "CREATE DATABASE \"$database_name\""; do
-  docker run --rm --network host postgres:16 \
+  operator_image_prepare_network_args
+  docker run --rm "${OPERATOR_IMAGE_NETWORK_ARGS[@]}" postgres:16 \
     psql "$admin_url" --set ON_ERROR_STOP=1 --quiet -c "$statement"
 done
 

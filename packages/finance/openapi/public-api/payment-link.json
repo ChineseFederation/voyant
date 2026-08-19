@@ -140,6 +140,9 @@
                     "data": {
                       "type": "object",
                       "properties": {
+                        "paymentLinkUrlTemplate": {
+                          "type": ["string", "null"]
+                        },
                         "publicCheckoutBaseUrl": {
                           "type": ["string", "null"]
                         },
@@ -157,9 +160,23 @@
                             }
                           },
                           "required": ["beneficiary", "iban"]
+                        },
+                        "cardPayments": {
+                          "type": "object",
+                          "properties": {
+                            "available": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": ["available"]
                         }
                       },
-                      "required": ["publicCheckoutBaseUrl", "bankTransfer"]
+                      "required": [
+                        "paymentLinkUrlTemplate",
+                        "publicCheckoutBaseUrl",
+                        "bankTransfer",
+                        "cardPayments"
+                      ]
                     }
                   },
                   "required": ["data"]
@@ -410,21 +427,17 @@
                     "type": "string",
                     "minLength": 1
                   },
-                  "returnUrl": {
-                    "type": "string",
-                    "minLength": 1
-                  },
-                  "cancelUrl": {
-                    "type": "string",
-                    "minLength": 1
-                  },
-                  "metadata": {
-                    "type": "object",
-                    "additionalProperties": {}
-                  },
                   "shipping": {
                     "type": "object",
                     "additionalProperties": {}
+                  },
+                  "acceptedCheckoutHandoffs": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": ["redirect", "embedded"]
+                    },
+                    "minItems": 1
                   }
                 },
                 "additionalProperties": false
@@ -434,7 +447,7 @@
         },
         "responses": {
           "200": {
-            "description": "The card-provider redirect URL for the session",
+            "description": "The card-provider handoff for the session",
             "content": {
               "application/json": {
                 "schema": {
@@ -445,6 +458,51 @@
                       "properties": {
                         "redirectUrl": {
                           "type": ["string", "null"]
+                        },
+                        "checkout": {
+                          "oneOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": ["hosted_checkout", "redirect"]
+                                },
+                                "url": {
+                                  "type": "string"
+                                },
+                                "expiresAt": {
+                                  "type": ["string", "null"]
+                                }
+                              },
+                              "required": ["kind", "url"]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": ["embedded"]
+                                },
+                                "clientSecret": {
+                                  "type": "string"
+                                },
+                                "publishableKey": {
+                                  "type": "string"
+                                },
+                                "providerAccountId": {
+                                  "type": ["string", "null"]
+                                },
+                                "expiresAt": {
+                                  "type": ["string", "null"]
+                                }
+                              },
+                              "required": ["kind", "clientSecret", "publishableKey"]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
                         },
                         "session": {
                           "type": "object",
@@ -463,12 +521,64 @@
                             },
                             "redirectUrl": {
                               "type": ["string", "null"]
+                            },
+                            "checkout": {
+                              "oneOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "type": "string",
+                                      "enum": ["hosted_checkout", "redirect"]
+                                    },
+                                    "url": {
+                                      "type": "string"
+                                    },
+                                    "expiresAt": {
+                                      "type": ["string", "null"]
+                                    }
+                                  },
+                                  "required": ["kind", "url"]
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "type": "string",
+                                      "enum": ["embedded"]
+                                    },
+                                    "clientSecret": {
+                                      "type": "string"
+                                    },
+                                    "publishableKey": {
+                                      "type": "string"
+                                    },
+                                    "providerAccountId": {
+                                      "type": ["string", "null"]
+                                    },
+                                    "expiresAt": {
+                                      "type": ["string", "null"]
+                                    }
+                                  },
+                                  "required": ["kind", "clientSecret", "publishableKey"]
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
                             }
                           },
-                          "required": ["id", "status", "amountCents", "currency", "redirectUrl"]
+                          "required": [
+                            "id",
+                            "status",
+                            "amountCents",
+                            "currency",
+                            "redirectUrl",
+                            "checkout"
+                          ]
                         }
                       },
-                      "required": ["redirectUrl"]
+                      "required": ["redirectUrl", "checkout"]
                     }
                   },
                   "required": ["data"]

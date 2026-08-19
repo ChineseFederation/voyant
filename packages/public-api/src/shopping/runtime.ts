@@ -1,20 +1,9 @@
-import type {
-  PublicApiShoppingContext,
-  PublicApiShoppingRuntime,
-  PublicApiTripSelectionsRuntime,
-} from "./runtime-port.js"
+import type { PublicApiShoppingContext, PublicApiShoppingRuntime } from "./runtime-port.js"
 import {
   type PublicApiShoppingResult,
-  type PublicApiTripBooking,
-  type PublicApiTripSelection,
   publicApiResolvedScopeSchema,
   publicApiShoppingRequestSchema,
   publicApiShoppingResultSchema,
-  publicApiTripBookingCreateSchema,
-  publicApiTripBookingSchema,
-  publicApiTripSelectionCreateSchema,
-  publicApiTripSelectionSchema,
-  publicApiTripSelectionUpdateSchema,
 } from "./schemas.js"
 
 export class PublicApiShoppingUnavailableError extends Error {
@@ -38,30 +27,8 @@ export class PublicApiShoppingUnavailableError extends Error {
   }
 }
 
-/** Provider-neutral compare-and-swap failure surfaced by Trip-selection runtimes. */
-export class PublicApiTripSelectionRevisionConflictError extends Error {
-  readonly code = "trip_selection_revision_conflict"
-
-  constructor() {
-    super("Trip selection changed after it was read.")
-    this.name = "PublicApiTripSelectionRevisionConflictError"
-  }
-}
-
 export interface PublicApiShoppingGateway {
   search(context: PublicApiShoppingContext, request: unknown): Promise<PublicApiShoppingResult>
-  createTripSelection(
-    context: PublicApiShoppingContext,
-    request: unknown,
-  ): Promise<PublicApiTripSelection>
-  updateTripSelection(
-    context: PublicApiShoppingContext,
-    request: unknown,
-  ): Promise<PublicApiTripSelection>
-  bookTripSelection(
-    context: PublicApiShoppingContext,
-    request: unknown,
-  ): Promise<PublicApiTripBooking>
 }
 
 /**
@@ -71,7 +38,6 @@ export interface PublicApiShoppingGateway {
  */
 export function createPublicApiShoppingGateway(options: {
   shopping?: PublicApiShoppingRuntime
-  tripSelections?: PublicApiTripSelectionsRuntime
 }): PublicApiShoppingGateway {
   return {
     async search(context, rawRequest) {
@@ -91,36 +57,6 @@ export function createPublicApiShoppingGateway(options: {
         )
       }
       return result
-    },
-
-    async createTripSelection(context, rawRequest) {
-      const shopping = options.shopping
-      if (!shopping) throw new PublicApiShoppingUnavailableError("shopping")
-      const tripSelections = options.tripSelections
-      if (!tripSelections) throw new PublicApiShoppingUnavailableError("trip-selections")
-      const request = publicApiTripSelectionCreateSchema.parse(rawRequest)
-      const scope = publicApiResolvedScopeSchema.parse(
-        await shopping.resolveScope(context, request.scope),
-      )
-      const result = publicApiTripSelectionSchema.parse(
-        await tripSelections.create(context, { scope, offers: request.offers }),
-      )
-      assertSameResolvedScope(scope, result.scope)
-      return result
-    },
-
-    async updateTripSelection(context, rawRequest) {
-      const tripSelections = options.tripSelections
-      if (!tripSelections) throw new PublicApiShoppingUnavailableError("trip-selections")
-      const request = publicApiTripSelectionUpdateSchema.parse(rawRequest)
-      return publicApiTripSelectionSchema.parse(await tripSelections.update(context, request))
-    },
-
-    async bookTripSelection(context, rawRequest) {
-      const tripSelections = options.tripSelections
-      if (!tripSelections) throw new PublicApiShoppingUnavailableError("trip-selections")
-      const request = publicApiTripBookingCreateSchema.parse(rawRequest)
-      return publicApiTripBookingSchema.parse(await tripSelections.book(context, request))
     },
   }
 }

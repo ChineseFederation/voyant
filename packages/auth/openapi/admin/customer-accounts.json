@@ -8,83 +8,271 @@
     "/v1/admin/customer-accounts/capabilities": {
       "get": {
         "operationId": "getCustomerAccountCapabilities",
-        "tags": ["Customer accounts"],
         "x-voyant-api-id": "@voyant-travel/auth#customer-accounts.api.admin",
         "responses": {
           "200": {
-            "description": "Customer-account capabilities for this deployment."
+            "description": "HTTP 200"
+          },
+          "401": {
+            "description": "HTTP 401"
+          },
+          "403": {
+            "description": "HTTP 403"
           }
-        }
+        },
+        "summary": "GET /v1/admin/customer-accounts/capabilities",
+        "tags": ["Customer accounts"],
+        "x-voyant-module": "customer-accounts",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/customer-accounts/settings": {
       "get": {
         "operationId": "getCustomerAccountSettings",
-        "tags": ["Customer accounts"],
         "x-voyant-api-id": "@voyant-travel/auth#customer-accounts.api.admin",
         "responses": {
           "200": {
-            "description": "Deployment customer-account settings."
+            "description": "HTTP 200"
+          },
+          "401": {
+            "description": "HTTP 401"
+          },
+          "403": {
+            "description": "HTTP 403"
           }
-        }
+        },
+        "summary": "GET /v1/admin/customer-accounts/settings",
+        "tags": ["Customer accounts"],
+        "x-voyant-module": "customer-accounts",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/customer-accounts/settings/methods": {
       "put": {
         "operationId": "updateCustomerAuthMethods",
-        "tags": ["Customer accounts"],
         "x-voyant-api-id": "@voyant-travel/auth#customer-accounts.api.admin",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "methods": {
+                    "type": "object",
+                    "properties": {
+                      "emailCode": {
+                        "type": "boolean"
+                      },
+                      "emailPassword": {
+                        "type": "boolean"
+                      },
+                      "google": {
+                        "type": "boolean"
+                      },
+                      "facebook": {
+                        "type": "boolean"
+                      },
+                      "apple": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": ["emailCode", "emailPassword", "google", "facebook", "apple"],
+                    "additionalProperties": false
+                  }
+                },
+                "required": ["methods"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
-            "description": "Updated sign-in methods."
+            "description": "HTTP 200"
+          },
+          "400": {
+            "description": "HTTP 400"
+          },
+          "401": {
+            "description": "HTTP 401"
+          },
+          "403": {
+            "description": "HTTP 403"
           }
-        }
+        },
+        "summary": "PUT /v1/admin/customer-accounts/settings/methods",
+        "tags": ["Customer accounts"],
+        "x-voyant-module": "customer-accounts",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/customer-accounts/settings/account-policy": {
       "put": {
         "operationId": "updateCustomerAccountPolicy",
-        "tags": ["Customer accounts"],
         "x-voyant-api-id": "@voyant-travel/auth#customer-accounts.api.admin",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "accountPolicy": {
+                    "type": "object",
+                    "properties": {
+                      "allowedKinds": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "enum": ["personal", "business"]
+                        },
+                        "minItems": 1
+                      },
+                      "personalSignup": {
+                        "type": "string",
+                        "enum": ["open", "disabled"]
+                      },
+                      "businessOnboarding": {
+                        "type": "string",
+                        "enum": ["disabled", "open", "request", "invite-only"]
+                      }
+                    },
+                    "required": ["allowedKinds", "personalSignup", "businessOnboarding"],
+                    "additionalProperties": false
+                  }
+                },
+                "required": ["accountPolicy"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
-            "description": "Updated buyer-account policy."
+            "description": "HTTP 200"
+          },
+          "400": {
+            "description": "HTTP 400"
+          },
+          "401": {
+            "description": "HTTP 401"
+          },
+          "403": {
+            "description": "HTTP 403"
           }
-        }
+        },
+        "summary": "PUT /v1/admin/customer-accounts/settings/account-policy",
+        "tags": ["Customer accounts"],
+        "x-voyant-module": "customer-accounts",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/customer-accounts/provider-credentials": {
       "get": {
         "operationId": "listCustomerProviderCredentials",
-        "tags": ["Customer accounts"],
         "x-voyant-api-id": "@voyant-travel/auth#customer-accounts.api.admin",
         "responses": {
           "200": {
-            "description": "Provider credential status, never the secrets."
+            "description": "HTTP 200"
+          },
+          "401": {
+            "description": "HTTP 401"
+          },
+          "403": {
+            "description": "HTTP 403"
           }
-        }
+        },
+        "summary": "GET /v1/admin/customer-accounts/provider-credentials",
+        "tags": ["Customer accounts"],
+        "x-voyant-module": "customer-accounts",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/customer-accounts/provider-credentials/{provider}": {
       "put": {
         "operationId": "putCustomerProviderCredential",
-        "tags": ["Customer accounts"],
         "x-voyant-api-id": "@voyant-travel/auth#customer-accounts.api.admin",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": ["google", "facebook", "apple"]
+            },
+            "required": true,
+            "name": "provider",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "credentials": {
+                    "type": "object",
+                    "additionalProperties": {}
+                  }
+                },
+                "required": ["credentials"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
         "responses": {
           "204": {
-            "description": "Credential stored."
+            "description": "HTTP 204"
+          },
+          "400": {
+            "description": "HTTP 400"
+          },
+          "401": {
+            "description": "HTTP 401"
+          },
+          "403": {
+            "description": "HTTP 403"
           }
-        }
+        },
+        "summary": "PUT /v1/admin/customer-accounts/provider-credentials/{provider}",
+        "tags": ["Customer accounts"],
+        "x-voyant-module": "customer-accounts",
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "operationId": "deleteCustomerProviderCredential",
-        "tags": ["Customer accounts"],
         "x-voyant-api-id": "@voyant-travel/auth#customer-accounts.api.admin",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": ["google", "facebook", "apple"]
+            },
+            "required": true,
+            "name": "provider",
+            "in": "path"
+          }
+        ],
         "responses": {
           "204": {
-            "description": "Credential removed."
+            "description": "HTTP 204"
+          },
+          "400": {
+            "description": "HTTP 400"
+          },
+          "401": {
+            "description": "HTTP 401"
+          },
+          "403": {
+            "description": "HTTP 403"
           }
-        }
+        },
+        "summary": "DELETE /v1/admin/customer-accounts/provider-credentials/{provider}",
+        "tags": ["Customer accounts"],
+        "x-voyant-module": "customer-accounts",
+        "x-voyant-surface": "admin"
       }
     }
   }

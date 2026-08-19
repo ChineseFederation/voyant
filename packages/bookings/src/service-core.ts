@@ -4537,6 +4537,7 @@ const bookingsServiceInternal = {
       const [parent] = await tx
         .select({
           status: bookings.status,
+          bookingPax: bookings.pax,
           quantity: bookingItems.quantity,
           availabilitySlotId: bookingItems.availabilitySlotId,
         })
@@ -4549,7 +4550,11 @@ const bookingsServiceInternal = {
         return null
       }
 
-      if (data.quantity !== undefined && data.quantity !== parent.quantity) {
+      if (
+        parent.bookingPax == null &&
+        data.quantity !== undefined &&
+        data.quantity !== parent.quantity
+      ) {
         const change = await syncAllocationQuantity(
           tx as PostgresJsDatabase,
           itemId,
@@ -4709,6 +4714,7 @@ const bookingsServiceInternal = {
           title: bookingItems.title,
           itemType: bookingItems.itemType,
           bookingStatus: bookings.status,
+          bookingPax: bookings.pax,
         })
         .from(bookingItems)
         .innerJoin(bookings, eq(bookings.id, bookingItems.bookingId))
@@ -4725,18 +4731,80 @@ const bookingsServiceInternal = {
         .where(eq(bookingAllocations.bookingItemId, itemId))
         .for("update")
 
-      const releasedAllocationIds: string[] = []
-      for (const allocation of allocations) {
-        const change = await releaseAllocationCapacity(
-          tx as PostgresJsDatabase,
-          allocation,
-          "modify",
-          { allowTerminalCapacityRelease: true },
+      const releasedAllocationIds = allocations
+        .filter((allocation) => allocationStatusConsumesSlotCapacity(allocation.status))
+        .map((allocation) => allocation.id)
+      const affectedSlotIds = [
+        ...new Set(
+          allocations.flatMap((allocation) =>
+            allocationStatusConsumesSlotCapacity(allocation.status) && allocation.availabilitySlotId
+              ? [allocation.availabilitySlotId]
+              : [],
+          ),
+        ),
+      ]
+
+      for (const slotId of affectedSlotIds) {
+        const liveSlotAllocations = await tx
+          .select()
+          .from(bookingAllocations)
+          .where(
+            and(
+              eq(bookingAllocations.bookingId, item.bookingId),
+              eq(bookingAllocations.availabilitySlotId, slotId),
+              inArray(bookingAllocations.status, ACTIVE_BOOKING_ALLOCATION_STATUSES),
+            ),
+          )
+          .orderBy(asc(bookingAllocations.createdAt), asc(bookingAllocations.id))
+          .for("update")
+        const remaining = liveSlotAllocations.filter(
+          (allocation) => allocation.bookingItemId !== itemId,
         )
-        if (allocationStatusConsumesSlotCapacity(allocation.status)) {
-          releasedAllocationIds.push(allocation.id)
+        const currentClaim = liveSlotAllocations.reduce(
+          (sum, allocation) => sum + allocation.quantity,
+          0,
+        )
+        const desiredClaim =
+          remaining.length === 0
+            ? 0
+            : Math.max(
+                item.bookingPax ??
+                  remaining.reduce((sum, allocation) => sum + allocation.quantity, 0),
+                0,
+              )
+        const remainingPaxDelta = currentClaim - desiredClaim
+        if (remainingPaxDelta !== 0) {
+          const capacity = await adjustSlotCapacity(
+            tx as PostgresJsDatabase,
+            slotId,
+            remainingPaxDelta,
+            "modify",
+            { allowTerminalCapacityRelease: remainingPaxDelta > 0 },
+          )
+          if (capacity.status !== "ok") {
+            throw new BookingServiceError(capacity.status)
+          }
+          if (capacity.slotChange) slotChanges.push(capacity.slotChange)
         }
-        if (change) slotChanges.push(change)
+
+        const [carrier, ...duplicates] = remaining
+        if (carrier) {
+          await tx
+            .update(bookingAllocations)
+            .set({ quantity: desiredClaim, updatedAt: new Date() })
+            .where(eq(bookingAllocations.id, carrier.id))
+        }
+        if (duplicates.length > 0) {
+          await tx
+            .update(bookingAllocations)
+            .set({ quantity: 0, updatedAt: new Date() })
+            .where(
+              inArray(
+                bookingAllocations.id,
+                duplicates.map((allocation) => allocation.id),
+              ),
+            )
+        }
       }
 
       const [row] = await tx

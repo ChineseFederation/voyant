@@ -10,7 +10,21 @@
     "",
     "`keyKinds` is false for admin clients. The PK/SK line is a property of the",
     "public surface; every /v1/admin/* route is secret-only by construction, so a",
-    "publishable subset there would be an empty type pretending to be a boundary."
+    "publishable subset there would be an empty type pretending to be a boundary.",
+    "",
+    "`compose` merges a surface's documents into one, so the client is keyed by",
+    "URL instead of by package. The public surface is composed and admin is not,",
+    "and the asymmetry is deliberate:",
+    "",
+    "  - Documents move and URLs do not. voyant#4627 relocated the Trip-selection",
+    "    routes between packages without changing a URL. Per-package subpaths on a",
+    "    PUBLISHED client would make every such move a breaking change nobody",
+    "    outside the repository can explain.",
+    "  - A storefront consumes one surface with one credential; splitting it by",
+    "    which package happens to serve a route leaks our layout into their code.",
+    "  - Admin is 60 documents and ~1,100 paths, server-only, and its callers know",
+    "    the domain they want. That is where paying only for what you import is",
+    "    real. For 138 erased types it is not."
   ],
   "clients": [
     {
@@ -19,7 +33,9 @@
       "keyKinds": false
     },
     {
-      "document": "packages/public-api/openapi/public-api/public-api.json",
+      "surface": "public-api",
+      "compose": true,
+      "info": "packages/public-api/openapi/public-api/public-api.json",
       "outDir": "packages/public-api-client/src/generated",
       "keyKinds": true
     }

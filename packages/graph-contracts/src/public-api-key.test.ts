@@ -5,10 +5,12 @@ import {
   hashPublicApiKeyToken,
   PUBLIC_API_KEY_HEADER,
   PUBLIC_API_KEY_PREFIXES,
-} from "../../src/public-api-key-kind.js"
+} from "./public-api-key.js"
 
 /**
- * These live in `core` because two layers read them at different times — the
+ * These live in `graph-contracts` — the package with no dependencies — because
+ * the generated API clients need them too and must not pull the kernel. Two
+ * layers read them at different times — the
  * capability middleware classifies before authentication, the customer-auth
  * resolver classifies while resolving against the database — and a second copy
  * drifting from the first is an auth bypass (voyant#4625).

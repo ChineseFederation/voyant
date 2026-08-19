@@ -129,6 +129,7 @@
   "paths": {
     "/v1/admin/action-ledger": {
       "get": {
+        "x-voyant-api-id": "@voyant-travel/action-ledger#api.admin",
         "parameters": [
           {
             "schema": {
@@ -770,13 +771,13 @@
         "tags": ["action-ledger"],
         "x-voyant-module": "action-ledger",
         "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/action-ledger#api.admin",
         "x-voyant-unit-id": "@voyant-travel/action-ledger",
         "x-voyant-package-name": "@voyant-travel/action-ledger"
       }
     },
     "/v1/admin/action-ledger/entries": {
       "get": {
+        "x-voyant-api-id": "@voyant-travel/action-ledger#api.admin",
         "parameters": [
           {
             "schema": {
@@ -1418,13 +1419,13 @@
         "tags": ["action-ledger"],
         "x-voyant-module": "action-ledger",
         "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/action-ledger#api.admin",
         "x-voyant-unit-id": "@voyant-travel/action-ledger",
         "x-voyant-package-name": "@voyant-travel/action-ledger"
       }
     },
     "/v1/admin/action-ledger/entries/{id}/reversals": {
       "post": {
+        "x-voyant-api-id": "@voyant-travel/action-ledger#api.admin",
         "parameters": [
           {
             "schema": {
@@ -2075,13 +2076,13 @@
         "tags": ["action-ledger"],
         "x-voyant-module": "action-ledger",
         "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/action-ledger#api.admin",
         "x-voyant-unit-id": "@voyant-travel/action-ledger",
         "x-voyant-package-name": "@voyant-travel/action-ledger"
       }
     },
     "/v1/admin/action-ledger/entries/{id}": {
       "get": {
+        "x-voyant-api-id": "@voyant-travel/action-ledger#api.admin",
         "parameters": [
           {
             "schema": {
@@ -2454,13 +2455,13 @@
         "tags": ["action-ledger"],
         "x-voyant-module": "action-ledger",
         "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/action-ledger#api.admin",
         "x-voyant-unit-id": "@voyant-travel/action-ledger",
         "x-voyant-package-name": "@voyant-travel/action-ledger"
       }
     },
     "/v1/admin/action-ledger/approvals": {
       "get": {
+        "x-voyant-api-id": "@voyant-travel/action-ledger#api.admin",
         "parameters": [
           {
             "schema": {
@@ -2776,13 +2777,13 @@
         "tags": ["action-ledger"],
         "x-voyant-module": "action-ledger",
         "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/action-ledger#api.admin",
         "x-voyant-unit-id": "@voyant-travel/action-ledger",
         "x-voyant-package-name": "@voyant-travel/action-ledger"
       }
     },
     "/v1/admin/action-ledger/approvals/request": {
       "post": {
+        "x-voyant-api-id": "@voyant-travel/action-ledger#api.admin",
         "requestBody": {
           "required": true,
           "description": "The requested action plus the approval policy snapshot. Replays the existing approval when the requested action's idempotency key already exists.",
@@ -3281,13 +3282,13 @@
         "tags": ["action-ledger"],
         "x-voyant-module": "action-ledger",
         "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/action-ledger#api.admin",
         "x-voyant-unit-id": "@voyant-travel/action-ledger",
         "x-voyant-package-name": "@voyant-travel/action-ledger"
       }
     },
     "/v1/admin/action-ledger/approvals/{id}": {
       "get": {
+        "x-voyant-api-id": "@voyant-travel/action-ledger#api.admin",
         "parameters": [
           {
             "schema": {
@@ -3737,13 +3738,13 @@
         "tags": ["action-ledger"],
         "x-voyant-module": "action-ledger",
         "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/action-ledger#api.admin",
         "x-voyant-unit-id": "@voyant-travel/action-ledger",
         "x-voyant-package-name": "@voyant-travel/action-ledger"
       }
     },
     "/v1/admin/action-ledger/approvals/{id}/decide": {
       "post": {
+        "x-voyant-api-id": "@voyant-travel/action-ledger#api.admin",
         "parameters": [
           {
             "schema": {
@@ -4226,13 +4227,13 @@
         "tags": ["action-ledger"],
         "x-voyant-module": "action-ledger",
         "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/action-ledger#api.admin",
         "x-voyant-unit-id": "@voyant-travel/action-ledger",
         "x-voyant-package-name": "@voyant-travel/action-ledger"
       }
     },
     "/v1/admin/action-ledger/delegations": {
       "get": {
+        "x-voyant-api-id": "@voyant-travel/action-ledger#api.admin",
         "parameters": [
           {
             "schema": {
@@ -4495,13 +4496,13 @@
         "tags": ["action-ledger"],
         "x-voyant-module": "action-ledger",
         "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/action-ledger#api.admin",
         "x-voyant-unit-id": "@voyant-travel/action-ledger",
         "x-voyant-package-name": "@voyant-travel/action-ledger"
       }
     },
     "/v1/admin/action-ledger/delegations/{id}": {
       "get": {
+        "x-voyant-api-id": "@voyant-travel/action-ledger#api.admin",
         "parameters": [
           {
             "schema": {
@@ -4606,7 +4607,6 @@
         "tags": ["action-ledger"],
         "x-voyant-module": "action-ledger",
         "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/action-ledger#api.admin",
         "x-voyant-unit-id": "@voyant-travel/action-ledger",
         "x-voyant-package-name": "@voyant-travel/action-ledger"
       }

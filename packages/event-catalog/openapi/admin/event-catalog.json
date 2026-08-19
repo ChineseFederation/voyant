@@ -18,17 +18,65 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": ["data"],
                   "properties": {
                     "data": {
                       "type": "object",
-                      "required": ["schemaVersion", "events"],
                       "properties": {
-                        "schemaVersion": { "const": "voyant.event-catalog.v1" },
+                        "schemaVersion": {
+                          "type": "string",
+                          "enum": ["voyant.event-catalog.v1"]
+                        },
                         "events": {
                           "type": "array",
                           "items": {
                             "type": "object",
+                            "properties": {
+                              "key": {
+                                "type": "string"
+                              },
+                              "id": {
+                                "type": "string"
+                              },
+                              "unitId": {
+                                "type": "string"
+                              },
+                              "packageName": {
+                                "type": "string"
+                              },
+                              "eventType": {
+                                "type": "string"
+                              },
+                              "version": {
+                                "type": "string"
+                              },
+                              "payloadSchema": {
+                                "type": "object",
+                                "additionalProperties": {}
+                              },
+                              "visibility": {
+                                "type": "string",
+                                "enum": ["internal", "external"]
+                              },
+                              "audit": {
+                                "type": "object",
+                                "properties": {
+                                  "sourceModule": {
+                                    "type": "string"
+                                  },
+                                  "category": {
+                                    "type": "string",
+                                    "enum": ["domain", "internal"]
+                                  }
+                                },
+                                "required": ["sourceModule", "category"]
+                              },
+                              "redactedFields": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              }
+                            },
                             "required": [
                               "key",
                               "id",
@@ -40,39 +88,21 @@
                               "visibility",
                               "audit",
                               "redactedFields"
-                            ],
-                            "properties": {
-                              "key": { "type": "string" },
-                              "id": { "type": "string" },
-                              "unitId": { "type": "string" },
-                              "packageName": { "type": "string" },
-                              "eventType": { "type": "string" },
-                              "version": { "type": "string" },
-                              "payloadSchema": { "type": "object", "additionalProperties": true },
-                              "visibility": { "enum": ["internal", "external"] },
-                              "audit": {
-                                "type": "object",
-                                "required": ["sourceModule", "category"],
-                                "properties": {
-                                  "sourceModule": { "type": "string" },
-                                  "category": { "enum": ["domain", "internal"] }
-                                }
-                              },
-                              "redactedFields": {
-                                "type": "array",
-                                "items": { "type": "string" }
-                              }
-                            }
+                            ]
                           }
                         }
-                      }
+                      },
+                      "required": ["schemaVersion", "events"]
                     }
-                  }
+                  },
+                  "required": ["data"]
                 }
               }
             }
           }
-        }
+        },
+        "x-voyant-module": "event-catalog",
+        "x-voyant-surface": "admin"
       }
     }
   }

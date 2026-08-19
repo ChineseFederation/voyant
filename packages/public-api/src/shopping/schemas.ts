@@ -1,4 +1,3 @@
-import { bookingSessionOutcomeV1 } from "@voyant-travel/catalog-contracts/booking-engine/session-contracts"
 import {
   type CatalogMoney,
   catalogMoneySchema,
@@ -13,7 +12,16 @@ const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
 const CURRENCY = /^[A-Z]{3}$/
 const LANGUAGE_TAG = /^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/
 
-const opaqueRefSchema = z.string().min(16).max(512)
+/**
+ * The shape of an opaque reference issued by the shopping layer.
+ *
+ * Exported because `trips` consumes the same values: shopping issues the refs
+ * and trips redeems them into a selection (voyant#4627). Two definitions of the
+ * bound would let one side start issuing refs the other rejects, and the failure
+ * would surface as a validation error on a ref that is actually valid.
+ */
+export const publicApiOpaqueRefSchema = z.string().min(16).max(512)
+const opaqueRefSchema = publicApiOpaqueRefSchema
 const isoDateSchema = z.string().regex(ISO_DATE, "Expected an ISO 8601 calendar date (YYYY-MM-DD)")
 const currencyCodeSchema = z.string().regex(CURRENCY, "Expected an ISO 4217 currency code")
 const localeSchema = z.string().regex(LANGUAGE_TAG, "Expected a BCP 47 language tag")
@@ -424,79 +432,8 @@ export const publicApiShoppingResultSchema = z.discriminatedUnion("kind", [
   publicApiCruiseSearchResultSchema,
 ])
 
-const tripOfferSelectionSchema = z
-  .object({
-    kind: z.enum(["product", "flight", "stay", "package", "cruise"]),
-    offerRef: opaqueRefSchema,
-    quantity: z.number().int().min(1).max(99).optional(),
-  })
-  .strict()
-
-export const publicApiTripSelectionCreateSchema = z
-  .object({
-    scope: publicApiRequestedScopeSchema,
-    offers: z.array(tripOfferSelectionSchema).min(1).max(100),
-  })
-  .strict()
-
-const tripSelectionMutationSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("add"), offer: tripOfferSelectionSchema }).strict(),
-  z.object({ kind: z.literal("remove"), itemRef: opaqueRefSchema }).strict(),
-  z
-    .object({ kind: z.literal("reorder"), itemRefs: z.array(opaqueRefSchema).min(1).max(100) })
-    .strict(),
-])
-
-export const publicApiTripSelectionUpdateSchema = z
-  .object({
-    selectionRef: opaqueRefSchema,
-    expectedRevision: z.number().int().min(0),
-    mutation: tripSelectionMutationSchema,
-  })
-  .strict()
-
-const tripSelectionItemSchema = z
-  .object({
-    itemRef: opaqueRefSchema,
-    kind: z.enum(["product", "flight", "stay", "package", "cruise"]),
-    quantity: z.number().int().min(1),
-  })
-  .strict()
-
-export const publicApiTripSelectionSchema = z
-  .object({
-    selectionRef: opaqueRefSchema,
-    revision: z.number().int().min(0),
-    scope: publicApiResolvedScopeSchema,
-    items: z.array(tripSelectionItemSchema).max(100),
-  })
-  .strict()
-
-export const publicApiTripBookingCreateSchema = z
-  .object({
-    selectionRef: opaqueRefSchema,
-    expectedRevision: z.number().int().min(0),
-    idempotencyKey: z.string().min(8).max(128),
-  })
-  .strict()
-
-export const publicApiTripBookingSchema = z
-  .object({
-    bookingSessionCapability: z
-      .string()
-      .regex(/^bcap_[A-Za-z0-9_-]{43,}$/)
-      .optional(),
-    outcome: bookingSessionOutcomeV1,
-  })
-  .strict()
-
 export type PublicApiRequestedScope = z.infer<typeof publicApiRequestedScopeSchema>
 export type PublicApiResolvedScope = z.infer<typeof publicApiResolvedScopeSchema>
 export type PublicApiShoppingIntent = z.infer<typeof publicApiShoppingIntentSchema>
 export type PublicApiShoppingRequest = z.infer<typeof publicApiShoppingRequestSchema>
 export type PublicApiShoppingResult = z.infer<typeof publicApiShoppingResultSchema>
-export type PublicApiTripSelectionCreate = z.infer<typeof publicApiTripSelectionCreateSchema>
-export type PublicApiTripSelectionUpdate = z.infer<typeof publicApiTripSelectionUpdateSchema>
-export type PublicApiTripSelection = z.infer<typeof publicApiTripSelectionSchema>
-export type PublicApiTripBookingCreate = z.infer<typeof publicApiTripBookingCreateSchema>
-export type PublicApiTripBooking = z.infer<typeof publicApiTripBookingSchema>

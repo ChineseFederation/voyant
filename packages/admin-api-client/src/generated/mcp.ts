@@ -4,23 +4,6 @@
  */
 
 export interface paths {
-  "/v1/admin/mcp": {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put?: never
-    /** Send an MCP JSON-RPC request */
-    post: operations["callMcp"]
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
   "/v1/admin/mcp/manifest": {
     parameters: {
       query?: never
@@ -32,6 +15,23 @@ export interface paths {
     get: operations["getMcpManifest"]
     put?: never
     post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/admin/mcp": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** Send an MCP JSON-RPC request */
+    post: operations["callMcp"]
     delete?: never
     options?: never
     head?: never
@@ -50,36 +50,6 @@ export interface components {
 }
 export type $defs = Record<string, never>
 export interface operations {
-  callMcp: {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        "application/json": {
-          /** @constant */
-          jsonrpc: "2.0"
-          id?: string | number | null
-          method: string
-          params?: {
-            [key: string]: unknown
-          }
-        }
-      }
-    }
-    responses: {
-      /** @description The MCP JSON-RPC response. */
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
   getMcpManifest: {
     parameters: {
       query?: never
@@ -91,6 +61,43 @@ export interface operations {
     responses: {
       /** @description The contract-versioned tools visible to the caller. */
       200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+    }
+  }
+  callMcp: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          /** @enum {string} */
+          jsonrpc: "2.0"
+          id?: string | number | null
+          method: string
+          params?: {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+    responses: {
+      /** @description The MCP JSON-RPC response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description The MCP notification was accepted */
+      204: {
         headers: {
           [name: string]: unknown
         }

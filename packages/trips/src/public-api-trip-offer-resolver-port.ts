@@ -1,11 +1,9 @@
 import { definePort } from "@voyant-travel/core/project"
 import type { AnyDrizzleDb } from "@voyant-travel/db"
-import type {
-  PublicApiShoppingContext,
-  PublicApiTripSelectionCreate,
-} from "@voyant-travel/public-api/shopping"
+import type { PublicApiShoppingContext } from "@voyant-travel/public-api/shopping"
 
 import type { PublicApiTripScope } from "./public-api-access.js"
+import type { PublicApiTripSelectionCreate } from "./public-api-trip-selections-schemas.js"
 import type { CreateTripComponentBodyInput } from "./validation.js"
 
 type PublicApiOfferSelection = PublicApiTripSelectionCreate["offers"][number]

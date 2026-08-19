@@ -16,7 +16,25 @@ test("a byte difference is reported against the file that drifted", () => {
     { file: "a.json", before: Buffer.from("{}\n"), after: Buffer.from("{}\n") },
     { file: "b.json", before: Buffer.from("{}\n"), after: Buffer.from('{"x":1}\n') },
   ])
-  assert.deepEqual(violations, ["b.json: checked-in document is stale"])
+  assert.equal(violations[0], "b.json: checked-in document is stale")
+  assert.ok(violations.length > 1, "a stale file must say where it differs")
+})
+
+// "Stale" alone is useless when the file regenerates identically on the machine
+// you are standing at — the excerpt is the only thing that makes an
+// environment-dependent difference actionable.
+test("the excerpt names the line and shows both sides", () => {
+  const violations = driftedFiles([
+    {
+      file: "b.ts",
+      before: Buffer.from("same\nold\ntail\n"),
+      after: Buffer.from("same\nnew\ntail\n"),
+    },
+  ])
+  const text = violations.join("\n")
+  assert.match(text, /first difference at line 2/)
+  assert.match(text, /- old/)
+  assert.match(text, /\+ new/)
 })
 
 test("a spec the generator no longer emits fails rather than silently passing", () => {

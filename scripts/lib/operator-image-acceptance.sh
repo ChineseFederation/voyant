@@ -7,6 +7,33 @@
 # the boot assertions live here once. A binding added for one stage and not the
 # other is exactly how an acceptance lane stops resembling a deployment.
 
+operator_image_is_docker_desktop() {
+  [[ "$(docker info --format '{{.OperatingSystem}}' 2>/dev/null)" == "Docker Desktop" ]]
+}
+
+operator_image_database_host() {
+  if operator_image_is_docker_desktop; then
+    printf '%s\n' "host.docker.internal"
+    return
+  fi
+  printf '%s\n' "localhost"
+}
+
+# Linux CI can share the host network directly. Docker Desktop keeps that
+# capability opt-in, so local acceptance publishes only the tested port rather
+# than requiring developers to widen the VM's network access.
+operator_image_prepare_network_args() {
+  local port="${1:-}"
+  if operator_image_is_docker_desktop; then
+    OPERATOR_IMAGE_NETWORK_ARGS=(--network bridge)
+    if [[ -n "$port" ]]; then
+      OPERATOR_IMAGE_NETWORK_ARGS=(--publish "127.0.0.1:$port:$port")
+    fi
+    return
+  fi
+  OPERATOR_IMAGE_NETWORK_ARGS=(--network host)
+}
+
 operator_image_pull() {
   local image_ref="$1"
   if docker image inspect "$image_ref" >/dev/null 2>&1; then
@@ -70,32 +97,64 @@ operator_image_configure() {
 operator_image_migrate() {
   local image_ref="$1"
   local log_path="${2:-}"
+  operator_image_prepare_network_args
 
   if [[ -z "$log_path" ]]; then
-    docker run --rm --network host "${OPERATOR_IMAGE_ENV_ARGS[@]}" "$image_ref" \
+    docker run --rm "${OPERATOR_IMAGE_NETWORK_ARGS[@]}" "${OPERATOR_IMAGE_ENV_ARGS[@]}" "$image_ref" \
       node run-generated-migrations.mjs
     return
   fi
 
-  docker run --rm --network host "${OPERATOR_IMAGE_ENV_ARGS[@]}" "$image_ref" \
+  docker run --rm "${OPERATOR_IMAGE_NETWORK_ARGS[@]}" "${OPERATOR_IMAGE_ENV_ARGS[@]}" "$image_ref" \
     node run-generated-migrations.mjs 2>&1 | tee "$log_path"
+}
+
+##
+# Wait for the container to serve /healthz, and SAY WHY if it never does.
+#
+# Without this the failure was silent: `health=$(curl …)` assigns curl's exit
+# status, `set -e` aborts on it, and the script died before printing even the
+# status code — so a production image that migrated fine and then crashed on
+# boot produced no diagnostic at all. The container logs are the only place the
+# reason exists, and nothing was reading them.
+##
+operator_image_await_health() {
+  local container="$1"
+  local port="$2"
+
+  local _
+  for _ in $(seq 1 60); do
+    if curl -sf -o /dev/null "http://localhost:$port/healthz"; then
+      return 0
+    fi
+    # A container that has already exited will never come up; stop waiting out
+    # the full minute for something that is gone.
+    if [ "$(docker inspect -f '{{.State.Running}}' "$container" 2>/dev/null)" = "false" ]; then
+      break
+    fi
+    sleep 1
+  done
+
+  echo "::group::$container did not serve /healthz on port $port"
+  echo "--- docker inspect ---"
+  docker inspect -f 'running={{.State.Running}} exit={{.State.ExitCode}} error={{.State.Error}}' \
+    "$container" 2>&1 || true
+  echo "--- container logs ---"
+  docker logs "$container" 2>&1 | tail -100 || true
+  echo "::endgroup::"
+  return 1
 }
 
 operator_image_boot_and_assert() {
   local image_ref="$1"
   local container="$2"
   local port="$3"
+  operator_image_prepare_network_args "$port"
 
-  docker run --detach --name "$container" --network host \
+  docker run --detach --name "$container" "${OPERATOR_IMAGE_NETWORK_ARGS[@]}" \
     "${OPERATOR_IMAGE_ENV_ARGS[@]}" "$image_ref" >/dev/null
 
-  local _
-  for _ in $(seq 1 60); do
-    if curl -sf -o /dev/null "http://localhost:$port/healthz"; then
-      break
-    fi
-    sleep 1
-  done
+  operator_image_await_health "$container" "$port"
 
   local health
   health=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:$port/healthz")
@@ -118,17 +177,12 @@ operator_image_boot_api_only_and_assert() {
   local image_ref="$1"
   local container="$2"
   local port="$3"
+  operator_image_prepare_network_args "$port"
 
-  docker run --detach --name "$container" --network host \
+  docker run --detach --name "$container" "${OPERATOR_IMAGE_NETWORK_ARGS[@]}" \
     "${OPERATOR_IMAGE_ENV_ARGS[@]}" "$image_ref" node start-api-only.mjs >/dev/null
 
-  local _
-  for _ in $(seq 1 60); do
-    if curl -sf -o /dev/null "http://localhost:$port/healthz"; then
-      break
-    fi
-    sleep 1
-  done
+  operator_image_await_health "$container" "$port"
 
   local health api admin content_type
   health=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:$port/healthz" || true)

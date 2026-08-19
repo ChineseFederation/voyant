@@ -8,6 +8,7 @@ import {
   type TripsPaymentSubscriberRuntime,
 } from "./payment-subscriber-runtime.js"
 import {
+  createTripsPublicSurfaceRoutes,
   createTripsRoutes,
   type TripsRoutesOptions,
   type TripsRoutesOptionsInput,
@@ -131,8 +132,17 @@ export function createTripsApiModule(options: TripsApiModuleOptions = {}) {
     )
   }
   if (publicRoutes) {
+    const publicSurface = withTripsRouteSurface(resolvedRouteOptions, "public")
     apiModule.publicRoutes = stampOpenApiRegistryApiId(
-      createTripsRoutes(withTripsRouteSurface(resolvedRouteOptions, "public")),
+      // Trip selections mount here rather than inside `createTripsRoutes`
+      // because that factory serves BOTH surfaces and gates admin-only
+      // operations per request — which still documents them on both. These are
+      // public-only, so composing them on the public app is what keeps them out
+      // of the admin document (voyant#4627).
+      createTripsPublicSurfaceRoutes(publicSurface, async () => {
+        const resolved = typeof publicSurface === "function" ? await publicSurface() : publicSurface
+        return resolved.tripSelections
+      }),
       "@voyant-travel/trips#api.public",
     )
   }

@@ -11,8 +11,10 @@ export interface paths {
       path?: never
       cookie?: never
     }
+    /** GET /v1/admin/public-api-keys/keys */
     get: operations["listPublicApiKeys"]
     put?: never
+    /** POST /v1/admin/public-api-keys/keys */
     post: operations["issuePublicApiKey"]
     delete?: never
     options?: never
@@ -27,12 +29,15 @@ export interface paths {
       path?: never
       cookie?: never
     }
+    /** GET /v1/admin/public-api-keys/keys/{keyId} */
     get: operations["getPublicApiKey"]
     put?: never
     post?: never
+    /** DELETE /v1/admin/public-api-keys/keys/{keyId} */
     delete: operations["revokePublicApiKey"]
     options?: never
     head?: never
+    /** PATCH /v1/admin/public-api-keys/keys/{keyId} */
     patch: operations["updatePublicApiKey"]
     trace?: never
   }
@@ -45,6 +50,7 @@ export interface paths {
     }
     get?: never
     put?: never
+    /** POST /v1/admin/public-api-keys/keys/{keyId}/rotate */
     post: operations["rotatePublicApiKey"]
     delete?: never
     options?: never
@@ -73,8 +79,22 @@ export interface operations {
     }
     requestBody?: never
     responses: {
-      /** @description Issued public API keys. */
+      /** @description HTTP 200 */
       200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 401 */
+      401: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 403 */
+      403: {
         headers: {
           [name: string]: unknown
         }
@@ -89,10 +109,45 @@ export interface operations {
       path?: never
       cookie?: never
     }
-    requestBody?: never
+    requestBody: {
+      content: {
+        "application/json": {
+          /** @enum {string} */
+          kind: "publishable" | "secret"
+          name?: string | null
+          allowedOrigins?: string[]
+          channelId?: string | null
+          hostOnlyCookies?: boolean
+          scopes?: {
+            [key: string]: string[]
+          } | null
+        }
+      }
+    }
     responses: {
-      /** @description Issued key, including its plaintext token exactly once. */
+      /** @description HTTP 201 */
       201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 400 */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 401 */
+      401: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 403 */
+      403: {
         headers: {
           [name: string]: unknown
         }
@@ -104,13 +159,36 @@ export interface operations {
     parameters: {
       query?: never
       header?: never
-      path?: never
+      path: {
+        keyId: string
+      }
       cookie?: never
     }
     requestBody?: never
     responses: {
-      /** @description One public API key. */
+      /** @description HTTP 200 */
       200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 401 */
+      401: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 403 */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 404 */
+      404: {
         headers: {
           [name: string]: unknown
         }
@@ -122,13 +200,36 @@ export interface operations {
     parameters: {
       query?: never
       header?: never
-      path?: never
+      path: {
+        keyId: string
+      }
       cookie?: never
     }
     requestBody?: never
     responses: {
-      /** @description Key revoked. */
+      /** @description HTTP 204 */
       204: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 401 */
+      401: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 403 */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 404 */
+      404: {
         headers: {
           [name: string]: unknown
         }
@@ -140,13 +241,55 @@ export interface operations {
     parameters: {
       query?: never
       header?: never
-      path?: never
+      path: {
+        keyId: string
+      }
       cookie?: never
     }
-    requestBody?: never
+    requestBody: {
+      content: {
+        "application/json": {
+          name?: string | null
+          allowedOrigins?: string[]
+          channelId?: string | null
+          hostOnlyCookies?: boolean
+          scopes?: {
+            [key: string]: string[]
+          } | null
+        }
+      }
+    }
     responses: {
-      /** @description Updated public API key. */
+      /** @description HTTP 200 */
       200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 400 */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 401 */
+      401: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 403 */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 404 */
+      404: {
         headers: {
           [name: string]: unknown
         }
@@ -158,13 +301,43 @@ export interface operations {
     parameters: {
       query?: never
       header?: never
-      path?: never
+      path: {
+        keyId: string
+      }
       cookie?: never
     }
     requestBody?: never
     responses: {
-      /** @description Rotated key, including its new plaintext token exactly once. */
+      /** @description HTTP 201 */
       201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 400 */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 401 */
+      401: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 403 */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 404 */
+      404: {
         headers: {
           [name: string]: unknown
         }

@@ -80,15 +80,15 @@ export interface operations {
         }
         content?: never
       }
-      /** @description Authentication is required. */
-      401: {
+      /** @description Realtime is not configured for this deployment. */
+      204: {
         headers: {
           [name: string]: unknown
         }
         content?: never
       }
-      /** @description No realtime transport is configured. */
-      503: {
+      /** @description Authentication is required. */
+      401: {
         headers: {
           [name: string]: unknown
         }

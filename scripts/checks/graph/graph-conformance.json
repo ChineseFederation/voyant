@@ -41,8 +41,8 @@
         "trips.routes-runtime",
         "trips.database-runtime",
         "public-api.shopping.opaque-reference-issuer",
-        "public-api.trip-selections.runtime",
         "trips.public-offer-resolver.runtime",
+        "public-api.shopping.runtime",
         "catalog.runtime-services",
         "commerce.checkout-api-options",
         "flights.runtime"

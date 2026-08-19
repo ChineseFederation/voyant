@@ -1,4 +1,4 @@
-import { PUBLIC_API_KEY_PREFIXES } from "@voyant-travel/core"
+import { PUBLIC_API_KEY_PREFIXES } from "@voyant-travel/graph-contracts"
 import { describe, expect, it } from "vitest"
 
 import { AdminApiClientCredentialError, createAdminApiClient } from "./index.js"
@@ -8,7 +8,7 @@ import { AdminApiClientCredentialError, createAdminApiClient } from "./index.js"
  * useful moment to say so is at wiring time — a 401 in production tells you a
  * publishable key was shipped somewhere it can be read, long after the fact.
  *
- * The prefixes come from `@voyant-travel/core`, not from literals here: a second
+ * The prefixes come from `@voyant-travel/graph-contracts`, not from literals here: a
  * copy of that table drifting from the first is an auth bypass, and a test that
  * hard-coded `vsk_` would keep passing while the real table moved.
  */

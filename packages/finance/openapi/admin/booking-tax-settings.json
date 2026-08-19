@@ -7,7 +7,6 @@
   "paths": {
     "/v1/admin/finance/tax-settings": {
       "get": {
-        "summary": "Get booking tax settings",
         "x-voyant-api-id": "@voyant-travel/finance#booking-tax-settings-extension.api",
         "responses": {
           "200": {
@@ -16,16 +15,38 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": ["data"],
-                  "properties": { "data": { "$ref": "#/components/schemas/BookingTaxSettings" } }
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "taxPriceMode": {
+                          "type": "string",
+                          "enum": ["inclusive", "exclusive"]
+                        },
+                        "taxPolicyProfileId": {
+                          "type": ["string", "null"]
+                        },
+                        "invoicingMode": {
+                          "type": "string",
+                          "enum": ["direct", "proforma-first"]
+                        }
+                      },
+                      "required": ["taxPriceMode", "taxPolicyProfileId", "invoicingMode"]
+                    }
+                  },
+                  "required": ["data"]
                 }
               }
             }
           }
-        }
+        },
+        "operationId": "getAdminFinanceTaxSettings",
+        "summary": "Get booking tax settings",
+        "tags": ["finance"],
+        "x-voyant-module": "finance",
+        "x-voyant-surface": "admin"
       },
       "patch": {
-        "summary": "Update booking tax settings",
         "x-voyant-api-id": "@voyant-travel/finance#booking-tax-settings-extension.api",
         "requestBody": {
           "required": true,
@@ -34,18 +55,63 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "taxPriceMode": { "type": "string", "enum": ["inclusive", "exclusive"] },
-                  "taxPolicyProfileId": { "type": ["string", "null"] },
-                  "invoicingMode": { "type": "string", "enum": ["direct", "proforma-first"] }
+                  "taxPriceMode": {
+                    "type": "string",
+                    "enum": ["inclusive", "exclusive"]
+                  },
+                  "taxPolicyProfileId": {
+                    "type": ["string", "null"],
+                    "minLength": 1
+                  },
+                  "invoicingMode": {
+                    "type": "string",
+                    "enum": ["direct", "proforma-first"]
+                  }
                 }
               }
             }
           }
         },
         "responses": {
-          "200": { "description": "The updated booking tax settings" },
-          "409": { "description": "This deployment does not support tax setting updates" }
-        }
+          "200": {
+            "description": "The updated booking tax settings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "taxPriceMode": {
+                          "type": "string",
+                          "enum": ["inclusive", "exclusive"]
+                        },
+                        "taxPolicyProfileId": {
+                          "type": ["string", "null"]
+                        },
+                        "invoicingMode": {
+                          "type": "string",
+                          "enum": ["direct", "proforma-first"]
+                        }
+                      },
+                      "required": ["taxPriceMode", "taxPolicyProfileId", "invoicingMode"]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "This deployment does not support tax setting updates"
+          }
+        },
+        "operationId": "patchAdminFinanceTaxSettings",
+        "summary": "Update booking tax settings",
+        "tags": ["finance"],
+        "x-voyant-module": "finance",
+        "x-voyant-surface": "admin"
       }
     }
   },
@@ -55,9 +121,17 @@
         "type": "object",
         "required": ["taxPriceMode", "taxPolicyProfileId", "invoicingMode"],
         "properties": {
-          "taxPriceMode": { "type": "string", "enum": ["inclusive", "exclusive"] },
-          "taxPolicyProfileId": { "type": ["string", "null"] },
-          "invoicingMode": { "type": "string", "enum": ["direct", "proforma-first"] }
+          "taxPriceMode": {
+            "type": "string",
+            "enum": ["inclusive", "exclusive"]
+          },
+          "taxPolicyProfileId": {
+            "type": ["string", "null"]
+          },
+          "invoicingMode": {
+            "type": "string",
+            "enum": ["direct", "proforma-first"]
+          }
         }
       }
     }

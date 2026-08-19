@@ -91,7 +91,19 @@ for (const [file, [apiId, expectedCount]] of exactOperationOwners) {
   )
 }
 
-const coverageChecker = readFileSync("scripts/check-deployment-graph-openapi-coverage.mjs", "utf8")
-assert.match(coverageChecker, /MIN_PACKAGE_OWNED_API_BUNDLES = 72/)
+// The package-owned bundle ratchet, held from a second file so lowering it
+// takes two edits and cannot ride along in a diff about something else.
+//
+// This read the checker's source text and matched the literal `= 72`, which
+// went red when the value ROSE — the one direction that is always safe — and
+// stayed green if the assignment were reformatted or the guard deleted. It
+// measured the spelling, not the rule.
+const ratchet = JSON.parse(
+  readFileSync("scripts/checks/openapi/graph-coverage-ratchet.json", "utf8"),
+)
+assert.ok(
+  ratchet.minimum >= ratchet.floor,
+  `graph-coverage-ratchet.json lowers the package-owned bundle minimum to ${ratchet.minimum}, below the floor of ${ratchet.floor}`,
+)
 
 console.log(`check-retail-openapi-authority: OK (${claims.size} package-owned API bundles)`)

@@ -129,7 +129,6 @@
   "paths": {
     "/v1/public/legal/contracts/templates/default": {
       "get": {
-        "x-voyant-api-id": "@voyant-travel/legal#api.public",
         "parameters": [
           {
             "schema": {
@@ -264,12 +263,12 @@
         "summary": "GET /v1/public/legal/contracts/templates/default",
         "tags": ["legal"],
         "x-voyant-module": "legal",
-        "x-voyant-surface": "public-api"
+        "x-voyant-surface": "public-api",
+        "x-voyant-api-id": "@voyant-travel/legal#api.public"
       }
     },
     "/v1/public/legal/contracts/templates/{id}/preview": {
       "post": {
-        "x-voyant-api-id": "@voyant-travel/legal#api.public",
         "parameters": [
           {
             "schema": {
@@ -352,12 +351,12 @@
         "summary": "POST /v1/public/legal/contracts/templates/{id}/preview",
         "tags": ["legal"],
         "x-voyant-module": "legal",
-        "x-voyant-surface": "public-api"
+        "x-voyant-surface": "public-api",
+        "x-voyant-api-id": "@voyant-travel/legal#api.public"
       }
     },
     "/v1/public/legal/contracts/templates/{id}/render-preview": {
       "post": {
-        "x-voyant-api-id": "@voyant-travel/legal#api.public",
         "parameters": [
           {
             "schema": {
@@ -440,12 +439,12 @@
         "summary": "POST /v1/public/legal/contracts/templates/{id}/render-preview",
         "tags": ["legal"],
         "x-voyant-module": "legal",
-        "x-voyant-surface": "public-api"
+        "x-voyant-surface": "public-api",
+        "x-voyant-api-id": "@voyant-travel/legal#api.public"
       }
     },
     "/v1/public/legal/contracts/templates/by-slug/{slug}/preview": {
       "post": {
-        "x-voyant-api-id": "@voyant-travel/legal#api.public",
         "parameters": [
           {
             "schema": {
@@ -528,12 +527,12 @@
         "summary": "POST /v1/public/legal/contracts/templates/by-slug/{slug}/preview",
         "tags": ["legal"],
         "x-voyant-module": "legal",
-        "x-voyant-surface": "public-api"
+        "x-voyant-surface": "public-api",
+        "x-voyant-api-id": "@voyant-travel/legal#api.public"
       }
     },
     "/v1/public/legal/contracts/templates/by-slug/{slug}/render-preview": {
       "post": {
-        "x-voyant-api-id": "@voyant-travel/legal#api.public",
         "parameters": [
           {
             "schema": {
@@ -616,12 +615,12 @@
         "summary": "POST /v1/public/legal/contracts/templates/by-slug/{slug}/render-preview",
         "tags": ["legal"],
         "x-voyant-module": "legal",
-        "x-voyant-surface": "public-api"
+        "x-voyant-surface": "public-api",
+        "x-voyant-api-id": "@voyant-travel/legal#api.public"
       }
     },
     "/v1/public/legal/contracts/{id}": {
       "get": {
-        "x-voyant-api-id": "@voyant-travel/legal#api.public",
         "parameters": [
           {
             "schema": {
@@ -757,12 +756,12 @@
         "summary": "GET /v1/public/legal/contracts/{id}",
         "tags": ["legal"],
         "x-voyant-module": "legal",
-        "x-voyant-surface": "public-api"
+        "x-voyant-surface": "public-api",
+        "x-voyant-api-id": "@voyant-travel/legal#api.public"
       }
     },
     "/v1/public/legal/contracts/{id}/sign": {
       "post": {
-        "x-voyant-api-id": "@voyant-travel/legal#api.public",
         "parameters": [
           {
             "schema": {
@@ -932,12 +931,12 @@
         "summary": "POST /v1/public/legal/contracts/{id}/sign",
         "tags": ["legal"],
         "x-voyant-module": "legal",
-        "x-voyant-surface": "public-api"
+        "x-voyant-surface": "public-api",
+        "x-voyant-api-id": "@voyant-travel/legal#api.public"
       }
     },
     "/v1/public/legal/policies/{slug}": {
       "get": {
-        "x-voyant-api-id": "@voyant-travel/legal#api.public",
         "parameters": [
           {
             "schema": {
@@ -1096,12 +1095,12 @@
         "summary": "GET /v1/public/legal/policies/{slug}",
         "tags": ["legal"],
         "x-voyant-module": "legal",
-        "x-voyant-surface": "public-api"
+        "x-voyant-surface": "public-api",
+        "x-voyant-api-id": "@voyant-travel/legal#api.public"
       }
     },
     "/v1/public/legal/policies/{id}/accept": {
       "post": {
-        "x-voyant-api-id": "@voyant-travel/legal#api.public",
         "parameters": [
           {
             "schema": {
@@ -1360,12 +1359,12 @@
         "summary": "POST /v1/public/legal/policies/{id}/accept",
         "tags": ["legal"],
         "x-voyant-module": "legal",
-        "x-voyant-surface": "public-api"
+        "x-voyant-surface": "public-api",
+        "x-voyant-api-id": "@voyant-travel/legal#api.public"
       }
     },
     "/v1/public/legal/terms": {
       "get": {
-        "x-voyant-api-id": "@voyant-travel/legal#api.public",
         "parameters": [
           {
             "schema": {
@@ -1471,6 +1470,9 @@
                 "payment",
                 "pricing",
                 "commission",
+                "insurer_product_information",
+                "insurer_terms",
+                "demands_and_needs",
                 "other"
               ]
             },
@@ -1485,6 +1487,14 @@
             },
             "required": false,
             "name": "acceptanceStatus",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "sourceVersionId",
             "in": "query"
           }
         ],
@@ -1547,6 +1557,9 @@
                               "payment",
                               "pricing",
                               "commission",
+                              "insurer_product_information",
+                              "insurer_terms",
+                              "demands_and_needs",
                               "other"
                             ]
                           },
@@ -1573,6 +1586,15 @@
                             "type": ["string", "null"]
                           },
                           "acceptedBy": {
+                            "type": ["string", "null"]
+                          },
+                          "sourceVersionId": {
+                            "type": ["string", "null"]
+                          },
+                          "archivedStorageKey": {
+                            "type": ["string", "null"]
+                          },
+                          "archivedChecksum": {
                             "type": ["string", "null"]
                           },
                           "metadata": {},
@@ -1602,6 +1624,9 @@
                           "acceptanceStatus",
                           "acceptedAt",
                           "acceptedBy",
+                          "sourceVersionId",
+                          "archivedStorageKey",
+                          "archivedChecksum",
                           "createdAt",
                           "updatedAt"
                         ]
@@ -1627,12 +1652,12 @@
         "summary": "GET /v1/public/legal/terms",
         "tags": ["legal"],
         "x-voyant-module": "legal",
-        "x-voyant-surface": "public-api"
+        "x-voyant-surface": "public-api",
+        "x-voyant-api-id": "@voyant-travel/legal#api.public"
       }
     },
     "/v1/public/legal/terms/{id}": {
       "get": {
-        "x-voyant-api-id": "@voyant-travel/legal#api.public",
         "parameters": [
           {
             "schema": {
@@ -1700,6 +1725,9 @@
                             "payment",
                             "pricing",
                             "commission",
+                            "insurer_product_information",
+                            "insurer_terms",
+                            "demands_and_needs",
                             "other"
                           ]
                         },
@@ -1726,6 +1754,15 @@
                           "type": ["string", "null"]
                         },
                         "acceptedBy": {
+                          "type": ["string", "null"]
+                        },
+                        "sourceVersionId": {
+                          "type": ["string", "null"]
+                        },
+                        "archivedStorageKey": {
+                          "type": ["string", "null"]
+                        },
+                        "archivedChecksum": {
                           "type": ["string", "null"]
                         },
                         "metadata": {},
@@ -1755,6 +1792,9 @@
                         "acceptanceStatus",
                         "acceptedAt",
                         "acceptedBy",
+                        "sourceVersionId",
+                        "archivedStorageKey",
+                        "archivedChecksum",
                         "createdAt",
                         "updatedAt"
                       ]
@@ -1786,7 +1826,8 @@
         "summary": "GET /v1/public/legal/terms/{id}",
         "tags": ["legal"],
         "x-voyant-module": "legal",
-        "x-voyant-surface": "public-api"
+        "x-voyant-surface": "public-api",
+        "x-voyant-api-id": "@voyant-travel/legal#api.public"
       }
     }
   },

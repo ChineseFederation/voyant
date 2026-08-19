@@ -9,8 +9,10 @@ import {
 } from "../../src/booking-contract-confirmed.js"
 import {
   createLegalBookingContractConfirmedSubscriber,
+  LEGAL_BOOKING_CONFIRMED_SUBSCRIBER_TIMEOUT_MS,
   LEGAL_BOOKING_CONTRACT_CONFIRMED_SUBSCRIBER_ID,
 } from "../../src/booking-contract-confirmed-subscriber.js"
+import { LEGAL_DOCUMENT_RENDER_TIMEOUT_MS } from "../../src/document-timeouts.js"
 
 vi.mock("../../src/booking-contract-confirmed.js", () => ({
   generateBookingContractOnConfirmation: vi.fn(async () => ({ status: "generated" as const })),
@@ -38,15 +40,35 @@ const confirmed = {
 function captureHandler() {
   const eventBus = createEventBus()
   let handler: ((event: EventEnvelope) => Promise<void> | void) | undefined
-  vi.spyOn(eventBus, "subscribe").mockImplementation((_eventType, registeredHandler) => {
+  let options: Parameters<typeof eventBus.subscribe>[2]
+  vi.spyOn(eventBus, "subscribe").mockImplementation((_eventType, registeredHandler, value) => {
     handler = registeredHandler as typeof handler
+    options = value
     return { unsubscribe: vi.fn() }
   })
-  return { eventBus, handler: () => handler }
+  return { eventBus, handler: () => handler, options: () => options }
 }
 
 describe("Legal booking contract confirmation subscriber", () => {
   beforeEach(() => vi.clearAllMocks())
+
+  it("budgets the full renderer timeout and identifies timeout diagnostics", async () => {
+    const { eventBus, options } = captureHandler()
+    const descriptor = createLegalBookingContractConfirmedSubscriber({
+      resolveDb: async () => createDbClient(UNIT_DATABASE_URL, { adapter: "node" }),
+    })
+
+    await descriptor.register({ bindings: {}, container: createContainer(), eventBus })
+
+    expect(LEGAL_BOOKING_CONFIRMED_SUBSCRIBER_TIMEOUT_MS).toBe(45_000)
+    expect(LEGAL_BOOKING_CONFIRMED_SUBSCRIBER_TIMEOUT_MS).toBeGreaterThan(
+      LEGAL_DOCUMENT_RENDER_TIMEOUT_MS,
+    )
+    expect(options()).toEqual({
+      label: LEGAL_BOOKING_CONTRACT_CONFIRMED_SUBSCRIBER_ID,
+      timeoutMs: LEGAL_BOOKING_CONFIRMED_SUBSCRIBER_TIMEOUT_MS,
+    })
+  })
 
   it("runs generation for every delivery and relies on the command's durable replay", async () => {
     const db = createDbClient(UNIT_DATABASE_URL, { adapter: "node" })

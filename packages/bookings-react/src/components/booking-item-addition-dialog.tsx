@@ -42,6 +42,14 @@ export interface BookingItemAdditionDialogProps {
 
 const UNIT_NONE = "__none__"
 
+export function formatMinorCurrency(
+  formatCurrency: (amount: number, currency: string) => string,
+  amountCents: number,
+  currency: string,
+) {
+  return formatCurrency(amountCents / 100, currency)
+}
+
 /**
  * Add a catalog service to a booking that already exists — the extra
  * excursion or transfer a customer asks for mid-trip.
@@ -303,14 +311,19 @@ export function BookingItemAdditionDialog({
               <div className="flex items-baseline justify-between">
                 <span className="font-medium text-sm">{messages.quote.title}</span>
                 <span className="font-semibold text-lg">
-                  {formatCurrency(quoted.priceDelta.amountCents, quoted.priceDelta.currency)}
+                  {formatMinorCurrency(
+                    formatCurrency,
+                    quoted.priceDelta.amountCents,
+                    quoted.priceDelta.currency,
+                  )}
                 </span>
               </div>
               {quoted.priceDelta.collectionAmountCents > 0 ? (
                 <p className="text-muted-foreground text-xs">
                   {messages.quote.collect.replace(
                     "{amount}",
-                    formatCurrency(
+                    formatMinorCurrency(
+                      formatCurrency,
                       quoted.priceDelta.collectionAmountCents,
                       quoted.priceDelta.currency,
                     ),

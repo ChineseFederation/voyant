@@ -14,41 +14,7 @@ export interface paths {
     get?: never
     put?: never
     /** Freeze a Trip snapshot into a Proposal Version */
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          envelopeId: string
-          proposalVersionId: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description The updated Proposal Version and frozen Trip snapshot. */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content?: never
-        }
-        /** @description The Trip or Proposal Version was not found. */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content?: never
-        }
-        /** @description The Trip or Proposal Version cannot be snapshotted. */
-        409: {
-          headers: {
-            [name: string]: unknown
-          }
-          content?: never
-        }
-      }
-    }
+    post: operations["postAdminTripsByEnvelopeIdProposalVersionsByProposalVersionIdSnapshot"]
     delete?: never
     options?: never
     head?: never
@@ -66,4 +32,40 @@ export interface components {
   pathItems: never
 }
 export type $defs = Record<string, never>
-export type operations = Record<string, never>
+export interface operations {
+  postAdminTripsByEnvelopeIdProposalVersionsByProposalVersionIdSnapshot: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        envelopeId: string
+        proposalVersionId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description The updated Proposal Version and frozen Trip snapshot. */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description The Trip or Proposal Version was not found. */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description The Trip or Proposal Version cannot be snapshotted. */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+    }
+  }
+}

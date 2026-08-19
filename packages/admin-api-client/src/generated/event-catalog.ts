@@ -50,7 +50,7 @@ export interface operations {
         content: {
           "application/json": {
             data: {
-              /** @constant */
+              /** @enum {string} */
               schemaVersion: "voyant.event-catalog.v1"
               events: {
                 key: string
@@ -62,11 +62,11 @@ export interface operations {
                 payloadSchema: {
                   [key: string]: unknown
                 }
-                /** @enum {unknown} */
+                /** @enum {string} */
                 visibility: "internal" | "external"
                 audit: {
                   sourceModule: string
-                  /** @enum {unknown} */
+                  /** @enum {string} */
                   category: "domain" | "internal"
                 }
                 redactedFields: string[]

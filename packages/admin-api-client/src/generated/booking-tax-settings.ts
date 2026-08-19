@@ -12,69 +12,14 @@ export interface paths {
       cookie?: never
     }
     /** Get booking tax settings */
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description The effective booking tax settings */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            "application/json": {
-              data: components["schemas"]["BookingTaxSettings"]
-            }
-          }
-        }
-      }
-    }
+    get: operations["getAdminFinanceTaxSettings"]
     put?: never
     post?: never
     delete?: never
     options?: never
     head?: never
     /** Update booking tax settings */
-    patch: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": {
-            /** @enum {string} */
-            taxPriceMode?: "inclusive" | "exclusive"
-            taxPolicyProfileId?: string | null
-            /** @enum {string} */
-            invoicingMode?: "direct" | "proforma-first"
-          }
-        }
-      }
-      responses: {
-        /** @description The updated booking tax settings */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content?: never
-        }
-        /** @description This deployment does not support tax setting updates */
-        409: {
-          headers: {
-            [name: string]: unknown
-          }
-          content?: never
-        }
-      }
-    }
+    patch: operations["patchAdminFinanceTaxSettings"]
     trace?: never
   }
 }
@@ -96,4 +41,78 @@ export interface components {
   pathItems: never
 }
 export type $defs = Record<string, never>
-export type operations = Record<string, never>
+export interface operations {
+  getAdminFinanceTaxSettings: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description The effective booking tax settings */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              /** @enum {string} */
+              taxPriceMode: "inclusive" | "exclusive"
+              taxPolicyProfileId: string | null
+              /** @enum {string} */
+              invoicingMode: "direct" | "proforma-first"
+            }
+          }
+        }
+      }
+    }
+  }
+  patchAdminFinanceTaxSettings: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          /** @enum {string} */
+          taxPriceMode?: "inclusive" | "exclusive"
+          taxPolicyProfileId?: string | null
+          /** @enum {string} */
+          invoicingMode?: "direct" | "proforma-first"
+        }
+      }
+    }
+    responses: {
+      /** @description The updated booking tax settings */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              /** @enum {string} */
+              taxPriceMode: "inclusive" | "exclusive"
+              taxPolicyProfileId: string | null
+              /** @enum {string} */
+              invoicingMode: "direct" | "proforma-first"
+            }
+          }
+        }
+      }
+      /** @description This deployment does not support tax setting updates */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+    }
+  }
+}

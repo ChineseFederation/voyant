@@ -218,10 +218,11 @@ describe.skipIf(!DB_AVAILABLE)("payment adapter initiation", () => {
           },
           { context: { env: {} } },
         ),
-      ).resolves.toEqual({ redirectUrl: null })
+      ).resolves.toEqual({ redirectUrl: null, checkout: null })
       releaseInitiation?.()
       await expect(firstStart).resolves.toEqual({
         redirectUrl: "https://pay.example.com/continue",
+        checkout: { kind: "redirect", url: "https://pay.example.com/continue" },
       })
     })
 
@@ -325,7 +326,10 @@ describe.skipIf(!DB_AVAILABLE)("payment adapter initiation", () => {
 
     await expect(
       startPaymentAdapterCardPayment(adapter, args, { context: { env: {} } }),
-    ).resolves.toEqual({ redirectUrl: "https://pay.example.com/retry" })
+    ).resolves.toEqual({
+      redirectUrl: "https://pay.example.com/retry",
+      checkout: { kind: "redirect", url: "https://pay.example.com/retry" },
+    })
     expect(initiate).toHaveBeenCalledTimes(2)
     expect(initiate.mock.calls[0]?.[1].idempotencyKey).toBe(`payment:${session.id}`)
     expect(initiate.mock.calls[1]?.[1].idempotencyKey).toBe(`payment:${session.id}`)
@@ -423,7 +427,7 @@ describe.skipIf(!DB_AVAILABLE)("payment adapter initiation", () => {
 
     await expect(
       startPaymentAdapterCardPayment(adapter, args, { context: { env: {} } }),
-    ).resolves.toEqual({ redirectUrl: null })
+    ).resolves.toEqual({ redirectUrl: null, checkout: null })
     expect(initiate).toHaveBeenCalledOnce()
   })
 

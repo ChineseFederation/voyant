@@ -7,7 +7,7 @@ import {
   publicApiLeadIntakeInputSchema,
   publicApiNewsletterSubscribeInputSchema,
   subscribePublicApiNewsletter,
-} from "../../src/index.js"
+} from "../../../src/legacy-client/index.js"
 
 describe("storefront intake operations", () => {
   it("preserves the published lead SDK shape over the canonical Inquiry compatibility route", async () => {

@@ -62,7 +62,7 @@
     "clean": "rm -rf dist tsconfig.tsbuildinfo",
     "prepack": "pnpm run build",
     "db:generate": "drizzle-kit generate --config=drizzle.migrations.config.ts --name=inventory_baseline && node ../../scripts/migrations/guard-create-type.mjs ./migrations && node ../../scripts/migrations/ensure-extensions.mjs ./migrations",
-    "generate:openapi": "tsx scripts/generate-openapi.ts && biome format --write openapi/admin/products.json openapi/admin/inventory-authoring.json openapi/public-api/products.json"
+    "generate:openapi": "tsx scripts/generate-openapi.ts && node --import tsx scripts/generate-extras-openapi.ts && node --import tsx scripts/generate-booking-extension-openapi.ts && biome format --write openapi/admin/products.json openapi/admin/inventory-authoring.json openapi/public-api/products.json openapi/admin/extras.json openapi/admin/inventory-booking.json"
   },
   "dependencies": {
     "@hono/zod-openapi": "catalog:",

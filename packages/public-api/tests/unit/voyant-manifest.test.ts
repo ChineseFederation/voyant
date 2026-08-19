@@ -16,10 +16,7 @@ import {
   publicApiPresentationFxProviderPort,
   publicApiShoppingLiveProviderPort,
 } from "../../src/shopping/provider-ports.js"
-import {
-  publicApiShoppingRuntimePort,
-  publicApiTripSelectionsRuntimePort,
-} from "../../src/shopping/runtime-port.js"
+import { publicApiShoppingRuntimePort } from "../../src/shopping/runtime-port.js"
 import {
   publicApiCustomerPortalVoyantModule,
   publicApiShoppingProviderVoyantModule,
@@ -66,7 +63,6 @@ describe("storefront deployment manifest", () => {
         { id: "public-api.intake.runtime" },
         { id: catalogPublicationRuntimePort.id },
         { id: publicApiShoppingRuntimePort.id, optional: true },
-        { id: publicApiTripSelectionsRuntimePort.id, optional: true },
       ],
       api: [
         {

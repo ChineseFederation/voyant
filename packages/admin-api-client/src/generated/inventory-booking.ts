@@ -8,86 +8,16 @@ export interface paths {
     parameters: {
       query?: never
       header?: never
-      path: {
-        bookingId: string
-      }
+      path?: never
       cookie?: never
     }
     /** Get product details attached to a booking */
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          bookingId: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Booking product details, or null when absent */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content?: never
-        }
-      }
-    }
+    get: operations["getAdminBookingsByBookingIdProductDetails"]
     /** Create or replace product details on a booking */
-    put: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          bookingId: string
-        }
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": components["schemas"]["BookingProductDetailsInput"]
-        }
-      }
-      responses: {
-        /** @description Booking product details were stored */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content?: never
-        }
-      }
-    }
+    put: operations["putAdminBookingsByBookingIdProductDetails"]
     post?: never
     /** Remove product details from a booking */
-    delete: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          bookingId: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Booking product details were removed */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content?: never
-        }
-        /** @description No product details exist for the booking */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content?: never
-        }
-      }
-    }
+    delete: operations["deleteAdminBookingsByBookingIdProductDetails"]
     options?: never
     head?: never
     patch?: never
@@ -97,90 +27,16 @@ export interface paths {
     parameters: {
       query?: never
       header?: never
-      path: {
-        bookingId: string
-        itemId: string
-      }
+      path?: never
       cookie?: never
     }
     /** Get product details attached to a booking item */
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          bookingId: string
-          itemId: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Booking item product details, or null when absent */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content?: never
-        }
-      }
-    }
+    get: operations["getAdminBookingsByBookingIdItemsByItemIdProductDetails"]
     /** Create or replace product details on a booking item */
-    put: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          bookingId: string
-          itemId: string
-        }
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          "application/json": components["schemas"]["BookingItemProductDetailsInput"]
-        }
-      }
-      responses: {
-        /** @description Booking item product details were stored */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content?: never
-        }
-      }
-    }
+    put: operations["putAdminBookingsByBookingIdItemsByItemIdProductDetails"]
     post?: never
     /** Remove product details from a booking item */
-    delete: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          bookingId: string
-          itemId: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Booking item product details were removed */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content?: never
-        }
-        /** @description No product details exist for the booking item */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content?: never
-        }
-      }
-    }
+    delete: operations["deleteAdminBookingsByBookingIdItemsByItemIdProductDetails"]
     options?: never
     head?: never
     patch?: never
@@ -208,4 +64,150 @@ export interface components {
   pathItems: never
 }
 export type $defs = Record<string, never>
-export type operations = Record<string, never>
+export interface operations {
+  getAdminBookingsByBookingIdProductDetails: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        bookingId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Booking product details, or null when absent */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+    }
+  }
+  putAdminBookingsByBookingIdProductDetails: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        bookingId: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["BookingProductDetailsInput"]
+      }
+    }
+    responses: {
+      /** @description Booking product details were stored */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+    }
+  }
+  deleteAdminBookingsByBookingIdProductDetails: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        bookingId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Booking product details were removed */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description No product details exist for the booking */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+    }
+  }
+  getAdminBookingsByBookingIdItemsByItemIdProductDetails: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        bookingId: string
+        itemId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Booking item product details, or null when absent */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+    }
+  }
+  putAdminBookingsByBookingIdItemsByItemIdProductDetails: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        bookingId: string
+        itemId: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["BookingItemProductDetailsInput"]
+      }
+    }
+    responses: {
+      /** @description Booking item product details were stored */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+    }
+  }
+  deleteAdminBookingsByBookingIdItemsByItemIdProductDetails: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        bookingId: string
+        itemId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Booking item product details were removed */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description No product details exist for the booking item */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+    }
+  }
+}

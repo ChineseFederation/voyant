@@ -7,7 +7,6 @@
   "paths": {
     "/v1/admin/bookings/tax-preview": {
       "post": {
-        "summary": "Preview tax for a booking item subtotal",
         "x-voyant-api-id": "@voyant-travel/finance#booking-tax-preview-extension.api",
         "requestBody": {
           "required": true,
@@ -15,19 +14,90 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["productId", "subtotalCents", "currency"],
                 "properties": {
-                  "productId": { "type": "string", "minLength": 1 },
-                  "subtotalCents": { "type": "integer", "minimum": 0 },
-                  "currency": { "type": "string", "minLength": 3, "maxLength": 8 }
+                  "productId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "subtotalCents": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "currency": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 8
+                  }
+                },
+                "required": ["productId", "subtotalCents", "currency"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The calculated tax preview",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "subtotalCents": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "taxCents": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "totalCents": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "taxRate": {
+                          "type": ["object", "null"],
+                          "properties": {
+                            "code": {
+                              "type": "string"
+                            },
+                            "label": {
+                              "type": "string"
+                            },
+                            "rateBasisPoints": {
+                              "type": "integer"
+                            },
+                            "priceMode": {
+                              "type": "string",
+                              "enum": ["inclusive", "exclusive"]
+                            }
+                          },
+                          "required": ["code", "label", "rateBasisPoints", "priceMode"]
+                        }
+                      },
+                      "required": ["subtotalCents", "taxCents", "totalCents", "currency", "taxRate"]
+                    }
+                  },
+                  "required": ["data"]
                 }
               }
             }
           }
         },
-        "responses": { "200": { "description": "The calculated tax preview" } }
+        "operationId": "postAdminBookingsTaxPreview",
+        "summary": "Preview tax for a booking item subtotal",
+        "tags": ["bookings"],
+        "x-voyant-module": "bookings",
+        "x-voyant-surface": "admin"
       }
     }
   },
-  "components": { "schemas": {} }
+  "components": {
+    "schemas": {}
+  }
 }

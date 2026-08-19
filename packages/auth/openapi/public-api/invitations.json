@@ -8,42 +8,46 @@
     "/v1/public/invitations/{token}": {
       "get": {
         "operationId": "inspectAuthInvitation",
-        "summary": "Inspect a user invitation",
-        "tags": ["Auth invitations"],
         "x-voyant-api-id": "@voyant-travel/auth#invitations.api.public",
         "parameters": [
           {
-            "name": "token",
-            "in": "path",
+            "schema": {
+              "type": "string"
+            },
             "required": true,
-            "schema": { "type": "string" }
+            "name": "token",
+            "in": "path"
           }
         ],
         "responses": {
           "200": {
-            "description": "The invitation is valid."
+            "description": "HTTP 200"
           },
           "404": {
-            "description": "The invitation was not found."
+            "description": "HTTP 404"
           },
           "410": {
-            "description": "The invitation is expired or redeemed."
+            "description": "HTTP 410"
           }
-        }
+        },
+        "summary": "Inspect a user invitation",
+        "tags": ["Auth invitations"],
+        "x-voyant-module": "invitations",
+        "x-voyant-surface": "public-api"
       }
     },
     "/v1/public/invitations/{token}/redeem": {
       "post": {
         "operationId": "redeemAuthInvitation",
-        "summary": "Redeem a user invitation",
-        "tags": ["Auth invitations"],
         "x-voyant-api-id": "@voyant-travel/auth#invitations.api.public",
         "parameters": [
           {
-            "name": "token",
-            "in": "path",
+            "schema": {
+              "type": "string"
+            },
             "required": true,
-            "schema": { "type": "string" }
+            "name": "token",
+            "in": "path"
           }
         ],
         "requestBody": {
@@ -52,7 +56,6 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["name", "password"],
                 "properties": {
                   "name": {
                     "type": "string",
@@ -65,22 +68,27 @@
                     "maxLength": 128,
                     "writeOnly": true
                   }
-                }
+                },
+                "required": ["name", "password"]
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "The newly created user."
+            "description": "HTTP 200"
           },
           "409": {
-            "description": "A user already exists for the invitation email."
+            "description": "HTTP 409"
           },
           "410": {
-            "description": "The invitation is invalid, expired, or redeemed."
+            "description": "HTTP 410"
           }
-        }
+        },
+        "summary": "Redeem a user invitation",
+        "tags": ["Auth invitations"],
+        "x-voyant-module": "invitations",
+        "x-voyant-surface": "public-api"
       }
     }
   }

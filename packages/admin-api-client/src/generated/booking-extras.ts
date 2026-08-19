@@ -523,6 +523,8 @@ export interface operations {
     parameters: {
       query?: {
         includeInactiveExtras?: "0" | "1" | "true" | "false"
+        limit?: number
+        offset?: number | null
       }
       header?: never
       path: {
@@ -664,6 +666,11 @@ export interface operations {
                 outstandingCollectionCount: number
                 fulfillmentComplete: boolean
               }[]
+              pagination: {
+                limit: number | null
+                offset: number
+                total: number
+              }
             }
           }
         }

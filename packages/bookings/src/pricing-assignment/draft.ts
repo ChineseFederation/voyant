@@ -33,6 +33,14 @@ export function resolveBookingDraft<TTraveler extends BookingDraftTraveler>(opti
   quantities: BookingDraftQuantities
   travelers: readonly TTraveler[]
   units: readonly PricingAssignmentUnit[]
+  /**
+   * Options whose occupancy price supplements, rather than replaces, their
+   * traveler fares. For these mixed options the admin form selects rooms while
+   * Adult/Child quantities follow the traveler roster automatically. Omitted
+   * for all-in occupancy pricing and legacy callers whose person unit was only
+   * an option-level quantity proxy.
+   */
+  derivePersonQuantitiesForOptionIds?: ReadonlySet<string>
   now?: Date
 }): ResolvedBookingDraft<TTraveler> {
   const { quantities, travelers, now = new Date() } = options
@@ -81,11 +89,13 @@ export function resolveBookingDraft<TTraveler extends BookingDraftTraveler>(opti
   }
 
   const selectedInventoryByOption = new Map<string, PricingAssignmentUnit[]>()
+  const optionsWithExplicitInventorySelection = new Set<string>()
   const inventoryCapacityByUnitId = new Map<string, number>()
   for (const [key, inventoryUnits] of inventoryUnitsByOption) {
     const directlySelected = inventoryUnits.filter(
       (unit) => (quantities[unit.optionUnitId] ?? 0) > 0,
     )
+    if (directlySelected.length > 0) optionsWithExplicitInventorySelection.add(key)
     // Legacy accommodation drafts can carry their quantity on the option's
     // person-pricing unit. Keep normalizing those drafts onto the primary room
     // while direct room selections retain their exact unit mix.
@@ -280,10 +290,26 @@ export function resolveBookingDraft<TTraveler extends BookingDraftTraveler>(opti
     const key = unitToOption.get(unitId)
     if (!key || personPricedOptions.has(key)) continue
     const submittedUnit = unitById.get(unitId)
-    const targetUnitId =
-      submittedUnit && isInventoryUnit(submittedUnit)
-        ? unitId
-        : (selectedInventoryByOption.get(key)?.[0]?.optionUnitId ?? unitId)
+    if (
+      options.derivePersonQuantitiesForOptionIds?.has(key) === true &&
+      submittedUnit &&
+      isPersonUnit(submittedUnit) &&
+      optionsWithExplicitInventorySelection.has(key)
+    ) {
+      continue
+    }
+    // An adult-only legacy accommodation draft used the person unit as an
+    // option-level quantity proxy. Preserve that compatibility only while the
+    // draft has no explicit room/vehicle selection. Once inventory is selected
+    // directly, a person line is an independent fare (for example a coach-tour
+    // fare plus SGL/DBL supplements) and must keep its own identity.
+    const normalizeLegacyPersonSelection =
+      submittedUnit &&
+      isPersonUnit(submittedUnit) &&
+      !optionsWithExplicitInventorySelection.has(key)
+    const targetUnitId = normalizeLegacyPersonSelection
+      ? (selectedInventoryByOption.get(key)?.[0]?.optionUnitId ?? unitId)
+      : unitId
     next[targetUnitId] = (next[targetUnitId] ?? 0) + quantity
   }
 
@@ -308,10 +334,28 @@ export function resolveBookingDraft<TTraveler extends BookingDraftTraveler>(opti
       travelerIndexesByUnitId[traveler.pricingUnitId] = unitIndexes
       next[traveler.pricingUnitId] = (next[traveler.pricingUnitId] ?? 0) + 1
       assignedByOption.set(key, (assignedByOption.get(key) ?? 0) + 1)
-    } else if (traveler.inventoryUnitId && inventorySource !== "none") {
-      const unitIndexes = travelerIndexesByUnitId[traveler.inventoryUnitId] ?? []
-      unitIndexes.push(index)
-      travelerIndexesByUnitId[traveler.inventoryUnitId] = unitIndexes
+    } else {
+      // A traveler in mixed fare + inventory pricing participates in both
+      // booking items: the person fare they pay and the room/vehicle they
+      // occupy. The admin form derives that fare from its traveler roster;
+      // legacy callers may still opt in by submitting the person quantity.
+      const includePersonFare =
+        optionsWithExplicitInventorySelection.has(key) &&
+        (options.derivePersonQuantitiesForOptionIds?.has(key) === true ||
+          (traveler.pricingUnitId ? (quantities[traveler.pricingUnitId] ?? 0) > 0 : false))
+      if (traveler.pricingUnitId && pricingSource !== "none" && includePersonFare) {
+        const pricingIndexes = travelerIndexesByUnitId[traveler.pricingUnitId] ?? []
+        pricingIndexes.push(index)
+        travelerIndexesByUnitId[traveler.pricingUnitId] = pricingIndexes
+        if (options.derivePersonQuantitiesForOptionIds?.has(key) === true) {
+          next[traveler.pricingUnitId] = (next[traveler.pricingUnitId] ?? 0) + 1
+        }
+      }
+      if (traveler.inventoryUnitId && inventorySource !== "none") {
+        const inventoryIndexes = travelerIndexesByUnitId[traveler.inventoryUnitId] ?? []
+        inventoryIndexes.push(index)
+        travelerIndexesByUnitId[traveler.inventoryUnitId] = inventoryIndexes
+      }
     }
   }
 

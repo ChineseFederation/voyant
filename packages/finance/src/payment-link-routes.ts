@@ -453,7 +453,17 @@ const resolvePaymentLinkRoute = createRoute({
 const startCardPaymentLinkRoute = createRoute({
   method: "post",
   path: "/v1/public/payment-link/{sessionId}/start-card",
-  request: { params: sessionParamsSchema },
+  // The handler parses `startCardPaymentBodySchema`, and the published document
+  // described that body, but the route definition did not declare it — so
+  // generating the document from the routes would have dropped a request body
+  // the endpoint really accepts.
+  request: {
+    params: sessionParamsSchema,
+    body: {
+      required: false,
+      content: { "application/json": { schema: startCardPaymentBodySchema } },
+    },
+  },
   responses: {
     200: {
       description: "The card-provider handoff for the session",

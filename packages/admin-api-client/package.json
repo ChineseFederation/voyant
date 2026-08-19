@@ -1,7 +1,6 @@
 {
   "name": "@voyant-travel/admin-api-client",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
   "description": "Types for the Admin API, generated per module from the OpenAPI documents the deployment serves.",
   "license": "Apache-2.0",
   "repository": {
@@ -42,7 +41,7 @@
     }
   },
   "dependencies": {
-    "@voyant-travel/core": "workspace:^",
+    "@voyant-travel/graph-contracts": "workspace:^",
     "openapi-fetch": "catalog:"
   },
   "devDependencies": {

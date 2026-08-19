@@ -1,6 +1,6 @@
 {
   "name": "@voyant-travel/public-api-react",
-  "version": "0.312.0",
+  "version": "0.313.0",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
@@ -74,8 +74,12 @@
     }
   },
   "dependencies": {
+    "@voyant-travel/bookings": "workspace:^",
+    "@voyant-travel/bookings-contracts": "workspace:^",
+    "@voyant-travel/finance": "workspace:^",
     "@voyant-travel/i18n": "workspace:^",
     "@voyant-travel/public-api-contracts": "workspace:^",
+    "@voyant-travel/relationships-contracts": "workspace:^",
     "@voyant-travel/react": "workspace:^"
   },
   "devDependencies": {

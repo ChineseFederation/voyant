@@ -103,7 +103,21 @@ describe("mergeStepperUnits", () => {
 })
 
 describe("buildOptionUnitsStepperRows", () => {
-  it("keeps both inventory and person controls for a mixed supplier option", () => {
+  it("hides traveler-managed person controls for an occupancy-priced option", () => {
+    const rows = buildOptionUnitsStepperRows(
+      [
+        { ...makeRow("family", "double-room", 3), unitName: "Double room", unitType: "room" },
+        { ...makeRow("family", "adult-seat", 7), unitName: "Adult seat", unitType: "person" },
+      ],
+      [{ id: "family", name: "Family package" }],
+      new Set(["family"]),
+    )
+
+    expect(rows.map((row) => row.optionName)).toEqual(["Double room"])
+    expect(rows.map((row) => row.primary.optionUnitId)).toEqual(["double-room"])
+  })
+
+  it("keeps person controls when supplier or legacy semantics are not managed locally", () => {
     const rows = buildOptionUnitsStepperRows(
       [
         { ...makeRow("family", "double-room", 3), unitName: "Double room", unitType: "room" },

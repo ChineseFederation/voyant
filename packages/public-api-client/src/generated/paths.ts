@@ -4,6 +4,2599 @@
  */
 
 export interface paths {
+  "/v1/public/accommodations/properties/{id}/effective": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/public/accommodations/properties/{id}/effective */
+    get: operations["getPublicAccommodationsPropertiesByIdEffective"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/accommodations/{id}/content": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Get accommodation content */
+    get: operations["getPublicAccommodationsByIdContent"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/invitations/{token}": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Inspect a user invitation */
+    get: operations["inspectAuthInvitation"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/invitations/{token}/redeem": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** Redeem a user invitation */
+    post: operations["redeemAuthInvitation"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/booking-requirements/products/{productId}/transport-requirements": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/public/booking-requirements/products/{productId}/transport-requirements */
+    get: operations["getPublicBookingRequirementsProductsByProductIdTransportRequirements"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/bookings/inquiries": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** POST /v1/public/bookings/inquiries */
+    post: operations["postPublicBookingsInquiries"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/bookings/overview": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/public/bookings/overview */
+    get: operations["getPublicBookingsOverview"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/bookings/guest-lookup": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** POST /v1/public/bookings/guest-lookup */
+    post: operations["postPublicBookingsGuestLookup"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/bookings/{bookingId}/amendments/traveler-corrections/preview": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** POST /v1/public/bookings/{bookingId}/amendments/traveler-corrections/preview */
+    post: operations["postPublicBookingsByBookingIdAmendmentsTravelerCorrectionsPreview"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/bookings/{bookingId}/amendments/traveler-roster/preview": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** POST /v1/public/bookings/{bookingId}/amendments/traveler-roster/preview */
+    post: operations["postPublicBookingsByBookingIdAmendmentsTravelerRosterPreview"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/bookings/{bookingId}/amendments": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/public/bookings/{bookingId}/amendments */
+    get: operations["getPublicBookingsByBookingIdAmendments"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/bookings/{bookingId}/amendments/{amendmentId}": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/public/bookings/{bookingId}/amendments/{amendmentId} */
+    get: operations["getPublicBookingsByBookingIdAmendmentsByAmendmentId"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/bookings/{bookingId}/amendments/{amendmentId}/accept": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** POST /v1/public/bookings/{bookingId}/amendments/{amendmentId}/accept */
+    post: operations["postPublicBookingsByBookingIdAmendmentsByAmendmentIdAccept"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/bookings/{bookingId}/amendments/{amendmentId}/apply": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** POST /v1/public/bookings/{bookingId}/amendments/{amendmentId}/apply */
+    post: operations["postPublicBookingsByBookingIdAmendmentsByAmendmentIdApply"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/bookings/{bookingId}/amendments/{amendmentId}/reconcile": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** POST /v1/public/bookings/{bookingId}/amendments/{amendmentId}/reconcile */
+    post: operations["postPublicBookingsByBookingIdAmendmentsByAmendmentIdReconcile"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/bookings/{bookingId}/actions": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** List customer-safe next actions for a booking */
+    get: operations["getPublicBookingsByBookingIdActions"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/catalog/booking-sessions": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post: {
+      parameters: {
+        query?: never
+        header?: never
+        path?: never
+        cookie?: never
+      }
+      requestBody: {
+        content: {
+          "application/json": {
+            idempotencyKey: string
+            target:
+              | {
+                  /** @enum {string} */
+                  kind: "product"
+                  productId: string
+                }
+              | {
+                  /** @enum {string} */
+                  kind: "catalog_item"
+                  catalogItemId: string
+                }
+            selection?: {
+              [key: string]: unknown
+            }
+            scope?: {
+              locale: string
+              market: string
+              currency?: string
+            }
+            capabilityScopes?: (
+              | "read"
+              | "update"
+              | "quote"
+              | "hold"
+              | "commit"
+              | "abandon"
+              | "adopt"
+              | "renew"
+            )[]
+          }
+        }
+      }
+      responses: {
+        /** @description Booking Session created */
+        200: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            "application/json": components["schemas"]["BookingSessionOutcomeV1"]
+          }
+        }
+        /** @description Invalid request */
+        400: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            "application/json": {
+              error: string
+              code?: string
+            }
+          }
+        }
+        /** @description Active storefront channel context is required for public booking sessions */
+        403: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            "application/json": {
+              error: string
+              code?: string
+            }
+          }
+        }
+      }
+    }
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/catalog/booking-sessions/{sessionId}": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get: {
+      parameters: {
+        query?: never
+        header?: never
+        path: {
+          sessionId: string
+        }
+        cookie?: never
+      }
+      requestBody?: never
+      responses: {
+        /** @description Authorized, redacted Booking Session view */
+        200: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            "application/json": components["schemas"]["BookingSessionOutcomeV1"]
+          }
+        }
+        /** @description Active storefront channel context is required for public booking sessions */
+        403: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            "application/json": {
+              error: string
+              code?: string
+            }
+          }
+        }
+      }
+    }
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch: {
+      parameters: {
+        query?: never
+        header?: never
+        path: {
+          sessionId: string
+        }
+        cookie?: never
+      }
+      requestBody: {
+        content: {
+          "application/json": {
+            idempotencyKey: string
+            expectedRevision: number
+            selection: {
+              [key: string]: unknown
+            }
+          }
+        }
+      }
+      responses: {
+        /** @description Booking Session updated */
+        200: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            "application/json": components["schemas"]["BookingSessionOutcomeV1"]
+          }
+        }
+        /** @description Invalid request */
+        400: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            "application/json": {
+              error: string
+              code?: string
+            }
+          }
+        }
+        /** @description Active storefront channel context is required for public booking sessions */
+        403: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            "application/json": {
+              error: string
+              code?: string
+            }
+          }
+        }
+      }
+    }
+    trace?: never
+  }
+  "/v1/public/catalog/booking-sessions/{sessionId}/adopt": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post: {
+      parameters: {
+        query?: never
+        header?: never
+        path: {
+          sessionId: string
+        }
+        cookie?: never
+      }
+      requestBody: {
+        content: {
+          "application/json": {
+            idempotencyKey: string
+            expectedRevision: number
+          }
+        }
+      }
+      responses: {
+        /** @description Anonymous Booking Session atomically adopted by the authenticated customer */
+        200: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            "application/json": components["schemas"]["BookingSessionOutcomeV1"]
+          }
+        }
+        /** @description Active storefront channel context is required for public booking sessions */
+        403: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            "application/json": {
+              error: string
+              code?: string
+            }
+          }
+        }
+      }
+    }
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/catalog/booking-sessions/{sessionId}/renew": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post: {
+      parameters: {
+        query?: never
+        header?: never
+        path: {
+          sessionId: string
+        }
+        cookie?: never
+      }
+      requestBody: {
+        content: {
+          "application/json": {
+            idempotencyKey: string
+            expectedRevision: number
+            extendBySeconds: number
+          }
+        }
+      }
+      responses: {
+        /** @description Policy-limited Booking Session renewal */
+        200: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            "application/json": components["schemas"]["BookingSessionOutcomeV1"]
+          }
+        }
+        /** @description Active storefront channel context is required for public booking sessions */
+        403: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            "application/json": {
+              error: string
+              code?: string
+            }
+          }
+        }
+      }
+    }
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/catalog/booking-sessions/{sessionId}/quote": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post: {
+      parameters: {
+        query?: never
+        header?: never
+        path: {
+          sessionId: string
+        }
+        cookie?: never
+      }
+      requestBody: {
+        content: {
+          "application/json": {
+            expectedRevision: number
+            idempotencyKey: string
+          }
+        }
+      }
+      responses: {
+        /** @description Exact-revision Quote created */
+        200: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            "application/json": components["schemas"]["BookingSessionOutcomeV1"]
+          }
+        }
+        /** @description Invalid request */
+        400: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            "application/json": {
+              error: string
+              code?: string
+            }
+          }
+        }
+        /** @description Active storefront channel context is required for public booking sessions */
+        403: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            "application/json": {
+              error: string
+              code?: string
+            }
+          }
+        }
+      }
+    }
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/catalog/booking-sessions/{sessionId}/hold": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post: {
+      parameters: {
+        query?: never
+        header?: never
+        path: {
+          sessionId: string
+        }
+        cookie?: never
+      }
+      requestBody: {
+        content: {
+          "application/json": {
+            expectedRevision: number
+            quoteId: string
+            quantity?: number
+            idempotencyKey: string
+          }
+        }
+      }
+      responses: {
+        /** @description Real-capacity Hold created */
+        200: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            "application/json": components["schemas"]["BookingSessionOutcomeV1"]
+          }
+        }
+        /** @description Invalid request */
+        400: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            "application/json": {
+              error: string
+              code?: string
+            }
+          }
+        }
+        /** @description Active storefront channel context is required for public booking sessions */
+        403: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            "application/json": {
+              error: string
+              code?: string
+            }
+          }
+        }
+      }
+    }
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/catalog/booking-sessions/{sessionId}/abandon": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post: {
+      parameters: {
+        query?: never
+        header?: never
+        path: {
+          sessionId: string
+        }
+        cookie?: never
+      }
+      requestBody: {
+        content: {
+          "application/json": {
+            idempotencyKey: string
+            expectedRevision: number
+          }
+        }
+      }
+      responses: {
+        /** @description Booking Session abandoned */
+        200: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            "application/json": components["schemas"]["BookingSessionOutcomeV1"]
+          }
+        }
+        /** @description Invalid request */
+        400: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            "application/json": {
+              error: string
+              code?: string
+            }
+          }
+        }
+        /** @description Active storefront channel context is required for public booking sessions */
+        403: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            "application/json": {
+              error: string
+              code?: string
+            }
+          }
+        }
+      }
+    }
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/catalog/booking-sessions/{sessionId}/commit": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post: {
+      parameters: {
+        query?: never
+        header?: never
+        path: {
+          sessionId: string
+        }
+        cookie?: never
+      }
+      requestBody: {
+        content: {
+          "application/json": {
+            expectedRevision: number
+            quoteId: string
+            requirementsFingerprint: string
+            holdId?: string
+            idempotencyKey: string
+            /** @enum {string} */
+            checkoutIntent?: "hold" | "card" | "bank_transfer" | "ticket_on_credit" | "inquiry"
+            payInFull?: boolean
+            payment?: {
+              /** Format: uri */
+              returnUrl?: string
+              /** Format: uri */
+              cancelUrl?: string
+              acceptedCheckoutHandoffs?: ("redirect" | "embedded")[]
+            }
+          }
+        }
+      }
+      responses: {
+        /** @description Admitted Commit outcome */
+        200: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            "application/json": components["schemas"]["BookingSessionOutcomeV1"]
+          }
+        }
+        /** @description Invalid request */
+        400: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            "application/json": {
+              error: string
+              code?: string
+            }
+          }
+        }
+        /** @description Active storefront channel context is required for public booking sessions */
+        403: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            "application/json": {
+              error: string
+              code?: string
+            }
+          }
+        }
+      }
+    }
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/catalog/offers/preview": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post: {
+      parameters: {
+        query?: never
+        header?: never
+        path?: never
+        cookie?: never
+      }
+      requestBody: {
+        content: {
+          "application/json": {
+            target:
+              | {
+                  /** @enum {string} */
+                  kind: "product"
+                  productId: string
+                }
+              | {
+                  /** @enum {string} */
+                  kind: "catalog_item"
+                  catalogItemId: string
+                }
+              | {
+                  /** @enum {string} */
+                  kind: "owned_entity"
+                  entityModule: string
+                  entityId: string
+                }
+            scope: {
+              locale: string
+              market: string
+              currency?: string
+            }
+            selection?: {
+              contractAcceptance?: {
+                /** Format: date-time */
+                acceptedAt: string
+                /** @default false */
+                acceptedMarketing?: boolean
+                templateId: string
+                templateVersionId: string
+                contentDigest: string
+              }
+              /**
+               * @default {
+               *       "pax": {}
+               *     }
+               */
+              configure?: {
+                departureSlotId?: string
+                departureDate?: string
+                departureAirportCode?: string
+                nights?: number
+                departureTime?: string
+                /** @default {} */
+                pax?: {
+                  [key: string]: number
+                }
+                variantId?: string
+                optionSelections?: {
+                  optionId: string
+                  optionName?: string
+                  optionUnitId?: string
+                  optionUnitName?: string
+                  quantity: number
+                }[]
+                cabinCategoryId?: string
+                sailingId?: string
+                occupancy?: number
+                passengerComposition?: {
+                  adults: number
+                  children?: number
+                  childAges?: number[]
+                  infants?: number
+                  seniors?: number
+                }
+                fareCode?: string | null
+                /** @enum {string|null} */
+                fareVariant?: "cruise_only" | "air_inclusive" | null
+                bookingTerms?: {
+                  [key: string]: unknown
+                } | null
+                cabinNumberId?: string
+                roomTypeId?: string
+                ratePlanId?: string
+                board?: string
+                dateRange?: {
+                  checkIn: string
+                  checkOut: string
+                }
+                /** @enum {string} */
+                airArrangement?: "cruise_line" | "independent" | "none"
+              }
+              /**
+               * @default {
+               *       "buyerType": "B2C",
+               *       "contact": {
+               *         "firstName": "",
+               *         "lastName": "",
+               *         "email": ""
+               *       },
+               *       "address": {}
+               *     }
+               */
+              billing?: {
+                /**
+                 * @default B2C
+                 * @enum {string}
+                 */
+                buyerType?: "B2C" | "B2B"
+                organizationId?: string
+                contact: {
+                  /** @default  */
+                  firstName?: string
+                  /** @default  */
+                  lastName?: string
+                  /** @default  */
+                  email?: "" | string
+                  phone?: string
+                  personId?: string
+                }
+                /** @default {} */
+                address?: {
+                  line1?: string
+                  line2?: string
+                  city?: string
+                  region?: string
+                  postal?: string
+                  country?: string
+                }
+                company?: {
+                  name: string
+                  vatId?: string
+                  registrationNumber?: string
+                }
+                saveAsDefault?: boolean
+              }
+              /** @default [] */
+              travelers?: {
+                rowId?: string
+                firstName: string
+                lastName: string
+                email?: "" | string
+                phone?: string
+                personId?: string
+                /** @default adult */
+                band?: string
+                dateOfBirth?: string
+                documents?: {
+                  [key: string]: unknown
+                }
+                preferredLanguage?: string
+                specialRequests?: string
+                isPrimary?: boolean
+              }[]
+              accommodation?: {
+                rooms: {
+                  optionUnitId: string
+                  quantity: number
+                  ratePlanId?: string
+                  occupancy?: {
+                    adults: number
+                    children?: number
+                    childrenAges?: number[]
+                    infants?: number
+                  }
+                }[]
+                /** @default {} */
+                travelerAssignments?: {
+                  [key: string]: string
+                }
+                sharedRoom?: {
+                  /** @enum {string} */
+                  mode: "create" | "join"
+                  groupId?: string
+                  label?: string
+                }
+              }
+              /** @default [] */
+              addons?: {
+                extraId: string
+                quantity: number
+              }[]
+              /** @default [] */
+              ancillaries?: {
+                kind: string
+                /** @enum {string} */
+                decision: "accepted" | "declined"
+                offerId?: string
+                sourceId?: string
+                providerId?: string
+                quoteRef?: string
+                acceptedPriceMinor?: number
+                acceptedCurrency?: string
+                /** @default [] */
+                travelers?: {
+                  ref: string
+                  /** @default {} */
+                  fields?: {
+                    [key: string]: string
+                  }
+                }[]
+                /** @default [] */
+                selectedOptionIds?: string[]
+                /** @default [] */
+                acceptedDisclosures?: {
+                  kind: string
+                  versionId: string
+                  acceptedAt: string
+                }[]
+              }[]
+              /**
+               * @default {
+               *       "intent": "hold"
+               *     }
+               */
+              payment?: {
+                /**
+                 * @default hold
+                 * @enum {string}
+                 */
+                intent?: "hold" | "card" | "bank_transfer" | "ticket_on_credit" | "inquiry"
+                schedule?: unknown
+              }
+              paymentSchedules?: {
+                /** @enum {string} */
+                scheduleType: "deposit" | "installment" | "balance" | "hold" | "other"
+                /** @enum {string} */
+                status: "pending" | "due" | "paid" | "waived" | "cancelled" | "expired"
+                dueDate: string
+                currency: string
+                amountCents: number
+                notes?: string | null
+              }[]
+              promotionCode?: string
+              customerNotes?: string
+            }
+          }
+        }
+      }
+      responses: {
+        /** @description Non-binding Offer Preview — no identifier, nothing persisted */
+        200: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            "application/json": components["schemas"]["OfferPreviewOutcomeV1"]
+          }
+        }
+        /** @description Invalid request */
+        400: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            "application/json": {
+              error: string
+              code?: string
+            }
+          }
+        }
+        /** @description Active storefront channel context is required for public offer previews */
+        403: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            "application/json": {
+              error: string
+              code?: string
+            }
+          }
+        }
+      }
+    }
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/catalog/slots": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get: {
+      parameters: {
+        query?: {
+          entityModule?: string
+          entityId?: string
+          market?: string
+          locale?: string
+          currency?: string
+        }
+        header?: never
+        path?: never
+        cookie?: never
+      }
+      requestBody?: never
+      responses: {
+        /** @description Available departures / slots for a product */
+        200: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            "application/json": {
+              rows: {
+                id: string
+                dateLocal: string
+                startsAt: string
+                endsAt: string | null
+                timezone: string
+                status: string
+                unlimited: boolean
+                remainingPax: number | null
+                initialPax: number | null
+                nights: number | null
+                days: number | null
+              }[]
+            }
+          }
+        }
+        /** @description entityModule and entityId are required */
+        400: {
+          headers: {
+            [name: string]: unknown
+          }
+          content: {
+            "application/json": {
+              error: string
+              code?: string
+              context?: {
+                [key: string]: unknown
+              }
+            }
+          }
+        }
+      }
+    }
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/catalog/search": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** POST /v1/public/catalog/search */
+    post: operations["postPublicCatalogSearch"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/catalog/checkout/start": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** POST /v1/public/catalog/checkout/start */
+    post: operations["postPublicCatalogCheckoutStart"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/charters": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/public/charters */
+    get: operations["getPublicCharters"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/charters/voyages": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/public/charters/voyages */
+    get: operations["getPublicChartersVoyages"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/charters/voyages/{key}": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/public/charters/voyages/{key} */
+    get: operations["getPublicChartersVoyagesByKey"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/charters/voyages/{key}/quote/per-suite": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** POST /v1/public/charters/voyages/{key}/quote/per-suite */
+    post: operations["postPublicChartersVoyagesByKeyQuotePerSuite"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/charters/voyages/{key}/quote/whole-yacht": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** POST /v1/public/charters/voyages/{key}/quote/whole-yacht */
+    post: operations["postPublicChartersVoyagesByKeyQuoteWholeYacht"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/charters/yachts/{key}": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/public/charters/yachts/{key} */
+    get: operations["getPublicChartersYachtsByKey"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/charters/products/{key}": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/public/charters/products/{key} */
+    get: operations["getPublicChartersProductsByKey"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/markets": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/public/markets */
+    get: operations["getPublicMarkets"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/pricing/products/{productId}/pricing": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/public/pricing/products/{productId}/pricing */
+    get: operations["getPublicPricingProductsByProductIdPricing"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/cruises": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/public/cruises */
+    get: operations["getPublicCruises"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/cruises/sailings/{key}": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/public/cruises/sailings/{key} */
+    get: operations["getPublicCruisesSailingsByKey"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/cruises/sailings/{key}/quote": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** POST /v1/public/cruises/sailings/{key}/quote */
+    post: operations["postPublicCruisesSailingsByKeyQuote"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/cruises/ships/{key}/effective": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/public/cruises/ships/{key}/effective */
+    get: operations["getPublicCruisesShipsByKeyEffective"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/cruises/ships/{key}": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/public/cruises/ships/{key} */
+    get: operations["getPublicCruisesShipsByKey"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/cruises/{slug}": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/public/cruises/{slug} */
+    get: operations["getPublicCruisesBySlug"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/finance/travel-credits/validate": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** POST /v1/public/finance/travel-credits/validate */
+    post: operations["postPublicFinanceTravelCreditsValidate"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/finance/documents/by-reference": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/public/finance/documents/by-reference */
+    get: operations["getPublicFinanceDocumentsByReference"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/finance/bookings/{bookingId}/documents": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/public/finance/bookings/{bookingId}/documents */
+    get: operations["getPublicFinanceBookingsByBookingIdDocuments"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/finance/bookings/{bookingId}/documents/by-reference": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/public/finance/bookings/{bookingId}/documents/by-reference */
+    get: operations["getPublicFinanceBookingsByBookingIdDocumentsByReference"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/finance/bookings/{bookingId}/payments": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/public/finance/bookings/{bookingId}/payments */
+    get: operations["getPublicFinanceBookingsByBookingIdPayments"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/finance/bookings/{bookingId}/payment-options": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/public/finance/bookings/{bookingId}/payment-options */
+    get: operations["getPublicFinanceBookingsByBookingIdPaymentOptions"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/finance/payment-sessions/{sessionId}": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/public/finance/payment-sessions/{sessionId} */
+    get: operations["getPublicFinancePaymentSessionsBySessionId"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/finance/bookings/{bookingId}/payment-schedules/{scheduleId}/payment-session": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** POST /v1/public/finance/bookings/{bookingId}/payment-schedules/{scheduleId}/payment-session */
+    post: operations["postPublicFinanceBookingsByBookingIdPaymentSchedulesByScheduleIdPaymentSession"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/finance/bookings/{bookingId}/guarantees/{guaranteeId}/payment-session": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** POST /v1/public/finance/bookings/{bookingId}/guarantees/{guaranteeId}/payment-session */
+    post: operations["postPublicFinanceBookingsByBookingIdGuaranteesByGuaranteeIdPaymentSession"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/finance/invoices/{invoiceId}/payment-session": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** POST /v1/public/finance/invoices/{invoiceId}/payment-session */
+    post: operations["postPublicFinanceInvoicesByInvoiceIdPaymentSession"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/finance/accountant/{token}/summary": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/public/finance/accountant/{token}/summary */
+    get: operations["getPublicFinanceAccountantByTokenSummary"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/finance/accountant/{token}/invoices": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/public/finance/accountant/{token}/invoices */
+    get: operations["getPublicFinanceAccountantByTokenInvoices"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/payment-link-config": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/public/payment-link-config */
+    get: operations["getPublicPaymentLinkConfig"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/payment-link/{sessionId}/retry": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** POST /v1/public/payment-link/{sessionId}/retry */
+    post: operations["postPublicPaymentLinkBySessionIdRetry"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/payment-link/resolve": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/public/payment-link/resolve */
+    get: operations["getPublicPaymentLinkResolve"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/payment-link/{sessionId}/start-card": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** POST /v1/public/payment-link/{sessionId}/start-card */
+    post: operations["postPublicPaymentLinkBySessionIdStartCard"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/payment-link/{sessionId}/trip-summary": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/public/payment-link/{sessionId}/trip-summary */
+    get: operations["getPublicPaymentLinkBySessionIdTripSummary"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/payment-link/{sessionId}/booking-summary": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/public/payment-link/{sessionId}/booking-summary */
+    get: operations["getPublicPaymentLinkBySessionIdBookingSummary"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/bookings/{bookingId}/checkout-status": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/public/bookings/{bookingId}/checkout-status */
+    get: operations["getPublicBookingsByBookingIdCheckoutStatus"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/customer-verification/email/start": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** POST /v1/public/customer-verification/email/start */
+    post: operations["postPublicStorefrontVerificationEmailStart"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/customer-verification/sms/start": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** POST /v1/public/customer-verification/sms/start */
+    post: operations["postPublicStorefrontVerificationSmsStart"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/customer-verification/email/confirm": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** POST /v1/public/customer-verification/email/confirm */
+    post: operations["postPublicStorefrontVerificationEmailConfirm"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/customer-verification/sms/confirm": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** POST /v1/public/customer-verification/sms/confirm */
+    post: operations["postPublicStorefrontVerificationSmsConfirm"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/products/tags": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/public/products/tags */
+    get: operations["getPublicProductsTags"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/products/categories": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/public/products/categories */
+    get: operations["getPublicProductsCategories"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/products/destinations": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/public/products/destinations */
+    get: operations["getPublicProductsDestinations"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/products": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/public/products */
+    get: operations["getPublicProducts"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/products/slug/{slug}": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/public/products/slug/{slug} */
+    get: operations["getPublicProductsSlugBySlug"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/products/{id}": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/public/products/{id} */
+    get: operations["getPublicProductsById"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/products/{id}/brochure": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/public/products/{id}/brochure */
+    get: operations["getPublicProductsByIdBrochure"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/products/{id}/content": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/public/products/{id}/content */
+    get: operations["getPublicProductsByIdContent"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/legal/contracts/templates/default": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/public/legal/contracts/templates/default */
+    get: operations["getPublicLegalContractsTemplatesDefault"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/legal/contracts/templates/{id}/preview": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** POST /v1/public/legal/contracts/templates/{id}/preview */
+    post: operations["postPublicLegalContractsTemplatesByIdPreview"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/legal/contracts/templates/{id}/render-preview": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** POST /v1/public/legal/contracts/templates/{id}/render-preview */
+    post: operations["postPublicLegalContractsTemplatesByIdRenderPreview"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/legal/contracts/templates/by-slug/{slug}/preview": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** POST /v1/public/legal/contracts/templates/by-slug/{slug}/preview */
+    post: operations["postPublicLegalContractsTemplatesBySlugBySlugPreview"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/legal/contracts/templates/by-slug/{slug}/render-preview": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** POST /v1/public/legal/contracts/templates/by-slug/{slug}/render-preview */
+    post: operations["postPublicLegalContractsTemplatesBySlugBySlugRenderPreview"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/legal/contracts/{id}": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/public/legal/contracts/{id} */
+    get: operations["getPublicLegalContractsById"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/legal/contracts/{id}/sign": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** POST /v1/public/legal/contracts/{id}/sign */
+    post: operations["postPublicLegalContractsByIdSign"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/legal/policies/{slug}": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/public/legal/policies/{slug} */
+    get: operations["getPublicLegalPoliciesBySlug"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/legal/policies/{id}/accept": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** POST /v1/public/legal/policies/{id}/accept */
+    post: operations["postPublicLegalPoliciesByIdAccept"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/legal/terms": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/public/legal/terms */
+    get: operations["getPublicLegalTerms"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/legal/terms/{id}": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/public/legal/terms/{id} */
+    get: operations["getPublicLegalTermsById"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/operator-profile": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/public/operator-profile */
+    get: operations["getPublicOperatorProfile"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/settings/operator": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/public/settings/operator */
+    get: operations["getPublicSettingsOperator"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/operator-branding/{slot}": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get: {
+      parameters: {
+        query?: never
+        header?: never
+        path: {
+          slot: "logo-light" | "logo-dark" | "icon-light" | "icon-dark" | "favicon"
+        }
+        cookie?: never
+      }
+      requestBody?: never
+      responses: {
+        /** @description The configured public operator branding asset */
+        200: {
+          headers: {
+            [name: string]: unknown
+          }
+          content?: never
+        }
+        /** @description The branding slot or stored object does not exist */
+        404: {
+          headers: {
+            [name: string]: unknown
+          }
+          content?: never
+        }
+        /** @description Media storage is not configured */
+        503: {
+          headers: {
+            [name: string]: unknown
+          }
+          content?: never
+        }
+      }
+    }
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/proposals/{proposalVersionId}": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Get a public proposal */
+    get: operations["getPublicProposalsByProposalVersionId"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/proposals/{proposalVersionId}/accept": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** Accept a public proposal */
+    post: operations["postPublicProposalsByProposalVersionIdAccept"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/proposals/{proposalVersionId}/decline": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** Decline a public proposal */
+    post: operations["postPublicProposalsByProposalVersionIdDecline"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/proposals/{proposalVersionId}/request-edits": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** Request proposal edits */
+    post: operations["postPublicProposalsByProposalVersionIdRequestEdits"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/customer-portal/me": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/public/customer-portal/me */
+    get: operations["getPublicCustomerPortalMe"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    /** PATCH /v1/public/customer-portal/me */
+    patch: operations["patchPublicCustomerPortalMe"]
+    trace?: never
+  }
+  "/v1/public/customer-portal/me/documents": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/public/customer-portal/me/documents */
+    get: operations["getPublicCustomerPortalMeDocuments"]
+    put?: never
+    /** POST /v1/public/customer-portal/me/documents */
+    post: operations["postPublicCustomerPortalMeDocuments"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/customer-portal/me/documents/{id}/set-primary": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** POST /v1/public/customer-portal/me/documents/{id}/set-primary */
+    post: operations["postPublicCustomerPortalMeDocumentsByIdSetPrimary"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/customer-portal/me/documents/{id}": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post?: never
+    /** DELETE /v1/public/customer-portal/me/documents/{id} */
+    delete: operations["deletePublicCustomerPortalMeDocumentsById"]
+    options?: never
+    head?: never
+    /** PATCH /v1/public/customer-portal/me/documents/{id} */
+    patch: operations["patchPublicCustomerPortalMeDocumentsById"]
+    trace?: never
+  }
+  "/v1/public/customer-portal/bootstrap": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** POST /v1/public/customer-portal/bootstrap */
+    post: operations["postPublicCustomerPortalBootstrap"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/customer-portal/companions": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/public/customer-portal/companions */
+    get: operations["getPublicCustomerPortalCompanions"]
+    put?: never
+    /** POST /v1/public/customer-portal/companions */
+    post: operations["postPublicCustomerPortalCompanions"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/customer-portal/companions/import-booking-travelers": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** POST /v1/public/customer-portal/companions/import-booking-travelers */
+    post: operations["postPublicCustomerPortalCompanionsImportBookingTravelers"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/customer-portal/companions/{companionId}": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post?: never
+    /** DELETE /v1/public/customer-portal/companions/{companionId} */
+    delete: operations["deletePublicCustomerPortalCompanionsByCompanionId"]
+    options?: never
+    head?: never
+    /** PATCH /v1/public/customer-portal/companions/{companionId} */
+    patch: operations["patchPublicCustomerPortalCompanionsByCompanionId"]
+    trace?: never
+  }
+  "/v1/public/customer-portal/bookings": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/public/customer-portal/bookings */
+    get: operations["getPublicCustomerPortalBookings"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/customer-portal/bookings/{bookingId}": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/public/customer-portal/bookings/{bookingId} */
+    get: operations["getPublicCustomerPortalBookingsByBookingId"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/customer-portal/bookings/{bookingId}/documents": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/public/customer-portal/bookings/{bookingId}/documents */
+    get: operations["getPublicCustomerPortalBookingsByBookingIdDocuments"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/customer-portal/bookings/{bookingId}/billing-contact": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/public/customer-portal/bookings/{bookingId}/billing-contact */
+    get: operations["getPublicCustomerPortalBookingsByBookingIdBillingContact"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   "/v1/public/products/{productId}/offers": {
     parameters: {
       query?: never
@@ -225,25 +2818,24 @@ export interface paths {
     patch?: never
     trace?: never
   }
-  "/v1/public/shopping/trip-selections": {
+  "/v1/public/documents/{token}": {
     parameters: {
       query?: never
       header?: never
       path?: never
       cookie?: never
     }
-    get?: never
+    /** Download a public document */
+    get: operations["getPublicDocumentsByToken"]
     put?: never
-    /** POST /v1/public/shopping/trip-selections */
-    post: operations["postPublicShoppingTripSelections"]
+    post?: never
     delete?: never
     options?: never
     head?: never
-    /** PATCH /v1/public/shopping/trip-selections */
-    patch: operations["patchPublicShoppingTripSelections"]
+    patch?: never
     trace?: never
   }
-  "/v1/public/shopping/trip-selections/book": {
+  "/v1/public/realtime/token": {
     parameters: {
       query?: never
       header?: never
@@ -252,8 +2844,337 @@ export interface paths {
     }
     get?: never
     put?: never
-    /** POST /v1/public/shopping/trip-selections/book */
-    post: operations["postPublicShoppingTripSelectionsBook"]
+    /** Mint a realtime client token */
+    post: operations["postPublicRealtimeToken"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/trips/health": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/public/trips/health */
+    get: operations["getPublicTripsHealth"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/trips": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/public/trips */
+    get: operations["getPublicTrips"]
+    put?: never
+    /** POST /v1/public/trips */
+    post: operations["postPublicTrips"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/trips/{envelopeId}": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/public/trips/{envelopeId} */
+    get: operations["getPublicTripsByEnvelopeId"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    /** PATCH /v1/public/trips/{envelopeId} */
+    patch: operations["patchPublicTripsByEnvelopeId"]
+    trace?: never
+  }
+  "/v1/public/trips/{envelopeId}/snapshots": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/public/trips/{envelopeId}/snapshots */
+    get: operations["getPublicTripsByEnvelopeIdSnapshots"]
+    put?: never
+    /** POST /v1/public/trips/{envelopeId}/snapshots */
+    post: operations["postPublicTripsByEnvelopeIdSnapshots"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/trips/snapshots/{snapshotId}": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/public/trips/snapshots/{snapshotId} */
+    get: operations["getPublicTripsSnapshotsBySnapshotId"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/trips/{envelopeId}/components": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** POST /v1/public/trips/{envelopeId}/components */
+    post: operations["postPublicTripsByEnvelopeIdComponents"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/trips/{envelopeId}/components/reorder": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** POST /v1/public/trips/{envelopeId}/components/reorder */
+    post: operations["postPublicTripsByEnvelopeIdComponentsReorder"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/trips/components/{componentId}": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post?: never
+    /** DELETE /v1/public/trips/components/{componentId} */
+    delete: operations["deletePublicTripsComponentsByComponentId"]
+    options?: never
+    head?: never
+    /** PATCH /v1/public/trips/components/{componentId} */
+    patch: operations["patchPublicTripsComponentsByComponentId"]
+    trace?: never
+  }
+  "/v1/public/trips/components/{componentId}/refs": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** POST /v1/public/trips/components/{componentId}/refs */
+    post: operations["postPublicTripsComponentsByComponentIdRefs"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/trips/{envelopeId}/requirements": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/public/trips/{envelopeId}/requirements */
+    get: operations["getPublicTripsByEnvelopeIdRequirements"]
+    put?: never
+    /** POST /v1/public/trips/{envelopeId}/requirements */
+    post: operations["postPublicTripsByEnvelopeIdRequirements"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/trips/requirements/{requirementId}/sourcing-operations/{operationId}": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/public/trips/requirements/{requirementId}/sourcing-operations/{operationId} */
+    get: operations["getPublicTripsRequirementsByRequirementIdSourcingOperationsByOperationId"]
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/trips/requirements/{requirementId}/select": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** POST /v1/public/trips/requirements/{requirementId}/select */
+    post: operations["postPublicTripsRequirementsByRequirementIdSelect"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/trips/{envelopeId}/price": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** POST /v1/public/trips/{envelopeId}/price */
+    post: operations["postPublicTripsByEnvelopeIdPrice"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/trips/{envelopeId}/reserve": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** POST /v1/public/trips/{envelopeId}/reserve */
+    post: operations["postPublicTripsByEnvelopeIdReserve"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/trips/{envelopeId}/checkout": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** POST /v1/public/trips/{envelopeId}/checkout */
+    post: operations["postPublicTripsByEnvelopeIdCheckout"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/trips/{envelopeId}/cancellation-preview": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** POST /v1/public/trips/{envelopeId}/cancellation-preview */
+    post: operations["postPublicTripsByEnvelopeIdCancellationPreview"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/trips/{envelopeId}/cancel-components": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** POST /v1/public/trips/{envelopeId}/cancel-components */
+    post: operations["postPublicTripsByEnvelopeIdCancelComponents"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/trips/trip-selections": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** POST /v1/public/trips/trip-selections */
+    post: operations["postPublicTripsTripSelections"]
+    delete?: never
+    options?: never
+    head?: never
+    /** PATCH /v1/public/trips/trip-selections */
+    patch: operations["patchPublicTripsTripSelections"]
+    trace?: never
+  }
+  "/v1/public/trips/trip-selections/book": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** POST /v1/public/trips/trip-selections/book */
+    post: operations["postPublicTripsTripSelectionsBook"]
     delete?: never
     options?: never
     head?: never
@@ -294,6 +3215,5709 @@ export interface components {
           kind: "or"
           clauses: components["schemas"]["CatalogSearchFilter"][]
         }
+    BookingAmendment: {
+      id: string
+      bookingId: string
+      travelerId: string
+      /** @enum {string} */
+      kind: "traveler_correction" | "traveler_add" | "traveler_drop"
+      /** @enum {string} */
+      status:
+        | "proposed"
+        | "accepted"
+        | "applying"
+        | "applied"
+        | "rejected"
+        | "failed"
+        | "in_doubt"
+        | "manual_review"
+      baseBookingRevision: number
+      resultBookingRevision: number
+      acceptanceRequired: boolean
+      policyDecisions: {
+        code: string
+        version: string
+        /** @enum {string} */
+        decision: "allowed" | "acceptance_required"
+        reason: string
+      }[]
+      priceDelta: {
+        currency: string
+        subtotalDeltaCents: number
+        feeDeltaCents: number
+        taxDeltaCents: number
+        amountCents: number
+        collectionAmountCents: number
+        refundAmountCents: number
+        taxLines: {
+          bookingItemId: string
+          code: string | null
+          name: string
+          amountCents: number
+          rateBasisPoints: number | null
+          includedInPrice: boolean
+        }[]
+      }
+      financialConsequences: {
+        /** @enum {string} */
+        collection: "not_required" | "required"
+        /** @enum {string} */
+        refund: "not_required" | "required"
+        /** @enum {string} */
+        invoice: "not_required" | "reissue_required"
+        /** @enum {string} */
+        creditNote: "not_required" | "issue_required"
+        /** @enum {string} */
+        paymentSchedule: "not_required" | "recalculate_required"
+      }
+      effects: {
+        /** @enum {string} */
+        finance: "not_required" | "collection_required" | "refund_required" | "recorded"
+        /** @enum {string} */
+        legal: "not_required" | "review_required"
+        /** @enum {string} */
+        documents: "not_required" | "reissue_required"
+        /** @enum {string} */
+        fulfillment: "not_required" | "reissue_required"
+        /** @enum {string} */
+        supplier:
+          | "not_required"
+          | "modify_required"
+          | "pending"
+          | "secured"
+          | "refused"
+          | "in_doubt"
+          | "manual_review"
+        /** @enum {string} */
+        allocation: "not_required" | "increase_required" | "release_required" | "applied"
+      }
+      nextActions: (
+        | "accept"
+        | "apply"
+        | "wait_supplier"
+        | "reconcile_supplier"
+        | "manual_review"
+        | "collect_payment"
+        | "issue_refund"
+        | "reissue_documents"
+      )[]
+      quotedAt: string
+      quoteExpiresAt: string | null
+      supplierOperationIds: string[]
+      failureCode: string | null
+      requestedBy: string | null
+      /** @enum {string} */
+      requestedActor: "customer" | "staff" | "partner" | "system"
+      reason: string
+      acceptedAt: string | null
+      acceptedBy: string | null
+      /** @enum {string|null} */
+      acceptedActor: "customer" | "staff" | "partner" | "system" | null
+      appliedAt: string | null
+      appliedBy: string | null
+      /** @enum {string|null} */
+      appliedActor: "customer" | "staff" | "partner" | "system" | null
+      createdAt: string
+      updatedAt: string
+      revisions?: {
+        id: string
+        amendmentId: string
+        bookingId: string
+        bookingRevision: number
+        /** @enum {string} */
+        role: "before" | "proposed_after"
+        snapshot: {
+          bookingId: string
+          bookingNumber: string
+          revision: number
+          sellAmountCents?: number | null
+          pax?: number | null
+          travelers: {
+            id: string
+            personId: string | null
+            /** @enum {string} */
+            participantType: "traveler" | "occupant" | "other"
+            /** @enum {string|null} */
+            travelerCategory: "adult" | "child" | "infant" | "senior" | "other" | null
+            firstName: string
+            lastName: string
+            email: string | null
+            phone: string | null
+            preferredLanguage: string | null
+            isPrimary: boolean
+          }[]
+          items?: {
+            id: string
+            quantity: number
+            totalSellAmountCents: number | null
+            travelerIds: string[]
+            allocations: {
+              id: string
+              quantity: number
+              status: string
+            }[]
+          }[]
+        }
+        changedFields: string[]
+        authorizedBy: string | null
+        reason: string
+        createdAt: string
+      }[]
+    }
+    BookingAmendmentApplyPendingResponse: {
+      data: {
+        /** @enum {string} */
+        status: "supplier_pending" | "supplier_in_doubt" | "manual_review"
+        amendment: components["schemas"]["BookingAmendment"]
+      }
+    }
+    BookingAmendmentApplyConflictResponse:
+      | {
+          error: string
+          currentBookingRevision?: number
+          bookingItemId?: string
+          reason?: string
+        }
+      | components["schemas"]["BookingAmendmentApplyRefusedResponse"]
+    BookingAmendmentApplyRefusedResponse: {
+      data: {
+        /** @enum {string} */
+        status: "supplier_refused"
+        amendment: components["schemas"]["BookingAmendment"]
+      }
+    }
+    BookingAmendmentPreviewNoOpResponse: {
+      data: {
+        /** @enum {string} */
+        status: "no_op"
+        bookingId: string
+        travelerId: string
+        bookingRevision: number
+      }
+    }
+    BookingAmendmentOkResponse: {
+      data: {
+        /** @enum {string} */
+        status: "ok"
+        amendment: components["schemas"]["BookingAmendment"]
+      }
+    }
+    BookingSessionOutcomeV1:
+      | {
+          /** @enum {string} */
+          kind: "session_created"
+          session: {
+            id: string
+            target:
+              | {
+                  /** @enum {string} */
+                  kind: "product"
+                  productId: string
+                }
+              | {
+                  /** @enum {string} */
+                  kind: "catalog_item"
+                  catalogItemId: string
+                }
+              | {
+                  /** @enum {string} */
+                  kind: "owned_entity"
+                  entityModule: string
+                  entityId: string
+                }
+              | {
+                  /** @enum {string} */
+                  kind: "trip_snapshot"
+                  tripSnapshotId: string
+                  tripEnvelopeId: string
+                }
+              | {
+                  /** @enum {string} */
+                  kind: "managed_itinerary"
+                }
+            origin?: {
+              /** @enum {string} */
+              kind: "accepted_proposal_version"
+              proposalId: string
+              proposalVersionId: string
+              tripSnapshotId: string
+            }
+            /** @enum {string} */
+            actorKind: "anonymous" | "customer" | "staff" | "partner"
+            /** @enum {string} */
+            state:
+              | "active"
+              | "supplier_pending"
+              | "component_pending"
+              | "consumed"
+              | "expired"
+              | "abandoned"
+            revision: number
+            scope: {
+              locale: string
+              market: string
+              currency?: string
+            }
+            requirements?: {
+              showsConfigure: boolean
+              showsBilling: boolean
+              showsTravelers: boolean
+              showsAccommodation: boolean
+              showsAddons: boolean
+              /** @default false */
+              showsAncillaries: boolean
+              showsPayment: boolean
+              /** @enum {boolean} */
+              showsReview: true
+              configureSubSteps?: (
+                | {
+                    /** @enum {string} */
+                    kind: "departure"
+                    /** @enum {boolean} */
+                    required: true
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "product-option"
+                    options: {
+                      id: string
+                      code?: string | null
+                      name: string
+                      description?: string | null
+                      isDefault?: boolean
+                      units?: {
+                        id: string
+                        name: string
+                        description?: string | null
+                        unitType?: string | null
+                        minQuantity?: number | null
+                        maxQuantity?: number | null
+                      }[]
+                    }[]
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "option-units"
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "cabin-category"
+                    categories: {
+                      id: string
+                      code?: string
+                      name: string
+                      type?: string
+                      capacityMin?: number
+                      capacityMax?: number
+                      description?: string
+                    }[]
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "cabin-number"
+                    perCategory: {
+                      [key: string]: {
+                        id: string
+                        code?: string
+                        label: string
+                        capacity?: number
+                        hasAccessibilityFeatures?: boolean
+                      }[]
+                    }
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "date-range"
+                    minNights: number
+                    maxNights: number
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "occupancy"
+                    bands: {
+                      code: string
+                      label: string
+                      minAge?: number
+                      maxAge?: number
+                      minCount: number
+                      maxCount: number
+                    }[]
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "air-arrangement"
+                    required?: boolean
+                  }
+              )[]
+              paxBands: {
+                code: string
+                label: string
+                minAge?: number
+                maxAge?: number
+                minCount: number
+                maxCount: number
+              }[]
+              paxBandsAllowedTotal: {
+                min: number
+                max: number
+              }
+              paxBandDependencies?: {
+                dependentCode: string
+                masterCode: string
+                /** @enum {string} */
+                type: "requires" | "limits_per_master" | "limits_sum" | "excludes"
+                maxPerMaster?: number
+                maxDependentSum?: number
+              }[]
+              travelerFields: {
+                key: string
+                label: string
+                type: string
+                required: boolean
+                options?: {
+                  value: string
+                  label: string
+                }[]
+                appliesToBands?: string[]
+                maxLength?: number
+              }[]
+              bookingFields: {
+                key: string
+                label: string
+                type: string
+                required: boolean
+                /** @enum {string} */
+                group: "billing" | "company" | "preferences"
+                maxLength?: number
+              }[]
+              accommodation?: {
+                roomOptions?: {
+                  id: string
+                  name: string
+                  description?: string | null
+                  capacity?: number | null
+                  baseRateHint?: number | null
+                  ratePlans?: {
+                    id: string
+                    name: string
+                    description?: string | null
+                    /** @enum {string} */
+                    chargeFrequency?: "per_night" | "per_stay"
+                    cancellationPolicy?: string | null
+                    inclusions?: string[]
+                    currency?: string
+                  }[]
+                }[]
+                sharedRoomAllowed: boolean
+                subSteps?: (
+                  | {
+                      /** @enum {string} */
+                      kind: "rooms"
+                      options: {
+                        id: string
+                        name: string
+                        description?: string | null
+                        capacity?: number | null
+                        baseRateHint?: number | null
+                        ratePlans?: {
+                          id: string
+                          name: string
+                          description?: string | null
+                          /** @enum {string} */
+                          chargeFrequency?: "per_night" | "per_stay"
+                          cancellationPolicy?: string | null
+                          inclusions?: string[]
+                          currency?: string
+                        }[]
+                      }[]
+                      sharedRoomAllowed: boolean
+                    }
+                  | {
+                      /** @enum {string} */
+                      kind: "extensions"
+                      options: {
+                        id: string
+                        name: string
+                        city?: string | null
+                        /** @enum {string} */
+                        side: "pre" | "post"
+                        nights?: number | null
+                        pricePerPersonHint?: number | null
+                      }[]
+                      allowsPre: boolean
+                      allowsPost: boolean
+                    }
+                )[]
+              }
+              addons?: {
+                catalog?: {
+                  id: string
+                  name: string
+                  description?: string | null
+                  /** @enum {string} */
+                  kind: "extras" | "excursions" | "insurance"
+                  groupKey?: string | null
+                  pricingMode?: string | null
+                  unitAmountCents?: number | null
+                  currency?: string | null
+                  pricedPerPerson?: boolean | null
+                  /** @enum {string|null} */
+                  selectionType?:
+                    | "optional"
+                    | "required"
+                    | "default_selected"
+                    | "unavailable"
+                    | null
+                  minQuantity?: number | null
+                  maxQuantity?: number | null
+                  defaultQuantity?: number | null
+                }[]
+                groups?: {
+                  /** @enum {string} */
+                  kind: "extras" | "excursions" | "insurance"
+                  label: string
+                  /** @enum {string} */
+                  groupBy?: "port" | "day"
+                  perGuestSelection: boolean
+                  items: {
+                    id: string
+                    name: string
+                    description?: string | null
+                    /** @enum {string} */
+                    kind: "extras" | "excursions" | "insurance"
+                    groupKey?: string | null
+                    pricingMode?: string | null
+                    unitAmountCents?: number | null
+                    currency?: string | null
+                    pricedPerPerson?: boolean | null
+                    /** @enum {string|null} */
+                    selectionType?:
+                      | "optional"
+                      | "required"
+                      | "default_selected"
+                      | "unavailable"
+                      | null
+                    minQuantity?: number | null
+                    maxQuantity?: number | null
+                    defaultQuantity?: number | null
+                  }[]
+                }[]
+              }
+              ancillaries?: {
+                /** @default [] */
+                groups: {
+                  kind: string
+                  label: string
+                  /** @default [] */
+                  offers: {
+                    offerId: string
+                    sourceId: string
+                    providerId: string
+                    providerLabel: string
+                    kind: string
+                    title: string
+                    summary?: string | null
+                    planLabel?: string | null
+                    price: {
+                      amountMinor: number
+                      currency: string
+                    }
+                    /** @default false */
+                    pricedPerPerson: boolean
+                    /** @default [] */
+                    highlights: {
+                      label: string
+                      value?: string
+                    }[]
+                    eligibility: {
+                      /** @enum {string} */
+                      status: "eligible" | "ineligible" | "referral"
+                      /** @default [] */
+                      reasons: {
+                        code: string
+                        message: string
+                      }[]
+                    }
+                    /** @default [] */
+                    disclosures: {
+                      kind: string
+                      label: string
+                      versionId: string
+                      url?: string
+                      required: boolean
+                    }[]
+                    /** @default [] */
+                    requiredTravelerFields: {
+                      key: string
+                      label: string
+                      type: string
+                      required: boolean
+                      /** @default false */
+                      sensitive: boolean
+                      options?: {
+                        value: string
+                        label: string
+                      }[]
+                      helpText?: string
+                    }[]
+                    validUntil: string
+                    quoteRef: string
+                    metadata?: {
+                      [key: string]: unknown
+                    }
+                  }[]
+                  /** @default [] */
+                  diagnostics: {
+                    sourceId: string
+                    providerId?: string
+                    /** @enum {string} */
+                    status: "ok" | "timeout" | "error" | "unavailable"
+                    message?: string
+                    latencyMs?: number
+                  }[]
+                }[]
+              }
+              paymentIntents: ("hold" | "card" | "bank_transfer" | "ticket_on_credit" | "inquiry")[]
+            }
+            requirementsFingerprint?: string
+            /** Format: date-time */
+            expiresAt: string
+            /** Format: date-time */
+            createdAt: string
+            /** Format: date-time */
+            updatedAt: string
+          }
+        }
+      | {
+          /** @enum {string} */
+          kind: "session_updated"
+          session: {
+            id: string
+            target:
+              | {
+                  /** @enum {string} */
+                  kind: "product"
+                  productId: string
+                }
+              | {
+                  /** @enum {string} */
+                  kind: "catalog_item"
+                  catalogItemId: string
+                }
+              | {
+                  /** @enum {string} */
+                  kind: "owned_entity"
+                  entityModule: string
+                  entityId: string
+                }
+              | {
+                  /** @enum {string} */
+                  kind: "trip_snapshot"
+                  tripSnapshotId: string
+                  tripEnvelopeId: string
+                }
+              | {
+                  /** @enum {string} */
+                  kind: "managed_itinerary"
+                }
+            origin?: {
+              /** @enum {string} */
+              kind: "accepted_proposal_version"
+              proposalId: string
+              proposalVersionId: string
+              tripSnapshotId: string
+            }
+            /** @enum {string} */
+            actorKind: "anonymous" | "customer" | "staff" | "partner"
+            /** @enum {string} */
+            state:
+              | "active"
+              | "supplier_pending"
+              | "component_pending"
+              | "consumed"
+              | "expired"
+              | "abandoned"
+            revision: number
+            scope: {
+              locale: string
+              market: string
+              currency?: string
+            }
+            requirements?: {
+              showsConfigure: boolean
+              showsBilling: boolean
+              showsTravelers: boolean
+              showsAccommodation: boolean
+              showsAddons: boolean
+              /** @default false */
+              showsAncillaries: boolean
+              showsPayment: boolean
+              /** @enum {boolean} */
+              showsReview: true
+              configureSubSteps?: (
+                | {
+                    /** @enum {string} */
+                    kind: "departure"
+                    /** @enum {boolean} */
+                    required: true
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "product-option"
+                    options: {
+                      id: string
+                      code?: string | null
+                      name: string
+                      description?: string | null
+                      isDefault?: boolean
+                      units?: {
+                        id: string
+                        name: string
+                        description?: string | null
+                        unitType?: string | null
+                        minQuantity?: number | null
+                        maxQuantity?: number | null
+                      }[]
+                    }[]
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "option-units"
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "cabin-category"
+                    categories: {
+                      id: string
+                      code?: string
+                      name: string
+                      type?: string
+                      capacityMin?: number
+                      capacityMax?: number
+                      description?: string
+                    }[]
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "cabin-number"
+                    perCategory: {
+                      [key: string]: {
+                        id: string
+                        code?: string
+                        label: string
+                        capacity?: number
+                        hasAccessibilityFeatures?: boolean
+                      }[]
+                    }
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "date-range"
+                    minNights: number
+                    maxNights: number
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "occupancy"
+                    bands: {
+                      code: string
+                      label: string
+                      minAge?: number
+                      maxAge?: number
+                      minCount: number
+                      maxCount: number
+                    }[]
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "air-arrangement"
+                    required?: boolean
+                  }
+              )[]
+              paxBands: {
+                code: string
+                label: string
+                minAge?: number
+                maxAge?: number
+                minCount: number
+                maxCount: number
+              }[]
+              paxBandsAllowedTotal: {
+                min: number
+                max: number
+              }
+              paxBandDependencies?: {
+                dependentCode: string
+                masterCode: string
+                /** @enum {string} */
+                type: "requires" | "limits_per_master" | "limits_sum" | "excludes"
+                maxPerMaster?: number
+                maxDependentSum?: number
+              }[]
+              travelerFields: {
+                key: string
+                label: string
+                type: string
+                required: boolean
+                options?: {
+                  value: string
+                  label: string
+                }[]
+                appliesToBands?: string[]
+                maxLength?: number
+              }[]
+              bookingFields: {
+                key: string
+                label: string
+                type: string
+                required: boolean
+                /** @enum {string} */
+                group: "billing" | "company" | "preferences"
+                maxLength?: number
+              }[]
+              accommodation?: {
+                roomOptions?: {
+                  id: string
+                  name: string
+                  description?: string | null
+                  capacity?: number | null
+                  baseRateHint?: number | null
+                  ratePlans?: {
+                    id: string
+                    name: string
+                    description?: string | null
+                    /** @enum {string} */
+                    chargeFrequency?: "per_night" | "per_stay"
+                    cancellationPolicy?: string | null
+                    inclusions?: string[]
+                    currency?: string
+                  }[]
+                }[]
+                sharedRoomAllowed: boolean
+                subSteps?: (
+                  | {
+                      /** @enum {string} */
+                      kind: "rooms"
+                      options: {
+                        id: string
+                        name: string
+                        description?: string | null
+                        capacity?: number | null
+                        baseRateHint?: number | null
+                        ratePlans?: {
+                          id: string
+                          name: string
+                          description?: string | null
+                          /** @enum {string} */
+                          chargeFrequency?: "per_night" | "per_stay"
+                          cancellationPolicy?: string | null
+                          inclusions?: string[]
+                          currency?: string
+                        }[]
+                      }[]
+                      sharedRoomAllowed: boolean
+                    }
+                  | {
+                      /** @enum {string} */
+                      kind: "extensions"
+                      options: {
+                        id: string
+                        name: string
+                        city?: string | null
+                        /** @enum {string} */
+                        side: "pre" | "post"
+                        nights?: number | null
+                        pricePerPersonHint?: number | null
+                      }[]
+                      allowsPre: boolean
+                      allowsPost: boolean
+                    }
+                )[]
+              }
+              addons?: {
+                catalog?: {
+                  id: string
+                  name: string
+                  description?: string | null
+                  /** @enum {string} */
+                  kind: "extras" | "excursions" | "insurance"
+                  groupKey?: string | null
+                  pricingMode?: string | null
+                  unitAmountCents?: number | null
+                  currency?: string | null
+                  pricedPerPerson?: boolean | null
+                  /** @enum {string|null} */
+                  selectionType?:
+                    | "optional"
+                    | "required"
+                    | "default_selected"
+                    | "unavailable"
+                    | null
+                  minQuantity?: number | null
+                  maxQuantity?: number | null
+                  defaultQuantity?: number | null
+                }[]
+                groups?: {
+                  /** @enum {string} */
+                  kind: "extras" | "excursions" | "insurance"
+                  label: string
+                  /** @enum {string} */
+                  groupBy?: "port" | "day"
+                  perGuestSelection: boolean
+                  items: {
+                    id: string
+                    name: string
+                    description?: string | null
+                    /** @enum {string} */
+                    kind: "extras" | "excursions" | "insurance"
+                    groupKey?: string | null
+                    pricingMode?: string | null
+                    unitAmountCents?: number | null
+                    currency?: string | null
+                    pricedPerPerson?: boolean | null
+                    /** @enum {string|null} */
+                    selectionType?:
+                      | "optional"
+                      | "required"
+                      | "default_selected"
+                      | "unavailable"
+                      | null
+                    minQuantity?: number | null
+                    maxQuantity?: number | null
+                    defaultQuantity?: number | null
+                  }[]
+                }[]
+              }
+              ancillaries?: {
+                /** @default [] */
+                groups: {
+                  kind: string
+                  label: string
+                  /** @default [] */
+                  offers: {
+                    offerId: string
+                    sourceId: string
+                    providerId: string
+                    providerLabel: string
+                    kind: string
+                    title: string
+                    summary?: string | null
+                    planLabel?: string | null
+                    price: {
+                      amountMinor: number
+                      currency: string
+                    }
+                    /** @default false */
+                    pricedPerPerson: boolean
+                    /** @default [] */
+                    highlights: {
+                      label: string
+                      value?: string
+                    }[]
+                    eligibility: {
+                      /** @enum {string} */
+                      status: "eligible" | "ineligible" | "referral"
+                      /** @default [] */
+                      reasons: {
+                        code: string
+                        message: string
+                      }[]
+                    }
+                    /** @default [] */
+                    disclosures: {
+                      kind: string
+                      label: string
+                      versionId: string
+                      url?: string
+                      required: boolean
+                    }[]
+                    /** @default [] */
+                    requiredTravelerFields: {
+                      key: string
+                      label: string
+                      type: string
+                      required: boolean
+                      /** @default false */
+                      sensitive: boolean
+                      options?: {
+                        value: string
+                        label: string
+                      }[]
+                      helpText?: string
+                    }[]
+                    validUntil: string
+                    quoteRef: string
+                    metadata?: {
+                      [key: string]: unknown
+                    }
+                  }[]
+                  /** @default [] */
+                  diagnostics: {
+                    sourceId: string
+                    providerId?: string
+                    /** @enum {string} */
+                    status: "ok" | "timeout" | "error" | "unavailable"
+                    message?: string
+                    latencyMs?: number
+                  }[]
+                }[]
+              }
+              paymentIntents: ("hold" | "card" | "bank_transfer" | "ticket_on_credit" | "inquiry")[]
+            }
+            requirementsFingerprint?: string
+            /** Format: date-time */
+            expiresAt: string
+            /** Format: date-time */
+            createdAt: string
+            /** Format: date-time */
+            updatedAt: string
+          }
+        }
+      | {
+          /** @enum {string} */
+          kind: "session_resumed"
+          session: {
+            id: string
+            target:
+              | {
+                  /** @enum {string} */
+                  kind: "product"
+                  productId: string
+                }
+              | {
+                  /** @enum {string} */
+                  kind: "catalog_item"
+                  catalogItemId: string
+                }
+              | {
+                  /** @enum {string} */
+                  kind: "owned_entity"
+                  entityModule: string
+                  entityId: string
+                }
+              | {
+                  /** @enum {string} */
+                  kind: "trip_snapshot"
+                  tripSnapshotId: string
+                  tripEnvelopeId: string
+                }
+              | {
+                  /** @enum {string} */
+                  kind: "managed_itinerary"
+                }
+            origin?: {
+              /** @enum {string} */
+              kind: "accepted_proposal_version"
+              proposalId: string
+              proposalVersionId: string
+              tripSnapshotId: string
+            }
+            /** @enum {string} */
+            actorKind: "anonymous" | "customer" | "staff" | "partner"
+            /** @enum {string} */
+            state:
+              | "active"
+              | "supplier_pending"
+              | "component_pending"
+              | "consumed"
+              | "expired"
+              | "abandoned"
+            revision: number
+            scope: {
+              locale: string
+              market: string
+              currency?: string
+            }
+            requirements?: {
+              showsConfigure: boolean
+              showsBilling: boolean
+              showsTravelers: boolean
+              showsAccommodation: boolean
+              showsAddons: boolean
+              /** @default false */
+              showsAncillaries: boolean
+              showsPayment: boolean
+              /** @enum {boolean} */
+              showsReview: true
+              configureSubSteps?: (
+                | {
+                    /** @enum {string} */
+                    kind: "departure"
+                    /** @enum {boolean} */
+                    required: true
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "product-option"
+                    options: {
+                      id: string
+                      code?: string | null
+                      name: string
+                      description?: string | null
+                      isDefault?: boolean
+                      units?: {
+                        id: string
+                        name: string
+                        description?: string | null
+                        unitType?: string | null
+                        minQuantity?: number | null
+                        maxQuantity?: number | null
+                      }[]
+                    }[]
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "option-units"
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "cabin-category"
+                    categories: {
+                      id: string
+                      code?: string
+                      name: string
+                      type?: string
+                      capacityMin?: number
+                      capacityMax?: number
+                      description?: string
+                    }[]
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "cabin-number"
+                    perCategory: {
+                      [key: string]: {
+                        id: string
+                        code?: string
+                        label: string
+                        capacity?: number
+                        hasAccessibilityFeatures?: boolean
+                      }[]
+                    }
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "date-range"
+                    minNights: number
+                    maxNights: number
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "occupancy"
+                    bands: {
+                      code: string
+                      label: string
+                      minAge?: number
+                      maxAge?: number
+                      minCount: number
+                      maxCount: number
+                    }[]
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "air-arrangement"
+                    required?: boolean
+                  }
+              )[]
+              paxBands: {
+                code: string
+                label: string
+                minAge?: number
+                maxAge?: number
+                minCount: number
+                maxCount: number
+              }[]
+              paxBandsAllowedTotal: {
+                min: number
+                max: number
+              }
+              paxBandDependencies?: {
+                dependentCode: string
+                masterCode: string
+                /** @enum {string} */
+                type: "requires" | "limits_per_master" | "limits_sum" | "excludes"
+                maxPerMaster?: number
+                maxDependentSum?: number
+              }[]
+              travelerFields: {
+                key: string
+                label: string
+                type: string
+                required: boolean
+                options?: {
+                  value: string
+                  label: string
+                }[]
+                appliesToBands?: string[]
+                maxLength?: number
+              }[]
+              bookingFields: {
+                key: string
+                label: string
+                type: string
+                required: boolean
+                /** @enum {string} */
+                group: "billing" | "company" | "preferences"
+                maxLength?: number
+              }[]
+              accommodation?: {
+                roomOptions?: {
+                  id: string
+                  name: string
+                  description?: string | null
+                  capacity?: number | null
+                  baseRateHint?: number | null
+                  ratePlans?: {
+                    id: string
+                    name: string
+                    description?: string | null
+                    /** @enum {string} */
+                    chargeFrequency?: "per_night" | "per_stay"
+                    cancellationPolicy?: string | null
+                    inclusions?: string[]
+                    currency?: string
+                  }[]
+                }[]
+                sharedRoomAllowed: boolean
+                subSteps?: (
+                  | {
+                      /** @enum {string} */
+                      kind: "rooms"
+                      options: {
+                        id: string
+                        name: string
+                        description?: string | null
+                        capacity?: number | null
+                        baseRateHint?: number | null
+                        ratePlans?: {
+                          id: string
+                          name: string
+                          description?: string | null
+                          /** @enum {string} */
+                          chargeFrequency?: "per_night" | "per_stay"
+                          cancellationPolicy?: string | null
+                          inclusions?: string[]
+                          currency?: string
+                        }[]
+                      }[]
+                      sharedRoomAllowed: boolean
+                    }
+                  | {
+                      /** @enum {string} */
+                      kind: "extensions"
+                      options: {
+                        id: string
+                        name: string
+                        city?: string | null
+                        /** @enum {string} */
+                        side: "pre" | "post"
+                        nights?: number | null
+                        pricePerPersonHint?: number | null
+                      }[]
+                      allowsPre: boolean
+                      allowsPost: boolean
+                    }
+                )[]
+              }
+              addons?: {
+                catalog?: {
+                  id: string
+                  name: string
+                  description?: string | null
+                  /** @enum {string} */
+                  kind: "extras" | "excursions" | "insurance"
+                  groupKey?: string | null
+                  pricingMode?: string | null
+                  unitAmountCents?: number | null
+                  currency?: string | null
+                  pricedPerPerson?: boolean | null
+                  /** @enum {string|null} */
+                  selectionType?:
+                    | "optional"
+                    | "required"
+                    | "default_selected"
+                    | "unavailable"
+                    | null
+                  minQuantity?: number | null
+                  maxQuantity?: number | null
+                  defaultQuantity?: number | null
+                }[]
+                groups?: {
+                  /** @enum {string} */
+                  kind: "extras" | "excursions" | "insurance"
+                  label: string
+                  /** @enum {string} */
+                  groupBy?: "port" | "day"
+                  perGuestSelection: boolean
+                  items: {
+                    id: string
+                    name: string
+                    description?: string | null
+                    /** @enum {string} */
+                    kind: "extras" | "excursions" | "insurance"
+                    groupKey?: string | null
+                    pricingMode?: string | null
+                    unitAmountCents?: number | null
+                    currency?: string | null
+                    pricedPerPerson?: boolean | null
+                    /** @enum {string|null} */
+                    selectionType?:
+                      | "optional"
+                      | "required"
+                      | "default_selected"
+                      | "unavailable"
+                      | null
+                    minQuantity?: number | null
+                    maxQuantity?: number | null
+                    defaultQuantity?: number | null
+                  }[]
+                }[]
+              }
+              ancillaries?: {
+                /** @default [] */
+                groups: {
+                  kind: string
+                  label: string
+                  /** @default [] */
+                  offers: {
+                    offerId: string
+                    sourceId: string
+                    providerId: string
+                    providerLabel: string
+                    kind: string
+                    title: string
+                    summary?: string | null
+                    planLabel?: string | null
+                    price: {
+                      amountMinor: number
+                      currency: string
+                    }
+                    /** @default false */
+                    pricedPerPerson: boolean
+                    /** @default [] */
+                    highlights: {
+                      label: string
+                      value?: string
+                    }[]
+                    eligibility: {
+                      /** @enum {string} */
+                      status: "eligible" | "ineligible" | "referral"
+                      /** @default [] */
+                      reasons: {
+                        code: string
+                        message: string
+                      }[]
+                    }
+                    /** @default [] */
+                    disclosures: {
+                      kind: string
+                      label: string
+                      versionId: string
+                      url?: string
+                      required: boolean
+                    }[]
+                    /** @default [] */
+                    requiredTravelerFields: {
+                      key: string
+                      label: string
+                      type: string
+                      required: boolean
+                      /** @default false */
+                      sensitive: boolean
+                      options?: {
+                        value: string
+                        label: string
+                      }[]
+                      helpText?: string
+                    }[]
+                    validUntil: string
+                    quoteRef: string
+                    metadata?: {
+                      [key: string]: unknown
+                    }
+                  }[]
+                  /** @default [] */
+                  diagnostics: {
+                    sourceId: string
+                    providerId?: string
+                    /** @enum {string} */
+                    status: "ok" | "timeout" | "error" | "unavailable"
+                    message?: string
+                    latencyMs?: number
+                  }[]
+                }[]
+              }
+              paymentIntents: ("hold" | "card" | "bank_transfer" | "ticket_on_credit" | "inquiry")[]
+            }
+            requirementsFingerprint?: string
+            /** Format: date-time */
+            expiresAt: string
+            /** Format: date-time */
+            createdAt: string
+            /** Format: date-time */
+            updatedAt: string
+            selection?: {
+              [key: string]: unknown
+            }
+            /** @enum {string} */
+            redaction: "none" | "selection_omitted"
+          }
+        }
+      | {
+          /** @enum {string} */
+          kind: "session_adopted"
+          session: {
+            id: string
+            target:
+              | {
+                  /** @enum {string} */
+                  kind: "product"
+                  productId: string
+                }
+              | {
+                  /** @enum {string} */
+                  kind: "catalog_item"
+                  catalogItemId: string
+                }
+              | {
+                  /** @enum {string} */
+                  kind: "owned_entity"
+                  entityModule: string
+                  entityId: string
+                }
+              | {
+                  /** @enum {string} */
+                  kind: "trip_snapshot"
+                  tripSnapshotId: string
+                  tripEnvelopeId: string
+                }
+              | {
+                  /** @enum {string} */
+                  kind: "managed_itinerary"
+                }
+            origin?: {
+              /** @enum {string} */
+              kind: "accepted_proposal_version"
+              proposalId: string
+              proposalVersionId: string
+              tripSnapshotId: string
+            }
+            /** @enum {string} */
+            actorKind: "anonymous" | "customer" | "staff" | "partner"
+            /** @enum {string} */
+            state:
+              | "active"
+              | "supplier_pending"
+              | "component_pending"
+              | "consumed"
+              | "expired"
+              | "abandoned"
+            revision: number
+            scope: {
+              locale: string
+              market: string
+              currency?: string
+            }
+            requirements?: {
+              showsConfigure: boolean
+              showsBilling: boolean
+              showsTravelers: boolean
+              showsAccommodation: boolean
+              showsAddons: boolean
+              /** @default false */
+              showsAncillaries: boolean
+              showsPayment: boolean
+              /** @enum {boolean} */
+              showsReview: true
+              configureSubSteps?: (
+                | {
+                    /** @enum {string} */
+                    kind: "departure"
+                    /** @enum {boolean} */
+                    required: true
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "product-option"
+                    options: {
+                      id: string
+                      code?: string | null
+                      name: string
+                      description?: string | null
+                      isDefault?: boolean
+                      units?: {
+                        id: string
+                        name: string
+                        description?: string | null
+                        unitType?: string | null
+                        minQuantity?: number | null
+                        maxQuantity?: number | null
+                      }[]
+                    }[]
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "option-units"
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "cabin-category"
+                    categories: {
+                      id: string
+                      code?: string
+                      name: string
+                      type?: string
+                      capacityMin?: number
+                      capacityMax?: number
+                      description?: string
+                    }[]
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "cabin-number"
+                    perCategory: {
+                      [key: string]: {
+                        id: string
+                        code?: string
+                        label: string
+                        capacity?: number
+                        hasAccessibilityFeatures?: boolean
+                      }[]
+                    }
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "date-range"
+                    minNights: number
+                    maxNights: number
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "occupancy"
+                    bands: {
+                      code: string
+                      label: string
+                      minAge?: number
+                      maxAge?: number
+                      minCount: number
+                      maxCount: number
+                    }[]
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "air-arrangement"
+                    required?: boolean
+                  }
+              )[]
+              paxBands: {
+                code: string
+                label: string
+                minAge?: number
+                maxAge?: number
+                minCount: number
+                maxCount: number
+              }[]
+              paxBandsAllowedTotal: {
+                min: number
+                max: number
+              }
+              paxBandDependencies?: {
+                dependentCode: string
+                masterCode: string
+                /** @enum {string} */
+                type: "requires" | "limits_per_master" | "limits_sum" | "excludes"
+                maxPerMaster?: number
+                maxDependentSum?: number
+              }[]
+              travelerFields: {
+                key: string
+                label: string
+                type: string
+                required: boolean
+                options?: {
+                  value: string
+                  label: string
+                }[]
+                appliesToBands?: string[]
+                maxLength?: number
+              }[]
+              bookingFields: {
+                key: string
+                label: string
+                type: string
+                required: boolean
+                /** @enum {string} */
+                group: "billing" | "company" | "preferences"
+                maxLength?: number
+              }[]
+              accommodation?: {
+                roomOptions?: {
+                  id: string
+                  name: string
+                  description?: string | null
+                  capacity?: number | null
+                  baseRateHint?: number | null
+                  ratePlans?: {
+                    id: string
+                    name: string
+                    description?: string | null
+                    /** @enum {string} */
+                    chargeFrequency?: "per_night" | "per_stay"
+                    cancellationPolicy?: string | null
+                    inclusions?: string[]
+                    currency?: string
+                  }[]
+                }[]
+                sharedRoomAllowed: boolean
+                subSteps?: (
+                  | {
+                      /** @enum {string} */
+                      kind: "rooms"
+                      options: {
+                        id: string
+                        name: string
+                        description?: string | null
+                        capacity?: number | null
+                        baseRateHint?: number | null
+                        ratePlans?: {
+                          id: string
+                          name: string
+                          description?: string | null
+                          /** @enum {string} */
+                          chargeFrequency?: "per_night" | "per_stay"
+                          cancellationPolicy?: string | null
+                          inclusions?: string[]
+                          currency?: string
+                        }[]
+                      }[]
+                      sharedRoomAllowed: boolean
+                    }
+                  | {
+                      /** @enum {string} */
+                      kind: "extensions"
+                      options: {
+                        id: string
+                        name: string
+                        city?: string | null
+                        /** @enum {string} */
+                        side: "pre" | "post"
+                        nights?: number | null
+                        pricePerPersonHint?: number | null
+                      }[]
+                      allowsPre: boolean
+                      allowsPost: boolean
+                    }
+                )[]
+              }
+              addons?: {
+                catalog?: {
+                  id: string
+                  name: string
+                  description?: string | null
+                  /** @enum {string} */
+                  kind: "extras" | "excursions" | "insurance"
+                  groupKey?: string | null
+                  pricingMode?: string | null
+                  unitAmountCents?: number | null
+                  currency?: string | null
+                  pricedPerPerson?: boolean | null
+                  /** @enum {string|null} */
+                  selectionType?:
+                    | "optional"
+                    | "required"
+                    | "default_selected"
+                    | "unavailable"
+                    | null
+                  minQuantity?: number | null
+                  maxQuantity?: number | null
+                  defaultQuantity?: number | null
+                }[]
+                groups?: {
+                  /** @enum {string} */
+                  kind: "extras" | "excursions" | "insurance"
+                  label: string
+                  /** @enum {string} */
+                  groupBy?: "port" | "day"
+                  perGuestSelection: boolean
+                  items: {
+                    id: string
+                    name: string
+                    description?: string | null
+                    /** @enum {string} */
+                    kind: "extras" | "excursions" | "insurance"
+                    groupKey?: string | null
+                    pricingMode?: string | null
+                    unitAmountCents?: number | null
+                    currency?: string | null
+                    pricedPerPerson?: boolean | null
+                    /** @enum {string|null} */
+                    selectionType?:
+                      | "optional"
+                      | "required"
+                      | "default_selected"
+                      | "unavailable"
+                      | null
+                    minQuantity?: number | null
+                    maxQuantity?: number | null
+                    defaultQuantity?: number | null
+                  }[]
+                }[]
+              }
+              ancillaries?: {
+                /** @default [] */
+                groups: {
+                  kind: string
+                  label: string
+                  /** @default [] */
+                  offers: {
+                    offerId: string
+                    sourceId: string
+                    providerId: string
+                    providerLabel: string
+                    kind: string
+                    title: string
+                    summary?: string | null
+                    planLabel?: string | null
+                    price: {
+                      amountMinor: number
+                      currency: string
+                    }
+                    /** @default false */
+                    pricedPerPerson: boolean
+                    /** @default [] */
+                    highlights: {
+                      label: string
+                      value?: string
+                    }[]
+                    eligibility: {
+                      /** @enum {string} */
+                      status: "eligible" | "ineligible" | "referral"
+                      /** @default [] */
+                      reasons: {
+                        code: string
+                        message: string
+                      }[]
+                    }
+                    /** @default [] */
+                    disclosures: {
+                      kind: string
+                      label: string
+                      versionId: string
+                      url?: string
+                      required: boolean
+                    }[]
+                    /** @default [] */
+                    requiredTravelerFields: {
+                      key: string
+                      label: string
+                      type: string
+                      required: boolean
+                      /** @default false */
+                      sensitive: boolean
+                      options?: {
+                        value: string
+                        label: string
+                      }[]
+                      helpText?: string
+                    }[]
+                    validUntil: string
+                    quoteRef: string
+                    metadata?: {
+                      [key: string]: unknown
+                    }
+                  }[]
+                  /** @default [] */
+                  diagnostics: {
+                    sourceId: string
+                    providerId?: string
+                    /** @enum {string} */
+                    status: "ok" | "timeout" | "error" | "unavailable"
+                    message?: string
+                    latencyMs?: number
+                  }[]
+                }[]
+              }
+              paymentIntents: ("hold" | "card" | "bank_transfer" | "ticket_on_credit" | "inquiry")[]
+            }
+            requirementsFingerprint?: string
+            /** Format: date-time */
+            expiresAt: string
+            /** Format: date-time */
+            createdAt: string
+            /** Format: date-time */
+            updatedAt: string
+            selection?: {
+              [key: string]: unknown
+            }
+            /** @enum {string} */
+            redaction: "none" | "selection_omitted"
+          }
+        }
+      | {
+          /** @enum {string} */
+          kind: "session_renewed"
+          session: {
+            id: string
+            target:
+              | {
+                  /** @enum {string} */
+                  kind: "product"
+                  productId: string
+                }
+              | {
+                  /** @enum {string} */
+                  kind: "catalog_item"
+                  catalogItemId: string
+                }
+              | {
+                  /** @enum {string} */
+                  kind: "owned_entity"
+                  entityModule: string
+                  entityId: string
+                }
+              | {
+                  /** @enum {string} */
+                  kind: "trip_snapshot"
+                  tripSnapshotId: string
+                  tripEnvelopeId: string
+                }
+              | {
+                  /** @enum {string} */
+                  kind: "managed_itinerary"
+                }
+            origin?: {
+              /** @enum {string} */
+              kind: "accepted_proposal_version"
+              proposalId: string
+              proposalVersionId: string
+              tripSnapshotId: string
+            }
+            /** @enum {string} */
+            actorKind: "anonymous" | "customer" | "staff" | "partner"
+            /** @enum {string} */
+            state:
+              | "active"
+              | "supplier_pending"
+              | "component_pending"
+              | "consumed"
+              | "expired"
+              | "abandoned"
+            revision: number
+            scope: {
+              locale: string
+              market: string
+              currency?: string
+            }
+            requirements?: {
+              showsConfigure: boolean
+              showsBilling: boolean
+              showsTravelers: boolean
+              showsAccommodation: boolean
+              showsAddons: boolean
+              /** @default false */
+              showsAncillaries: boolean
+              showsPayment: boolean
+              /** @enum {boolean} */
+              showsReview: true
+              configureSubSteps?: (
+                | {
+                    /** @enum {string} */
+                    kind: "departure"
+                    /** @enum {boolean} */
+                    required: true
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "product-option"
+                    options: {
+                      id: string
+                      code?: string | null
+                      name: string
+                      description?: string | null
+                      isDefault?: boolean
+                      units?: {
+                        id: string
+                        name: string
+                        description?: string | null
+                        unitType?: string | null
+                        minQuantity?: number | null
+                        maxQuantity?: number | null
+                      }[]
+                    }[]
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "option-units"
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "cabin-category"
+                    categories: {
+                      id: string
+                      code?: string
+                      name: string
+                      type?: string
+                      capacityMin?: number
+                      capacityMax?: number
+                      description?: string
+                    }[]
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "cabin-number"
+                    perCategory: {
+                      [key: string]: {
+                        id: string
+                        code?: string
+                        label: string
+                        capacity?: number
+                        hasAccessibilityFeatures?: boolean
+                      }[]
+                    }
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "date-range"
+                    minNights: number
+                    maxNights: number
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "occupancy"
+                    bands: {
+                      code: string
+                      label: string
+                      minAge?: number
+                      maxAge?: number
+                      minCount: number
+                      maxCount: number
+                    }[]
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "air-arrangement"
+                    required?: boolean
+                  }
+              )[]
+              paxBands: {
+                code: string
+                label: string
+                minAge?: number
+                maxAge?: number
+                minCount: number
+                maxCount: number
+              }[]
+              paxBandsAllowedTotal: {
+                min: number
+                max: number
+              }
+              paxBandDependencies?: {
+                dependentCode: string
+                masterCode: string
+                /** @enum {string} */
+                type: "requires" | "limits_per_master" | "limits_sum" | "excludes"
+                maxPerMaster?: number
+                maxDependentSum?: number
+              }[]
+              travelerFields: {
+                key: string
+                label: string
+                type: string
+                required: boolean
+                options?: {
+                  value: string
+                  label: string
+                }[]
+                appliesToBands?: string[]
+                maxLength?: number
+              }[]
+              bookingFields: {
+                key: string
+                label: string
+                type: string
+                required: boolean
+                /** @enum {string} */
+                group: "billing" | "company" | "preferences"
+                maxLength?: number
+              }[]
+              accommodation?: {
+                roomOptions?: {
+                  id: string
+                  name: string
+                  description?: string | null
+                  capacity?: number | null
+                  baseRateHint?: number | null
+                  ratePlans?: {
+                    id: string
+                    name: string
+                    description?: string | null
+                    /** @enum {string} */
+                    chargeFrequency?: "per_night" | "per_stay"
+                    cancellationPolicy?: string | null
+                    inclusions?: string[]
+                    currency?: string
+                  }[]
+                }[]
+                sharedRoomAllowed: boolean
+                subSteps?: (
+                  | {
+                      /** @enum {string} */
+                      kind: "rooms"
+                      options: {
+                        id: string
+                        name: string
+                        description?: string | null
+                        capacity?: number | null
+                        baseRateHint?: number | null
+                        ratePlans?: {
+                          id: string
+                          name: string
+                          description?: string | null
+                          /** @enum {string} */
+                          chargeFrequency?: "per_night" | "per_stay"
+                          cancellationPolicy?: string | null
+                          inclusions?: string[]
+                          currency?: string
+                        }[]
+                      }[]
+                      sharedRoomAllowed: boolean
+                    }
+                  | {
+                      /** @enum {string} */
+                      kind: "extensions"
+                      options: {
+                        id: string
+                        name: string
+                        city?: string | null
+                        /** @enum {string} */
+                        side: "pre" | "post"
+                        nights?: number | null
+                        pricePerPersonHint?: number | null
+                      }[]
+                      allowsPre: boolean
+                      allowsPost: boolean
+                    }
+                )[]
+              }
+              addons?: {
+                catalog?: {
+                  id: string
+                  name: string
+                  description?: string | null
+                  /** @enum {string} */
+                  kind: "extras" | "excursions" | "insurance"
+                  groupKey?: string | null
+                  pricingMode?: string | null
+                  unitAmountCents?: number | null
+                  currency?: string | null
+                  pricedPerPerson?: boolean | null
+                  /** @enum {string|null} */
+                  selectionType?:
+                    | "optional"
+                    | "required"
+                    | "default_selected"
+                    | "unavailable"
+                    | null
+                  minQuantity?: number | null
+                  maxQuantity?: number | null
+                  defaultQuantity?: number | null
+                }[]
+                groups?: {
+                  /** @enum {string} */
+                  kind: "extras" | "excursions" | "insurance"
+                  label: string
+                  /** @enum {string} */
+                  groupBy?: "port" | "day"
+                  perGuestSelection: boolean
+                  items: {
+                    id: string
+                    name: string
+                    description?: string | null
+                    /** @enum {string} */
+                    kind: "extras" | "excursions" | "insurance"
+                    groupKey?: string | null
+                    pricingMode?: string | null
+                    unitAmountCents?: number | null
+                    currency?: string | null
+                    pricedPerPerson?: boolean | null
+                    /** @enum {string|null} */
+                    selectionType?:
+                      | "optional"
+                      | "required"
+                      | "default_selected"
+                      | "unavailable"
+                      | null
+                    minQuantity?: number | null
+                    maxQuantity?: number | null
+                    defaultQuantity?: number | null
+                  }[]
+                }[]
+              }
+              ancillaries?: {
+                /** @default [] */
+                groups: {
+                  kind: string
+                  label: string
+                  /** @default [] */
+                  offers: {
+                    offerId: string
+                    sourceId: string
+                    providerId: string
+                    providerLabel: string
+                    kind: string
+                    title: string
+                    summary?: string | null
+                    planLabel?: string | null
+                    price: {
+                      amountMinor: number
+                      currency: string
+                    }
+                    /** @default false */
+                    pricedPerPerson: boolean
+                    /** @default [] */
+                    highlights: {
+                      label: string
+                      value?: string
+                    }[]
+                    eligibility: {
+                      /** @enum {string} */
+                      status: "eligible" | "ineligible" | "referral"
+                      /** @default [] */
+                      reasons: {
+                        code: string
+                        message: string
+                      }[]
+                    }
+                    /** @default [] */
+                    disclosures: {
+                      kind: string
+                      label: string
+                      versionId: string
+                      url?: string
+                      required: boolean
+                    }[]
+                    /** @default [] */
+                    requiredTravelerFields: {
+                      key: string
+                      label: string
+                      type: string
+                      required: boolean
+                      /** @default false */
+                      sensitive: boolean
+                      options?: {
+                        value: string
+                        label: string
+                      }[]
+                      helpText?: string
+                    }[]
+                    validUntil: string
+                    quoteRef: string
+                    metadata?: {
+                      [key: string]: unknown
+                    }
+                  }[]
+                  /** @default [] */
+                  diagnostics: {
+                    sourceId: string
+                    providerId?: string
+                    /** @enum {string} */
+                    status: "ok" | "timeout" | "error" | "unavailable"
+                    message?: string
+                    latencyMs?: number
+                  }[]
+                }[]
+              }
+              paymentIntents: ("hold" | "card" | "bank_transfer" | "ticket_on_credit" | "inquiry")[]
+            }
+            requirementsFingerprint?: string
+            /** Format: date-time */
+            expiresAt: string
+            /** Format: date-time */
+            createdAt: string
+            /** Format: date-time */
+            updatedAt: string
+          }
+        }
+      | {
+          /** @enum {string} */
+          kind: "session_abandoned"
+          session: {
+            id: string
+            target:
+              | {
+                  /** @enum {string} */
+                  kind: "product"
+                  productId: string
+                }
+              | {
+                  /** @enum {string} */
+                  kind: "catalog_item"
+                  catalogItemId: string
+                }
+              | {
+                  /** @enum {string} */
+                  kind: "owned_entity"
+                  entityModule: string
+                  entityId: string
+                }
+              | {
+                  /** @enum {string} */
+                  kind: "trip_snapshot"
+                  tripSnapshotId: string
+                  tripEnvelopeId: string
+                }
+              | {
+                  /** @enum {string} */
+                  kind: "managed_itinerary"
+                }
+            origin?: {
+              /** @enum {string} */
+              kind: "accepted_proposal_version"
+              proposalId: string
+              proposalVersionId: string
+              tripSnapshotId: string
+            }
+            /** @enum {string} */
+            actorKind: "anonymous" | "customer" | "staff" | "partner"
+            /** @enum {string} */
+            state:
+              | "active"
+              | "supplier_pending"
+              | "component_pending"
+              | "consumed"
+              | "expired"
+              | "abandoned"
+            revision: number
+            scope: {
+              locale: string
+              market: string
+              currency?: string
+            }
+            requirements?: {
+              showsConfigure: boolean
+              showsBilling: boolean
+              showsTravelers: boolean
+              showsAccommodation: boolean
+              showsAddons: boolean
+              /** @default false */
+              showsAncillaries: boolean
+              showsPayment: boolean
+              /** @enum {boolean} */
+              showsReview: true
+              configureSubSteps?: (
+                | {
+                    /** @enum {string} */
+                    kind: "departure"
+                    /** @enum {boolean} */
+                    required: true
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "product-option"
+                    options: {
+                      id: string
+                      code?: string | null
+                      name: string
+                      description?: string | null
+                      isDefault?: boolean
+                      units?: {
+                        id: string
+                        name: string
+                        description?: string | null
+                        unitType?: string | null
+                        minQuantity?: number | null
+                        maxQuantity?: number | null
+                      }[]
+                    }[]
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "option-units"
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "cabin-category"
+                    categories: {
+                      id: string
+                      code?: string
+                      name: string
+                      type?: string
+                      capacityMin?: number
+                      capacityMax?: number
+                      description?: string
+                    }[]
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "cabin-number"
+                    perCategory: {
+                      [key: string]: {
+                        id: string
+                        code?: string
+                        label: string
+                        capacity?: number
+                        hasAccessibilityFeatures?: boolean
+                      }[]
+                    }
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "date-range"
+                    minNights: number
+                    maxNights: number
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "occupancy"
+                    bands: {
+                      code: string
+                      label: string
+                      minAge?: number
+                      maxAge?: number
+                      minCount: number
+                      maxCount: number
+                    }[]
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "air-arrangement"
+                    required?: boolean
+                  }
+              )[]
+              paxBands: {
+                code: string
+                label: string
+                minAge?: number
+                maxAge?: number
+                minCount: number
+                maxCount: number
+              }[]
+              paxBandsAllowedTotal: {
+                min: number
+                max: number
+              }
+              paxBandDependencies?: {
+                dependentCode: string
+                masterCode: string
+                /** @enum {string} */
+                type: "requires" | "limits_per_master" | "limits_sum" | "excludes"
+                maxPerMaster?: number
+                maxDependentSum?: number
+              }[]
+              travelerFields: {
+                key: string
+                label: string
+                type: string
+                required: boolean
+                options?: {
+                  value: string
+                  label: string
+                }[]
+                appliesToBands?: string[]
+                maxLength?: number
+              }[]
+              bookingFields: {
+                key: string
+                label: string
+                type: string
+                required: boolean
+                /** @enum {string} */
+                group: "billing" | "company" | "preferences"
+                maxLength?: number
+              }[]
+              accommodation?: {
+                roomOptions?: {
+                  id: string
+                  name: string
+                  description?: string | null
+                  capacity?: number | null
+                  baseRateHint?: number | null
+                  ratePlans?: {
+                    id: string
+                    name: string
+                    description?: string | null
+                    /** @enum {string} */
+                    chargeFrequency?: "per_night" | "per_stay"
+                    cancellationPolicy?: string | null
+                    inclusions?: string[]
+                    currency?: string
+                  }[]
+                }[]
+                sharedRoomAllowed: boolean
+                subSteps?: (
+                  | {
+                      /** @enum {string} */
+                      kind: "rooms"
+                      options: {
+                        id: string
+                        name: string
+                        description?: string | null
+                        capacity?: number | null
+                        baseRateHint?: number | null
+                        ratePlans?: {
+                          id: string
+                          name: string
+                          description?: string | null
+                          /** @enum {string} */
+                          chargeFrequency?: "per_night" | "per_stay"
+                          cancellationPolicy?: string | null
+                          inclusions?: string[]
+                          currency?: string
+                        }[]
+                      }[]
+                      sharedRoomAllowed: boolean
+                    }
+                  | {
+                      /** @enum {string} */
+                      kind: "extensions"
+                      options: {
+                        id: string
+                        name: string
+                        city?: string | null
+                        /** @enum {string} */
+                        side: "pre" | "post"
+                        nights?: number | null
+                        pricePerPersonHint?: number | null
+                      }[]
+                      allowsPre: boolean
+                      allowsPost: boolean
+                    }
+                )[]
+              }
+              addons?: {
+                catalog?: {
+                  id: string
+                  name: string
+                  description?: string | null
+                  /** @enum {string} */
+                  kind: "extras" | "excursions" | "insurance"
+                  groupKey?: string | null
+                  pricingMode?: string | null
+                  unitAmountCents?: number | null
+                  currency?: string | null
+                  pricedPerPerson?: boolean | null
+                  /** @enum {string|null} */
+                  selectionType?:
+                    | "optional"
+                    | "required"
+                    | "default_selected"
+                    | "unavailable"
+                    | null
+                  minQuantity?: number | null
+                  maxQuantity?: number | null
+                  defaultQuantity?: number | null
+                }[]
+                groups?: {
+                  /** @enum {string} */
+                  kind: "extras" | "excursions" | "insurance"
+                  label: string
+                  /** @enum {string} */
+                  groupBy?: "port" | "day"
+                  perGuestSelection: boolean
+                  items: {
+                    id: string
+                    name: string
+                    description?: string | null
+                    /** @enum {string} */
+                    kind: "extras" | "excursions" | "insurance"
+                    groupKey?: string | null
+                    pricingMode?: string | null
+                    unitAmountCents?: number | null
+                    currency?: string | null
+                    pricedPerPerson?: boolean | null
+                    /** @enum {string|null} */
+                    selectionType?:
+                      | "optional"
+                      | "required"
+                      | "default_selected"
+                      | "unavailable"
+                      | null
+                    minQuantity?: number | null
+                    maxQuantity?: number | null
+                    defaultQuantity?: number | null
+                  }[]
+                }[]
+              }
+              ancillaries?: {
+                /** @default [] */
+                groups: {
+                  kind: string
+                  label: string
+                  /** @default [] */
+                  offers: {
+                    offerId: string
+                    sourceId: string
+                    providerId: string
+                    providerLabel: string
+                    kind: string
+                    title: string
+                    summary?: string | null
+                    planLabel?: string | null
+                    price: {
+                      amountMinor: number
+                      currency: string
+                    }
+                    /** @default false */
+                    pricedPerPerson: boolean
+                    /** @default [] */
+                    highlights: {
+                      label: string
+                      value?: string
+                    }[]
+                    eligibility: {
+                      /** @enum {string} */
+                      status: "eligible" | "ineligible" | "referral"
+                      /** @default [] */
+                      reasons: {
+                        code: string
+                        message: string
+                      }[]
+                    }
+                    /** @default [] */
+                    disclosures: {
+                      kind: string
+                      label: string
+                      versionId: string
+                      url?: string
+                      required: boolean
+                    }[]
+                    /** @default [] */
+                    requiredTravelerFields: {
+                      key: string
+                      label: string
+                      type: string
+                      required: boolean
+                      /** @default false */
+                      sensitive: boolean
+                      options?: {
+                        value: string
+                        label: string
+                      }[]
+                      helpText?: string
+                    }[]
+                    validUntil: string
+                    quoteRef: string
+                    metadata?: {
+                      [key: string]: unknown
+                    }
+                  }[]
+                  /** @default [] */
+                  diagnostics: {
+                    sourceId: string
+                    providerId?: string
+                    /** @enum {string} */
+                    status: "ok" | "timeout" | "error" | "unavailable"
+                    message?: string
+                    latencyMs?: number
+                  }[]
+                }[]
+              }
+              paymentIntents: ("hold" | "card" | "bank_transfer" | "ticket_on_credit" | "inquiry")[]
+            }
+            requirementsFingerprint?: string
+            /** Format: date-time */
+            expiresAt: string
+            /** Format: date-time */
+            createdAt: string
+            /** Format: date-time */
+            updatedAt: string
+          }
+        }
+      | {
+          /** @enum {string} */
+          kind: "quote_created"
+          session: {
+            id: string
+            target:
+              | {
+                  /** @enum {string} */
+                  kind: "product"
+                  productId: string
+                }
+              | {
+                  /** @enum {string} */
+                  kind: "catalog_item"
+                  catalogItemId: string
+                }
+              | {
+                  /** @enum {string} */
+                  kind: "owned_entity"
+                  entityModule: string
+                  entityId: string
+                }
+              | {
+                  /** @enum {string} */
+                  kind: "trip_snapshot"
+                  tripSnapshotId: string
+                  tripEnvelopeId: string
+                }
+              | {
+                  /** @enum {string} */
+                  kind: "managed_itinerary"
+                }
+            origin?: {
+              /** @enum {string} */
+              kind: "accepted_proposal_version"
+              proposalId: string
+              proposalVersionId: string
+              tripSnapshotId: string
+            }
+            /** @enum {string} */
+            actorKind: "anonymous" | "customer" | "staff" | "partner"
+            /** @enum {string} */
+            state:
+              | "active"
+              | "supplier_pending"
+              | "component_pending"
+              | "consumed"
+              | "expired"
+              | "abandoned"
+            revision: number
+            scope: {
+              locale: string
+              market: string
+              currency?: string
+            }
+            requirements?: {
+              showsConfigure: boolean
+              showsBilling: boolean
+              showsTravelers: boolean
+              showsAccommodation: boolean
+              showsAddons: boolean
+              /** @default false */
+              showsAncillaries: boolean
+              showsPayment: boolean
+              /** @enum {boolean} */
+              showsReview: true
+              configureSubSteps?: (
+                | {
+                    /** @enum {string} */
+                    kind: "departure"
+                    /** @enum {boolean} */
+                    required: true
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "product-option"
+                    options: {
+                      id: string
+                      code?: string | null
+                      name: string
+                      description?: string | null
+                      isDefault?: boolean
+                      units?: {
+                        id: string
+                        name: string
+                        description?: string | null
+                        unitType?: string | null
+                        minQuantity?: number | null
+                        maxQuantity?: number | null
+                      }[]
+                    }[]
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "option-units"
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "cabin-category"
+                    categories: {
+                      id: string
+                      code?: string
+                      name: string
+                      type?: string
+                      capacityMin?: number
+                      capacityMax?: number
+                      description?: string
+                    }[]
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "cabin-number"
+                    perCategory: {
+                      [key: string]: {
+                        id: string
+                        code?: string
+                        label: string
+                        capacity?: number
+                        hasAccessibilityFeatures?: boolean
+                      }[]
+                    }
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "date-range"
+                    minNights: number
+                    maxNights: number
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "occupancy"
+                    bands: {
+                      code: string
+                      label: string
+                      minAge?: number
+                      maxAge?: number
+                      minCount: number
+                      maxCount: number
+                    }[]
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "air-arrangement"
+                    required?: boolean
+                  }
+              )[]
+              paxBands: {
+                code: string
+                label: string
+                minAge?: number
+                maxAge?: number
+                minCount: number
+                maxCount: number
+              }[]
+              paxBandsAllowedTotal: {
+                min: number
+                max: number
+              }
+              paxBandDependencies?: {
+                dependentCode: string
+                masterCode: string
+                /** @enum {string} */
+                type: "requires" | "limits_per_master" | "limits_sum" | "excludes"
+                maxPerMaster?: number
+                maxDependentSum?: number
+              }[]
+              travelerFields: {
+                key: string
+                label: string
+                type: string
+                required: boolean
+                options?: {
+                  value: string
+                  label: string
+                }[]
+                appliesToBands?: string[]
+                maxLength?: number
+              }[]
+              bookingFields: {
+                key: string
+                label: string
+                type: string
+                required: boolean
+                /** @enum {string} */
+                group: "billing" | "company" | "preferences"
+                maxLength?: number
+              }[]
+              accommodation?: {
+                roomOptions?: {
+                  id: string
+                  name: string
+                  description?: string | null
+                  capacity?: number | null
+                  baseRateHint?: number | null
+                  ratePlans?: {
+                    id: string
+                    name: string
+                    description?: string | null
+                    /** @enum {string} */
+                    chargeFrequency?: "per_night" | "per_stay"
+                    cancellationPolicy?: string | null
+                    inclusions?: string[]
+                    currency?: string
+                  }[]
+                }[]
+                sharedRoomAllowed: boolean
+                subSteps?: (
+                  | {
+                      /** @enum {string} */
+                      kind: "rooms"
+                      options: {
+                        id: string
+                        name: string
+                        description?: string | null
+                        capacity?: number | null
+                        baseRateHint?: number | null
+                        ratePlans?: {
+                          id: string
+                          name: string
+                          description?: string | null
+                          /** @enum {string} */
+                          chargeFrequency?: "per_night" | "per_stay"
+                          cancellationPolicy?: string | null
+                          inclusions?: string[]
+                          currency?: string
+                        }[]
+                      }[]
+                      sharedRoomAllowed: boolean
+                    }
+                  | {
+                      /** @enum {string} */
+                      kind: "extensions"
+                      options: {
+                        id: string
+                        name: string
+                        city?: string | null
+                        /** @enum {string} */
+                        side: "pre" | "post"
+                        nights?: number | null
+                        pricePerPersonHint?: number | null
+                      }[]
+                      allowsPre: boolean
+                      allowsPost: boolean
+                    }
+                )[]
+              }
+              addons?: {
+                catalog?: {
+                  id: string
+                  name: string
+                  description?: string | null
+                  /** @enum {string} */
+                  kind: "extras" | "excursions" | "insurance"
+                  groupKey?: string | null
+                  pricingMode?: string | null
+                  unitAmountCents?: number | null
+                  currency?: string | null
+                  pricedPerPerson?: boolean | null
+                  /** @enum {string|null} */
+                  selectionType?:
+                    | "optional"
+                    | "required"
+                    | "default_selected"
+                    | "unavailable"
+                    | null
+                  minQuantity?: number | null
+                  maxQuantity?: number | null
+                  defaultQuantity?: number | null
+                }[]
+                groups?: {
+                  /** @enum {string} */
+                  kind: "extras" | "excursions" | "insurance"
+                  label: string
+                  /** @enum {string} */
+                  groupBy?: "port" | "day"
+                  perGuestSelection: boolean
+                  items: {
+                    id: string
+                    name: string
+                    description?: string | null
+                    /** @enum {string} */
+                    kind: "extras" | "excursions" | "insurance"
+                    groupKey?: string | null
+                    pricingMode?: string | null
+                    unitAmountCents?: number | null
+                    currency?: string | null
+                    pricedPerPerson?: boolean | null
+                    /** @enum {string|null} */
+                    selectionType?:
+                      | "optional"
+                      | "required"
+                      | "default_selected"
+                      | "unavailable"
+                      | null
+                    minQuantity?: number | null
+                    maxQuantity?: number | null
+                    defaultQuantity?: number | null
+                  }[]
+                }[]
+              }
+              ancillaries?: {
+                /** @default [] */
+                groups: {
+                  kind: string
+                  label: string
+                  /** @default [] */
+                  offers: {
+                    offerId: string
+                    sourceId: string
+                    providerId: string
+                    providerLabel: string
+                    kind: string
+                    title: string
+                    summary?: string | null
+                    planLabel?: string | null
+                    price: {
+                      amountMinor: number
+                      currency: string
+                    }
+                    /** @default false */
+                    pricedPerPerson: boolean
+                    /** @default [] */
+                    highlights: {
+                      label: string
+                      value?: string
+                    }[]
+                    eligibility: {
+                      /** @enum {string} */
+                      status: "eligible" | "ineligible" | "referral"
+                      /** @default [] */
+                      reasons: {
+                        code: string
+                        message: string
+                      }[]
+                    }
+                    /** @default [] */
+                    disclosures: {
+                      kind: string
+                      label: string
+                      versionId: string
+                      url?: string
+                      required: boolean
+                    }[]
+                    /** @default [] */
+                    requiredTravelerFields: {
+                      key: string
+                      label: string
+                      type: string
+                      required: boolean
+                      /** @default false */
+                      sensitive: boolean
+                      options?: {
+                        value: string
+                        label: string
+                      }[]
+                      helpText?: string
+                    }[]
+                    validUntil: string
+                    quoteRef: string
+                    metadata?: {
+                      [key: string]: unknown
+                    }
+                  }[]
+                  /** @default [] */
+                  diagnostics: {
+                    sourceId: string
+                    providerId?: string
+                    /** @enum {string} */
+                    status: "ok" | "timeout" | "error" | "unavailable"
+                    message?: string
+                    latencyMs?: number
+                  }[]
+                }[]
+              }
+              paymentIntents: ("hold" | "card" | "bank_transfer" | "ticket_on_credit" | "inquiry")[]
+            }
+            requirementsFingerprint?: string
+            /** Format: date-time */
+            expiresAt: string
+            /** Format: date-time */
+            createdAt: string
+            /** Format: date-time */
+            updatedAt: string
+          }
+          quote: {
+            id: string
+            sessionId: string
+            sessionRevision: number
+            /** @enum {string} */
+            state: "active" | "superseded" | "consumed" | "expired"
+            requirements: {
+              showsConfigure: boolean
+              showsBilling: boolean
+              showsTravelers: boolean
+              showsAccommodation: boolean
+              showsAddons: boolean
+              /** @default false */
+              showsAncillaries: boolean
+              showsPayment: boolean
+              /** @enum {boolean} */
+              showsReview: true
+              configureSubSteps?: (
+                | {
+                    /** @enum {string} */
+                    kind: "departure"
+                    /** @enum {boolean} */
+                    required: true
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "product-option"
+                    options: {
+                      id: string
+                      code?: string | null
+                      name: string
+                      description?: string | null
+                      isDefault?: boolean
+                      units?: {
+                        id: string
+                        name: string
+                        description?: string | null
+                        unitType?: string | null
+                        minQuantity?: number | null
+                        maxQuantity?: number | null
+                      }[]
+                    }[]
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "option-units"
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "cabin-category"
+                    categories: {
+                      id: string
+                      code?: string
+                      name: string
+                      type?: string
+                      capacityMin?: number
+                      capacityMax?: number
+                      description?: string
+                    }[]
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "cabin-number"
+                    perCategory: {
+                      [key: string]: {
+                        id: string
+                        code?: string
+                        label: string
+                        capacity?: number
+                        hasAccessibilityFeatures?: boolean
+                      }[]
+                    }
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "date-range"
+                    minNights: number
+                    maxNights: number
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "occupancy"
+                    bands: {
+                      code: string
+                      label: string
+                      minAge?: number
+                      maxAge?: number
+                      minCount: number
+                      maxCount: number
+                    }[]
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "air-arrangement"
+                    required?: boolean
+                  }
+              )[]
+              paxBands: {
+                code: string
+                label: string
+                minAge?: number
+                maxAge?: number
+                minCount: number
+                maxCount: number
+              }[]
+              paxBandsAllowedTotal: {
+                min: number
+                max: number
+              }
+              paxBandDependencies?: {
+                dependentCode: string
+                masterCode: string
+                /** @enum {string} */
+                type: "requires" | "limits_per_master" | "limits_sum" | "excludes"
+                maxPerMaster?: number
+                maxDependentSum?: number
+              }[]
+              travelerFields: {
+                key: string
+                label: string
+                type: string
+                required: boolean
+                options?: {
+                  value: string
+                  label: string
+                }[]
+                appliesToBands?: string[]
+                maxLength?: number
+              }[]
+              bookingFields: {
+                key: string
+                label: string
+                type: string
+                required: boolean
+                /** @enum {string} */
+                group: "billing" | "company" | "preferences"
+                maxLength?: number
+              }[]
+              accommodation?: {
+                roomOptions?: {
+                  id: string
+                  name: string
+                  description?: string | null
+                  capacity?: number | null
+                  baseRateHint?: number | null
+                  ratePlans?: {
+                    id: string
+                    name: string
+                    description?: string | null
+                    /** @enum {string} */
+                    chargeFrequency?: "per_night" | "per_stay"
+                    cancellationPolicy?: string | null
+                    inclusions?: string[]
+                    currency?: string
+                  }[]
+                }[]
+                sharedRoomAllowed: boolean
+                subSteps?: (
+                  | {
+                      /** @enum {string} */
+                      kind: "rooms"
+                      options: {
+                        id: string
+                        name: string
+                        description?: string | null
+                        capacity?: number | null
+                        baseRateHint?: number | null
+                        ratePlans?: {
+                          id: string
+                          name: string
+                          description?: string | null
+                          /** @enum {string} */
+                          chargeFrequency?: "per_night" | "per_stay"
+                          cancellationPolicy?: string | null
+                          inclusions?: string[]
+                          currency?: string
+                        }[]
+                      }[]
+                      sharedRoomAllowed: boolean
+                    }
+                  | {
+                      /** @enum {string} */
+                      kind: "extensions"
+                      options: {
+                        id: string
+                        name: string
+                        city?: string | null
+                        /** @enum {string} */
+                        side: "pre" | "post"
+                        nights?: number | null
+                        pricePerPersonHint?: number | null
+                      }[]
+                      allowsPre: boolean
+                      allowsPost: boolean
+                    }
+                )[]
+              }
+              addons?: {
+                catalog?: {
+                  id: string
+                  name: string
+                  description?: string | null
+                  /** @enum {string} */
+                  kind: "extras" | "excursions" | "insurance"
+                  groupKey?: string | null
+                  pricingMode?: string | null
+                  unitAmountCents?: number | null
+                  currency?: string | null
+                  pricedPerPerson?: boolean | null
+                  /** @enum {string|null} */
+                  selectionType?:
+                    | "optional"
+                    | "required"
+                    | "default_selected"
+                    | "unavailable"
+                    | null
+                  minQuantity?: number | null
+                  maxQuantity?: number | null
+                  defaultQuantity?: number | null
+                }[]
+                groups?: {
+                  /** @enum {string} */
+                  kind: "extras" | "excursions" | "insurance"
+                  label: string
+                  /** @enum {string} */
+                  groupBy?: "port" | "day"
+                  perGuestSelection: boolean
+                  items: {
+                    id: string
+                    name: string
+                    description?: string | null
+                    /** @enum {string} */
+                    kind: "extras" | "excursions" | "insurance"
+                    groupKey?: string | null
+                    pricingMode?: string | null
+                    unitAmountCents?: number | null
+                    currency?: string | null
+                    pricedPerPerson?: boolean | null
+                    /** @enum {string|null} */
+                    selectionType?:
+                      | "optional"
+                      | "required"
+                      | "default_selected"
+                      | "unavailable"
+                      | null
+                    minQuantity?: number | null
+                    maxQuantity?: number | null
+                    defaultQuantity?: number | null
+                  }[]
+                }[]
+              }
+              ancillaries?: {
+                /** @default [] */
+                groups: {
+                  kind: string
+                  label: string
+                  /** @default [] */
+                  offers: {
+                    offerId: string
+                    sourceId: string
+                    providerId: string
+                    providerLabel: string
+                    kind: string
+                    title: string
+                    summary?: string | null
+                    planLabel?: string | null
+                    price: {
+                      amountMinor: number
+                      currency: string
+                    }
+                    /** @default false */
+                    pricedPerPerson: boolean
+                    /** @default [] */
+                    highlights: {
+                      label: string
+                      value?: string
+                    }[]
+                    eligibility: {
+                      /** @enum {string} */
+                      status: "eligible" | "ineligible" | "referral"
+                      /** @default [] */
+                      reasons: {
+                        code: string
+                        message: string
+                      }[]
+                    }
+                    /** @default [] */
+                    disclosures: {
+                      kind: string
+                      label: string
+                      versionId: string
+                      url?: string
+                      required: boolean
+                    }[]
+                    /** @default [] */
+                    requiredTravelerFields: {
+                      key: string
+                      label: string
+                      type: string
+                      required: boolean
+                      /** @default false */
+                      sensitive: boolean
+                      options?: {
+                        value: string
+                        label: string
+                      }[]
+                      helpText?: string
+                    }[]
+                    validUntil: string
+                    quoteRef: string
+                    metadata?: {
+                      [key: string]: unknown
+                    }
+                  }[]
+                  /** @default [] */
+                  diagnostics: {
+                    sourceId: string
+                    providerId?: string
+                    /** @enum {string} */
+                    status: "ok" | "timeout" | "error" | "unavailable"
+                    message?: string
+                    latencyMs?: number
+                  }[]
+                }[]
+              }
+              paymentIntents: ("hold" | "card" | "bank_transfer" | "ticket_on_credit" | "inquiry")[]
+            }
+            requirementsFingerprint: string
+            pricing: {
+              currency: string
+              lines: {
+                /** @enum {string} */
+                kind: "base" | "addon" | "accommodation" | "supplement" | "discount" | "fee"
+                label: string
+                quantity?: number
+                unitAmount: number
+                totalAmount: number
+                taxIncluded?: boolean
+                /** @enum {string} */
+                pricingBasis?: "per_person" | "per_unit" | "per_booking"
+                componentId?: string
+                /** @enum {string} */
+                authority?: "booking_quote" | "accepted_proposal_manual"
+              }[]
+              taxes: {
+                code: string
+                label: string
+                rate: number
+                amount: number
+                base: number
+                includedInPrice?: boolean
+                /** @enum {string} */
+                scope?: "included" | "excluded" | "withheld"
+                componentId?: string
+              }[]
+              subtotal: number
+              taxTotal: number
+              total: number
+              appliedOffers?: {
+                offerId: string
+                offerName: string
+                discountAppliedCents: number
+                discountedPriceCents: number
+                currency: string
+                /** @enum {string} */
+                discountKind: "percentage" | "fixed_amount"
+                discountPercent: number | null
+                discountAmountCents: number | null
+                appliedCode: string | null
+                stackable: boolean
+              }[]
+              promotionCodeStatus?:
+                | {
+                    /** @enum {string} */
+                    kind: "code_valid"
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "code_not_found"
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "code_expired"
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "code_not_yet_valid"
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "code_not_applicable"
+                    /** @enum {string} */
+                    reason: "scope" | "min_pax" | "eligibility" | "currency"
+                  }
+              policyEvidence?: {
+                cancellation?: unknown
+                bookingTerms?: unknown
+              }
+              componentPolicies?: {
+                cancellation?: unknown
+                bookingTerms?: unknown
+                componentId: string
+              }[]
+            }
+            paymentPlan?: {
+              /** @enum {string} */
+              policySource:
+                | "booking"
+                | "proposal"
+                | "listing"
+                | "category"
+                | "supplier"
+                | "operator_default"
+              currency: string
+              totalCents: number
+              dueNowCents: number
+              payInFullCents: number | null
+              entries: {
+                /** @enum {string} */
+                scheduleType: "deposit" | "balance" | "full"
+                amountCents: number
+                currency: string
+                dueDate: string
+              }[]
+            }
+            /** Format: date-time */
+            quotedAt: string
+            /** Format: date-time */
+            expiresAt: string
+          }
+        }
+      | {
+          /** @enum {string} */
+          kind: "hold_created"
+          session: {
+            id: string
+            target:
+              | {
+                  /** @enum {string} */
+                  kind: "product"
+                  productId: string
+                }
+              | {
+                  /** @enum {string} */
+                  kind: "catalog_item"
+                  catalogItemId: string
+                }
+              | {
+                  /** @enum {string} */
+                  kind: "owned_entity"
+                  entityModule: string
+                  entityId: string
+                }
+              | {
+                  /** @enum {string} */
+                  kind: "trip_snapshot"
+                  tripSnapshotId: string
+                  tripEnvelopeId: string
+                }
+              | {
+                  /** @enum {string} */
+                  kind: "managed_itinerary"
+                }
+            origin?: {
+              /** @enum {string} */
+              kind: "accepted_proposal_version"
+              proposalId: string
+              proposalVersionId: string
+              tripSnapshotId: string
+            }
+            /** @enum {string} */
+            actorKind: "anonymous" | "customer" | "staff" | "partner"
+            /** @enum {string} */
+            state:
+              | "active"
+              | "supplier_pending"
+              | "component_pending"
+              | "consumed"
+              | "expired"
+              | "abandoned"
+            revision: number
+            scope: {
+              locale: string
+              market: string
+              currency?: string
+            }
+            requirements?: {
+              showsConfigure: boolean
+              showsBilling: boolean
+              showsTravelers: boolean
+              showsAccommodation: boolean
+              showsAddons: boolean
+              /** @default false */
+              showsAncillaries: boolean
+              showsPayment: boolean
+              /** @enum {boolean} */
+              showsReview: true
+              configureSubSteps?: (
+                | {
+                    /** @enum {string} */
+                    kind: "departure"
+                    /** @enum {boolean} */
+                    required: true
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "product-option"
+                    options: {
+                      id: string
+                      code?: string | null
+                      name: string
+                      description?: string | null
+                      isDefault?: boolean
+                      units?: {
+                        id: string
+                        name: string
+                        description?: string | null
+                        unitType?: string | null
+                        minQuantity?: number | null
+                        maxQuantity?: number | null
+                      }[]
+                    }[]
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "option-units"
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "cabin-category"
+                    categories: {
+                      id: string
+                      code?: string
+                      name: string
+                      type?: string
+                      capacityMin?: number
+                      capacityMax?: number
+                      description?: string
+                    }[]
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "cabin-number"
+                    perCategory: {
+                      [key: string]: {
+                        id: string
+                        code?: string
+                        label: string
+                        capacity?: number
+                        hasAccessibilityFeatures?: boolean
+                      }[]
+                    }
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "date-range"
+                    minNights: number
+                    maxNights: number
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "occupancy"
+                    bands: {
+                      code: string
+                      label: string
+                      minAge?: number
+                      maxAge?: number
+                      minCount: number
+                      maxCount: number
+                    }[]
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "air-arrangement"
+                    required?: boolean
+                  }
+              )[]
+              paxBands: {
+                code: string
+                label: string
+                minAge?: number
+                maxAge?: number
+                minCount: number
+                maxCount: number
+              }[]
+              paxBandsAllowedTotal: {
+                min: number
+                max: number
+              }
+              paxBandDependencies?: {
+                dependentCode: string
+                masterCode: string
+                /** @enum {string} */
+                type: "requires" | "limits_per_master" | "limits_sum" | "excludes"
+                maxPerMaster?: number
+                maxDependentSum?: number
+              }[]
+              travelerFields: {
+                key: string
+                label: string
+                type: string
+                required: boolean
+                options?: {
+                  value: string
+                  label: string
+                }[]
+                appliesToBands?: string[]
+                maxLength?: number
+              }[]
+              bookingFields: {
+                key: string
+                label: string
+                type: string
+                required: boolean
+                /** @enum {string} */
+                group: "billing" | "company" | "preferences"
+                maxLength?: number
+              }[]
+              accommodation?: {
+                roomOptions?: {
+                  id: string
+                  name: string
+                  description?: string | null
+                  capacity?: number | null
+                  baseRateHint?: number | null
+                  ratePlans?: {
+                    id: string
+                    name: string
+                    description?: string | null
+                    /** @enum {string} */
+                    chargeFrequency?: "per_night" | "per_stay"
+                    cancellationPolicy?: string | null
+                    inclusions?: string[]
+                    currency?: string
+                  }[]
+                }[]
+                sharedRoomAllowed: boolean
+                subSteps?: (
+                  | {
+                      /** @enum {string} */
+                      kind: "rooms"
+                      options: {
+                        id: string
+                        name: string
+                        description?: string | null
+                        capacity?: number | null
+                        baseRateHint?: number | null
+                        ratePlans?: {
+                          id: string
+                          name: string
+                          description?: string | null
+                          /** @enum {string} */
+                          chargeFrequency?: "per_night" | "per_stay"
+                          cancellationPolicy?: string | null
+                          inclusions?: string[]
+                          currency?: string
+                        }[]
+                      }[]
+                      sharedRoomAllowed: boolean
+                    }
+                  | {
+                      /** @enum {string} */
+                      kind: "extensions"
+                      options: {
+                        id: string
+                        name: string
+                        city?: string | null
+                        /** @enum {string} */
+                        side: "pre" | "post"
+                        nights?: number | null
+                        pricePerPersonHint?: number | null
+                      }[]
+                      allowsPre: boolean
+                      allowsPost: boolean
+                    }
+                )[]
+              }
+              addons?: {
+                catalog?: {
+                  id: string
+                  name: string
+                  description?: string | null
+                  /** @enum {string} */
+                  kind: "extras" | "excursions" | "insurance"
+                  groupKey?: string | null
+                  pricingMode?: string | null
+                  unitAmountCents?: number | null
+                  currency?: string | null
+                  pricedPerPerson?: boolean | null
+                  /** @enum {string|null} */
+                  selectionType?:
+                    | "optional"
+                    | "required"
+                    | "default_selected"
+                    | "unavailable"
+                    | null
+                  minQuantity?: number | null
+                  maxQuantity?: number | null
+                  defaultQuantity?: number | null
+                }[]
+                groups?: {
+                  /** @enum {string} */
+                  kind: "extras" | "excursions" | "insurance"
+                  label: string
+                  /** @enum {string} */
+                  groupBy?: "port" | "day"
+                  perGuestSelection: boolean
+                  items: {
+                    id: string
+                    name: string
+                    description?: string | null
+                    /** @enum {string} */
+                    kind: "extras" | "excursions" | "insurance"
+                    groupKey?: string | null
+                    pricingMode?: string | null
+                    unitAmountCents?: number | null
+                    currency?: string | null
+                    pricedPerPerson?: boolean | null
+                    /** @enum {string|null} */
+                    selectionType?:
+                      | "optional"
+                      | "required"
+                      | "default_selected"
+                      | "unavailable"
+                      | null
+                    minQuantity?: number | null
+                    maxQuantity?: number | null
+                    defaultQuantity?: number | null
+                  }[]
+                }[]
+              }
+              ancillaries?: {
+                /** @default [] */
+                groups: {
+                  kind: string
+                  label: string
+                  /** @default [] */
+                  offers: {
+                    offerId: string
+                    sourceId: string
+                    providerId: string
+                    providerLabel: string
+                    kind: string
+                    title: string
+                    summary?: string | null
+                    planLabel?: string | null
+                    price: {
+                      amountMinor: number
+                      currency: string
+                    }
+                    /** @default false */
+                    pricedPerPerson: boolean
+                    /** @default [] */
+                    highlights: {
+                      label: string
+                      value?: string
+                    }[]
+                    eligibility: {
+                      /** @enum {string} */
+                      status: "eligible" | "ineligible" | "referral"
+                      /** @default [] */
+                      reasons: {
+                        code: string
+                        message: string
+                      }[]
+                    }
+                    /** @default [] */
+                    disclosures: {
+                      kind: string
+                      label: string
+                      versionId: string
+                      url?: string
+                      required: boolean
+                    }[]
+                    /** @default [] */
+                    requiredTravelerFields: {
+                      key: string
+                      label: string
+                      type: string
+                      required: boolean
+                      /** @default false */
+                      sensitive: boolean
+                      options?: {
+                        value: string
+                        label: string
+                      }[]
+                      helpText?: string
+                    }[]
+                    validUntil: string
+                    quoteRef: string
+                    metadata?: {
+                      [key: string]: unknown
+                    }
+                  }[]
+                  /** @default [] */
+                  diagnostics: {
+                    sourceId: string
+                    providerId?: string
+                    /** @enum {string} */
+                    status: "ok" | "timeout" | "error" | "unavailable"
+                    message?: string
+                    latencyMs?: number
+                  }[]
+                }[]
+              }
+              paymentIntents: ("hold" | "card" | "bank_transfer" | "ticket_on_credit" | "inquiry")[]
+            }
+            requirementsFingerprint?: string
+            /** Format: date-time */
+            expiresAt: string
+            /** Format: date-time */
+            createdAt: string
+            /** Format: date-time */
+            updatedAt: string
+          }
+          hold: {
+            id: string
+            sessionId: string
+            quoteId: string
+            target:
+              | {
+                  /** @enum {string} */
+                  kind: "product"
+                  productId: string
+                }
+              | {
+                  /** @enum {string} */
+                  kind: "catalog_item"
+                  catalogItemId: string
+                }
+              | {
+                  /** @enum {string} */
+                  kind: "owned_entity"
+                  entityModule: string
+                  entityId: string
+                }
+              | {
+                  /** @enum {string} */
+                  kind: "trip_snapshot"
+                  tripSnapshotId: string
+                  tripEnvelopeId: string
+                }
+              | {
+                  /** @enum {string} */
+                  kind: "managed_itinerary"
+                }
+            quantity: number
+            /** @enum {string} */
+            state: "active" | "converted" | "released" | "expired"
+            /** Format: date-time */
+            expiresAt: string
+            /** Format: date-time */
+            createdAt: string
+          }
+        }
+      | {
+          /** @enum {string} */
+          kind: "commit_result"
+          outcome:
+            | {
+                /** @enum {string} */
+                kind: "committed"
+                /** @enum {string} */
+                nextAction: "none"
+                /** @enum {string} */
+                checkoutIntent?: "hold" | "card" | "bank_transfer" | "ticket_on_credit" | "inquiry"
+                bankTransfer?: {
+                  paymentSessionId: string | null
+                  document: {
+                    id: string
+                    number: string
+                    /** @enum {string} */
+                    type: "proforma" | "invoice"
+                  } | null
+                  instructions: {
+                    beneficiary: string
+                    iban: string
+                    bankName: string | null
+                    reference: string
+                    amountCents: number
+                    currency: string
+                    /** Format: date-time */
+                    dueAt: string
+                  }
+                }
+                booking: {
+                  id: string
+                  /** @enum {string} */
+                  status: "confirmed"
+                }
+                allocationIds: string[]
+                consumedSessionId: string
+                consumedQuoteId: string
+                convertedHoldId?: string
+                supplierOperationId?: string
+                operatorBackedRiskAccepted?: boolean
+              }
+            | {
+                /** @enum {string} */
+                kind: "component_bookings_committed"
+                /** @enum {string} */
+                nextAction: "none"
+                /** @enum {string} */
+                checkoutIntent?: "hold" | "card" | "bank_transfer" | "ticket_on_credit" | "inquiry"
+                bankTransfer?: {
+                  paymentSessionId: string | null
+                  document: {
+                    id: string
+                    number: string
+                    /** @enum {string} */
+                    type: "proforma" | "invoice"
+                  } | null
+                  instructions: {
+                    beneficiary: string
+                    iban: string
+                    bankName: string | null
+                    reference: string
+                    amountCents: number
+                    currency: string
+                    /** Format: date-time */
+                    dueAt: string
+                  }
+                }
+                bookings: {
+                  componentId: string
+                  bookingId: string
+                  /** @enum {string} */
+                  status: "confirmed"
+                  allocationIds: string[]
+                  supplierOperationId?: string
+                }[]
+                consumedSessionId: string
+                consumedQuoteId: string
+                convertedHoldId?: string
+              }
+            | {
+                /** @enum {string} */
+                kind: "component_commit_pending"
+                /** @enum {string} */
+                nextAction: "continue_component_commit"
+                components: {
+                  componentId: string
+                  /** @enum {string} */
+                  state:
+                    | "booking_confirmed"
+                    | "supplier_pending"
+                    | "supplier_in_doubt"
+                    | "manual_confirmation_required"
+                  bookingId?: string
+                  supplierOperationId?: string
+                }[]
+              }
+            | {
+                /** @enum {string} */
+                kind: "payment_required"
+                /** @enum {string} */
+                nextAction: "establish_payment_guarantee"
+                /** @enum {string} */
+                checkoutIntent?: "hold" | "card" | "bank_transfer" | "ticket_on_credit" | "inquiry"
+                /** @enum {string} */
+                paymentTarget: "booking_session" | "quote" | "supplier_operation"
+                allowedGuarantees: ("deposit" | "pre_auth" | "card_on_file" | "agency_letter")[]
+                paymentSession: {
+                  id: string
+                  /** @enum {string} */
+                  status:
+                    | "pending"
+                    | "requires_redirect"
+                    | "processing"
+                    | "authorized"
+                    | "paid"
+                    | "failed"
+                    | "cancelled"
+                    | "expired"
+                  amountCents: number
+                  currency: string
+                  /** Format: uri */
+                  redirectUrl: string | null
+                  checkout:
+                    | {
+                        /** @enum {string} */
+                        kind: "hosted_checkout" | "redirect"
+                        url: string
+                        expiresAt?: string | null
+                      }
+                    | {
+                        /** @enum {string} */
+                        kind: "embedded"
+                        clientSecret: string
+                        publishableKey: string
+                        providerAccountId?: string | null
+                        expiresAt?: string | null
+                      }
+                    | null
+                  /** Format: date-time */
+                  expiresAt: string | null
+                }
+              }
+            | {
+                /** @enum {string} */
+                kind: "supplier_pending"
+                /** @enum {string} */
+                nextAction: "persist_and_dispatch_supplier_operation" | "await_supplier_operation"
+                supplierOperationId: string
+                bookingId?: string
+                /** @default false */
+                operatorBackedRiskAccepted: boolean
+              }
+            | {
+                /** @enum {string} */
+                kind: "supplier_in_doubt"
+                /** @enum {string} */
+                nextAction: "reconcile_supplier_operation"
+                supplierOperationId: string
+                bookingId?: string
+                operatorBackedRiskAccepted: boolean
+              }
+            | {
+                /** @enum {string} */
+                kind: "supplier_failed"
+                /** @enum {string} */
+                nextAction: "select_alternative_inventory" | "manual_review"
+                supplierOperationId: string
+                bookingId?: string
+                /** @default false */
+                operatorBackedRiskAccepted: boolean
+              }
+            | {
+                /** @enum {string} */
+                kind: "revision_mismatch"
+                /** @enum {string} */
+                nextAction: "refresh_session_state"
+                expectedRevision: number
+                actualRevision: number
+              }
+            | {
+                /** @enum {string} */
+                kind: "quote_failure"
+                /** @enum {string} */
+                nextAction: "request_fresh_quote"
+                /** @enum {string} */
+                reason: "expired" | "superseded" | "mismatched_session" | "mismatched_revision"
+              }
+            | {
+                /** @enum {string} */
+                kind: "hold_failure"
+                /** @enum {string} */
+                nextAction: "request_new_hold"
+                /** @enum {string} */
+                reason:
+                  | "missing"
+                  | "expired"
+                  | "released"
+                  | "mismatched_session"
+                  | "capacity_unavailable"
+              }
+            | {
+                /** @enum {string} */
+                kind: "proposal_acceptance_required"
+                /** @enum {string} */
+                nextAction: "renew_proposal_version_acceptance"
+                proposalVersionId: string
+              }
+            | {
+                /** @enum {string} */
+                kind: "idempotent_replay"
+                /** @enum {string} */
+                nextAction: "return_idempotent_result"
+                originalCommitId: string
+                originalOutcome:
+                  | {
+                      /** @enum {string} */
+                      kind: "committed"
+                      /** @enum {string} */
+                      nextAction: "none"
+                      /** @enum {string} */
+                      checkoutIntent?:
+                        | "hold"
+                        | "card"
+                        | "bank_transfer"
+                        | "ticket_on_credit"
+                        | "inquiry"
+                      bankTransfer?: {
+                        paymentSessionId: string | null
+                        document: {
+                          id: string
+                          number: string
+                          /** @enum {string} */
+                          type: "proforma" | "invoice"
+                        } | null
+                        instructions: {
+                          beneficiary: string
+                          iban: string
+                          bankName: string | null
+                          reference: string
+                          amountCents: number
+                          currency: string
+                          /** Format: date-time */
+                          dueAt: string
+                        }
+                      }
+                      booking: {
+                        id: string
+                        /** @enum {string} */
+                        status: "confirmed"
+                      }
+                      allocationIds: string[]
+                      consumedSessionId: string
+                      consumedQuoteId: string
+                      convertedHoldId?: string
+                      supplierOperationId?: string
+                      operatorBackedRiskAccepted?: boolean
+                    }
+                  | {
+                      /** @enum {string} */
+                      kind: "component_bookings_committed"
+                      /** @enum {string} */
+                      nextAction: "none"
+                      /** @enum {string} */
+                      checkoutIntent?:
+                        | "hold"
+                        | "card"
+                        | "bank_transfer"
+                        | "ticket_on_credit"
+                        | "inquiry"
+                      bankTransfer?: {
+                        paymentSessionId: string | null
+                        document: {
+                          id: string
+                          number: string
+                          /** @enum {string} */
+                          type: "proforma" | "invoice"
+                        } | null
+                        instructions: {
+                          beneficiary: string
+                          iban: string
+                          bankName: string | null
+                          reference: string
+                          amountCents: number
+                          currency: string
+                          /** Format: date-time */
+                          dueAt: string
+                        }
+                      }
+                      bookings: {
+                        componentId: string
+                        bookingId: string
+                        /** @enum {string} */
+                        status: "confirmed"
+                        allocationIds: string[]
+                        supplierOperationId?: string
+                      }[]
+                      consumedSessionId: string
+                      consumedQuoteId: string
+                      convertedHoldId?: string
+                    }
+                  | {
+                      /** @enum {string} */
+                      kind: "component_commit_pending"
+                      /** @enum {string} */
+                      nextAction: "continue_component_commit"
+                      components: {
+                        componentId: string
+                        /** @enum {string} */
+                        state:
+                          | "booking_confirmed"
+                          | "supplier_pending"
+                          | "supplier_in_doubt"
+                          | "manual_confirmation_required"
+                        bookingId?: string
+                        supplierOperationId?: string
+                      }[]
+                    }
+                  | {
+                      /** @enum {string} */
+                      kind: "payment_required"
+                      /** @enum {string} */
+                      nextAction: "establish_payment_guarantee"
+                      /** @enum {string} */
+                      checkoutIntent?:
+                        | "hold"
+                        | "card"
+                        | "bank_transfer"
+                        | "ticket_on_credit"
+                        | "inquiry"
+                      /** @enum {string} */
+                      paymentTarget: "booking_session" | "quote" | "supplier_operation"
+                      allowedGuarantees: (
+                        | "deposit"
+                        | "pre_auth"
+                        | "card_on_file"
+                        | "agency_letter"
+                      )[]
+                      paymentSession: {
+                        id: string
+                        /** @enum {string} */
+                        status:
+                          | "pending"
+                          | "requires_redirect"
+                          | "processing"
+                          | "authorized"
+                          | "paid"
+                          | "failed"
+                          | "cancelled"
+                          | "expired"
+                        amountCents: number
+                        currency: string
+                        /** Format: uri */
+                        redirectUrl: string | null
+                        checkout:
+                          | {
+                              /** @enum {string} */
+                              kind: "hosted_checkout" | "redirect"
+                              url: string
+                              expiresAt?: string | null
+                            }
+                          | {
+                              /** @enum {string} */
+                              kind: "embedded"
+                              clientSecret: string
+                              publishableKey: string
+                              providerAccountId?: string | null
+                              expiresAt?: string | null
+                            }
+                          | null
+                        /** Format: date-time */
+                        expiresAt: string | null
+                      }
+                    }
+                  | {
+                      /** @enum {string} */
+                      kind: "supplier_pending"
+                      /** @enum {string} */
+                      nextAction:
+                        | "persist_and_dispatch_supplier_operation"
+                        | "await_supplier_operation"
+                      supplierOperationId: string
+                      bookingId?: string
+                      /** @default false */
+                      operatorBackedRiskAccepted: boolean
+                    }
+                  | {
+                      /** @enum {string} */
+                      kind: "supplier_in_doubt"
+                      /** @enum {string} */
+                      nextAction: "reconcile_supplier_operation"
+                      supplierOperationId: string
+                      bookingId?: string
+                      operatorBackedRiskAccepted: boolean
+                    }
+                  | {
+                      /** @enum {string} */
+                      kind: "supplier_failed"
+                      /** @enum {string} */
+                      nextAction: "select_alternative_inventory" | "manual_review"
+                      supplierOperationId: string
+                      bookingId?: string
+                      /** @default false */
+                      operatorBackedRiskAccepted: boolean
+                    }
+                  | {
+                      /** @enum {string} */
+                      kind: "revision_mismatch"
+                      /** @enum {string} */
+                      nextAction: "refresh_session_state"
+                      expectedRevision: number
+                      actualRevision: number
+                    }
+                  | {
+                      /** @enum {string} */
+                      kind: "quote_failure"
+                      /** @enum {string} */
+                      nextAction: "request_fresh_quote"
+                      /** @enum {string} */
+                      reason:
+                        | "expired"
+                        | "superseded"
+                        | "mismatched_session"
+                        | "mismatched_revision"
+                    }
+                  | {
+                      /** @enum {string} */
+                      kind: "hold_failure"
+                      /** @enum {string} */
+                      nextAction: "request_new_hold"
+                      /** @enum {string} */
+                      reason:
+                        | "missing"
+                        | "expired"
+                        | "released"
+                        | "mismatched_session"
+                        | "capacity_unavailable"
+                    }
+                  | {
+                      /** @enum {string} */
+                      kind: "proposal_acceptance_required"
+                      /** @enum {string} */
+                      nextAction: "renew_proposal_version_acceptance"
+                      proposalVersionId: string
+                    }
+              }
+        }
+      | {
+          /** @enum {string} */
+          kind: "rejected"
+          error:
+            | {
+                /** @enum {string} */
+                kind: "revision_conflict"
+                expectedRevision: number
+                actualRevision: number
+                /** @enum {string} */
+                actualState:
+                  | "active"
+                  | "supplier_pending"
+                  | "component_pending"
+                  | "consumed"
+                  | "expired"
+                  | "abandoned"
+              }
+            | {
+                /** @enum {string} */
+                kind: "session_expired"
+              }
+            | {
+                /** @enum {string} */
+                kind: "session_consumed"
+              }
+            | {
+                /** @enum {string} */
+                kind: "capability_required"
+              }
+            | {
+                /** @enum {string} */
+                kind: "capability_scope_required"
+                /** @enum {string} */
+                action:
+                  | "read"
+                  | "update"
+                  | "quote"
+                  | "hold"
+                  | "commit"
+                  | "abandon"
+                  | "adopt"
+                  | "renew"
+              }
+            | {
+                /** @enum {string} */
+                kind: "not_authorized"
+              }
+            | {
+                /** @enum {string} */
+                kind: "idempotency_conflict"
+              }
+            | {
+                /** @enum {string} */
+                kind: "supplier_operation_active"
+                /** @enum {string} */
+                nextAction: "reconcile_supplier_operation"
+              }
+            | {
+                /** @enum {string} */
+                kind: "payment_in_flight"
+                /** @enum {string} */
+                nextAction: "await_payment_outcome"
+              }
+            | {
+                /** @enum {string} */
+                kind: "quote_unavailable"
+                requirements?: {
+                  showsConfigure: boolean
+                  showsBilling: boolean
+                  showsTravelers: boolean
+                  showsAccommodation: boolean
+                  showsAddons: boolean
+                  /** @default false */
+                  showsAncillaries: boolean
+                  showsPayment: boolean
+                  /** @enum {boolean} */
+                  showsReview: true
+                  configureSubSteps?: (
+                    | {
+                        /** @enum {string} */
+                        kind: "departure"
+                        /** @enum {boolean} */
+                        required: true
+                      }
+                    | {
+                        /** @enum {string} */
+                        kind: "product-option"
+                        options: {
+                          id: string
+                          code?: string | null
+                          name: string
+                          description?: string | null
+                          isDefault?: boolean
+                          units?: {
+                            id: string
+                            name: string
+                            description?: string | null
+                            unitType?: string | null
+                            minQuantity?: number | null
+                            maxQuantity?: number | null
+                          }[]
+                        }[]
+                      }
+                    | {
+                        /** @enum {string} */
+                        kind: "option-units"
+                      }
+                    | {
+                        /** @enum {string} */
+                        kind: "cabin-category"
+                        categories: {
+                          id: string
+                          code?: string
+                          name: string
+                          type?: string
+                          capacityMin?: number
+                          capacityMax?: number
+                          description?: string
+                        }[]
+                      }
+                    | {
+                        /** @enum {string} */
+                        kind: "cabin-number"
+                        perCategory: {
+                          [key: string]: {
+                            id: string
+                            code?: string
+                            label: string
+                            capacity?: number
+                            hasAccessibilityFeatures?: boolean
+                          }[]
+                        }
+                      }
+                    | {
+                        /** @enum {string} */
+                        kind: "date-range"
+                        minNights: number
+                        maxNights: number
+                      }
+                    | {
+                        /** @enum {string} */
+                        kind: "occupancy"
+                        bands: {
+                          code: string
+                          label: string
+                          minAge?: number
+                          maxAge?: number
+                          minCount: number
+                          maxCount: number
+                        }[]
+                      }
+                    | {
+                        /** @enum {string} */
+                        kind: "air-arrangement"
+                        required?: boolean
+                      }
+                  )[]
+                  paxBands: {
+                    code: string
+                    label: string
+                    minAge?: number
+                    maxAge?: number
+                    minCount: number
+                    maxCount: number
+                  }[]
+                  paxBandsAllowedTotal: {
+                    min: number
+                    max: number
+                  }
+                  paxBandDependencies?: {
+                    dependentCode: string
+                    masterCode: string
+                    /** @enum {string} */
+                    type: "requires" | "limits_per_master" | "limits_sum" | "excludes"
+                    maxPerMaster?: number
+                    maxDependentSum?: number
+                  }[]
+                  travelerFields: {
+                    key: string
+                    label: string
+                    type: string
+                    required: boolean
+                    options?: {
+                      value: string
+                      label: string
+                    }[]
+                    appliesToBands?: string[]
+                    maxLength?: number
+                  }[]
+                  bookingFields: {
+                    key: string
+                    label: string
+                    type: string
+                    required: boolean
+                    /** @enum {string} */
+                    group: "billing" | "company" | "preferences"
+                    maxLength?: number
+                  }[]
+                  accommodation?: {
+                    roomOptions?: {
+                      id: string
+                      name: string
+                      description?: string | null
+                      capacity?: number | null
+                      baseRateHint?: number | null
+                      ratePlans?: {
+                        id: string
+                        name: string
+                        description?: string | null
+                        /** @enum {string} */
+                        chargeFrequency?: "per_night" | "per_stay"
+                        cancellationPolicy?: string | null
+                        inclusions?: string[]
+                        currency?: string
+                      }[]
+                    }[]
+                    sharedRoomAllowed: boolean
+                    subSteps?: (
+                      | {
+                          /** @enum {string} */
+                          kind: "rooms"
+                          options: {
+                            id: string
+                            name: string
+                            description?: string | null
+                            capacity?: number | null
+                            baseRateHint?: number | null
+                            ratePlans?: {
+                              id: string
+                              name: string
+                              description?: string | null
+                              /** @enum {string} */
+                              chargeFrequency?: "per_night" | "per_stay"
+                              cancellationPolicy?: string | null
+                              inclusions?: string[]
+                              currency?: string
+                            }[]
+                          }[]
+                          sharedRoomAllowed: boolean
+                        }
+                      | {
+                          /** @enum {string} */
+                          kind: "extensions"
+                          options: {
+                            id: string
+                            name: string
+                            city?: string | null
+                            /** @enum {string} */
+                            side: "pre" | "post"
+                            nights?: number | null
+                            pricePerPersonHint?: number | null
+                          }[]
+                          allowsPre: boolean
+                          allowsPost: boolean
+                        }
+                    )[]
+                  }
+                  addons?: {
+                    catalog?: {
+                      id: string
+                      name: string
+                      description?: string | null
+                      /** @enum {string} */
+                      kind: "extras" | "excursions" | "insurance"
+                      groupKey?: string | null
+                      pricingMode?: string | null
+                      unitAmountCents?: number | null
+                      currency?: string | null
+                      pricedPerPerson?: boolean | null
+                      /** @enum {string|null} */
+                      selectionType?:
+                        | "optional"
+                        | "required"
+                        | "default_selected"
+                        | "unavailable"
+                        | null
+                      minQuantity?: number | null
+                      maxQuantity?: number | null
+                      defaultQuantity?: number | null
+                    }[]
+                    groups?: {
+                      /** @enum {string} */
+                      kind: "extras" | "excursions" | "insurance"
+                      label: string
+                      /** @enum {string} */
+                      groupBy?: "port" | "day"
+                      perGuestSelection: boolean
+                      items: {
+                        id: string
+                        name: string
+                        description?: string | null
+                        /** @enum {string} */
+                        kind: "extras" | "excursions" | "insurance"
+                        groupKey?: string | null
+                        pricingMode?: string | null
+                        unitAmountCents?: number | null
+                        currency?: string | null
+                        pricedPerPerson?: boolean | null
+                        /** @enum {string|null} */
+                        selectionType?:
+                          | "optional"
+                          | "required"
+                          | "default_selected"
+                          | "unavailable"
+                          | null
+                        minQuantity?: number | null
+                        maxQuantity?: number | null
+                        defaultQuantity?: number | null
+                      }[]
+                    }[]
+                  }
+                  ancillaries?: {
+                    /** @default [] */
+                    groups: {
+                      kind: string
+                      label: string
+                      /** @default [] */
+                      offers: {
+                        offerId: string
+                        sourceId: string
+                        providerId: string
+                        providerLabel: string
+                        kind: string
+                        title: string
+                        summary?: string | null
+                        planLabel?: string | null
+                        price: {
+                          amountMinor: number
+                          currency: string
+                        }
+                        /** @default false */
+                        pricedPerPerson: boolean
+                        /** @default [] */
+                        highlights: {
+                          label: string
+                          value?: string
+                        }[]
+                        eligibility: {
+                          /** @enum {string} */
+                          status: "eligible" | "ineligible" | "referral"
+                          /** @default [] */
+                          reasons: {
+                            code: string
+                            message: string
+                          }[]
+                        }
+                        /** @default [] */
+                        disclosures: {
+                          kind: string
+                          label: string
+                          versionId: string
+                          url?: string
+                          required: boolean
+                        }[]
+                        /** @default [] */
+                        requiredTravelerFields: {
+                          key: string
+                          label: string
+                          type: string
+                          required: boolean
+                          /** @default false */
+                          sensitive: boolean
+                          options?: {
+                            value: string
+                            label: string
+                          }[]
+                          helpText?: string
+                        }[]
+                        validUntil: string
+                        quoteRef: string
+                        metadata?: {
+                          [key: string]: unknown
+                        }
+                      }[]
+                      /** @default [] */
+                      diagnostics: {
+                        sourceId: string
+                        providerId?: string
+                        /** @enum {string} */
+                        status: "ok" | "timeout" | "error" | "unavailable"
+                        message?: string
+                        latencyMs?: number
+                      }[]
+                    }[]
+                  }
+                  paymentIntents: (
+                    | "hold"
+                    | "card"
+                    | "bank_transfer"
+                    | "ticket_on_credit"
+                    | "inquiry"
+                  )[]
+                }
+                /** @enum {string} */
+                reason:
+                  | "target_not_found"
+                  | "target_not_bookable"
+                  | "price_unavailable"
+                  | "policy_unavailable"
+                  | "selection_unavailable"
+                /** @enum {string} */
+                nextAction: "select_alternative_inventory" | "contact_operator" | "update_selection"
+              }
+            | {
+                /** @enum {string} */
+                kind: "commit_rejected"
+                /** @enum {string} */
+                reason:
+                  | "entity_not_found"
+                  | "entity_not_bookable"
+                  | "incomplete_draft"
+                  | "price_changed"
+                /** @enum {string} */
+                nextAction:
+                  | "select_alternative_inventory"
+                  | "update_selection"
+                  | "request_fresh_quote"
+              }
+            | {
+                /** @enum {string} */
+                kind: "selection_incomplete"
+                unsatisfied: {
+                  requirementKey: string
+                  /** @enum {string} */
+                  reason:
+                    | "pax_band_below_min"
+                    | "pax_band_above_max"
+                    | "pax_total_below_min"
+                    | "pax_total_above_max"
+                    | "pax_band_master_required"
+                    | "pax_band_excluded"
+                    | "pax_band_per_master_exceeded"
+                    | "pax_band_sum_exceeded"
+                    | "departure_required"
+                    | "option_units_required"
+                    | "cabin_category_required"
+                    | "cabin_number_required"
+                    | "date_range_required"
+                    | "date_range_too_short"
+                    | "date_range_too_long"
+                    | "occupancy_required"
+                    | "air_arrangement_required"
+                    | "traveler_field_required"
+                    | "booking_field_required"
+                }[]
+                /** @enum {string} */
+                nextAction: "update_selection"
+              }
+            | {
+                /** @enum {string} */
+                kind: "requirements_changed"
+                requirementsFingerprint: string
+                /** @enum {string} */
+                nextAction: "request_fresh_quote"
+              }
+            | {
+                /** @enum {string} */
+                kind: "checkout_intent_not_offered"
+                /** @enum {string} */
+                checkoutIntent: "hold" | "card" | "bank_transfer" | "ticket_on_credit" | "inquiry"
+                offeredCheckoutIntents: (
+                  | "hold"
+                  | "card"
+                  | "bank_transfer"
+                  | "ticket_on_credit"
+                  | "inquiry"
+                )[]
+                /** @enum {string} */
+                nextAction: "select_supported_checkout_intent"
+              }
+            | {
+                /** @enum {string} */
+                kind: "invalid_selection"
+                /** @enum {string} */
+                reason: "unsupported_target" | "forbidden_field" | "value_too_long"
+                path?: string
+                maxLength?: number
+              }
+            | {
+                /** @enum {string} */
+                kind: "renewal_not_allowed"
+                /** @enum {string} */
+                reason: "session_not_active" | "extension_too_large" | "absolute_lifetime_exceeded"
+              }
+            | {
+                /** @enum {string} */
+                kind: "quote_required"
+                /** @enum {string} */
+                nextAction: "request_fresh_quote"
+              }
+            | {
+                /** @enum {string} */
+                kind: "quote_expired" | "quote_superseded"
+                /** @enum {string} */
+                nextAction: "request_fresh_quote"
+              }
+            | {
+                /** @enum {string} */
+                kind: "hold_required" | "hold_expired" | "availability_changed"
+                /** @enum {string} */
+                nextAction: "request_new_hold"
+              }
+            | {
+                /** @enum {string} */
+                kind: "hold_quantity_mismatch"
+                requestedQuantity: number
+                expectedQuantity: number
+                /** @enum {string} */
+                nextAction: "request_hold_for_expected_quantity"
+              }
+            | {
+                /** @enum {string} */
+                kind: "commit_already_consumed"
+                /** @enum {string} */
+                nextAction: "return_idempotent_result"
+              }
+        }
+    OfferPreviewOutcomeV1:
+      | {
+          /** @enum {string} */
+          kind: "offer_preview"
+          preview: {
+            /** @enum {boolean} */
+            binding: false
+            available: boolean
+            requirements: {
+              showsConfigure: boolean
+              showsBilling: boolean
+              showsTravelers: boolean
+              showsAccommodation: boolean
+              showsAddons: boolean
+              /** @default false */
+              showsAncillaries: boolean
+              showsPayment: boolean
+              /** @enum {boolean} */
+              showsReview: true
+              configureSubSteps?: (
+                | {
+                    /** @enum {string} */
+                    kind: "departure"
+                    /** @enum {boolean} */
+                    required: true
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "product-option"
+                    options: {
+                      id: string
+                      code?: string | null
+                      name: string
+                      description?: string | null
+                      isDefault?: boolean
+                      units?: {
+                        id: string
+                        name: string
+                        description?: string | null
+                        unitType?: string | null
+                        minQuantity?: number | null
+                        maxQuantity?: number | null
+                      }[]
+                    }[]
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "option-units"
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "cabin-category"
+                    categories: {
+                      id: string
+                      code?: string
+                      name: string
+                      type?: string
+                      capacityMin?: number
+                      capacityMax?: number
+                      description?: string
+                    }[]
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "cabin-number"
+                    perCategory: {
+                      [key: string]: {
+                        id: string
+                        code?: string
+                        label: string
+                        capacity?: number
+                        hasAccessibilityFeatures?: boolean
+                      }[]
+                    }
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "date-range"
+                    minNights: number
+                    maxNights: number
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "occupancy"
+                    bands: {
+                      code: string
+                      label: string
+                      minAge?: number
+                      maxAge?: number
+                      minCount: number
+                      maxCount: number
+                    }[]
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "air-arrangement"
+                    required?: boolean
+                  }
+              )[]
+              paxBands: {
+                code: string
+                label: string
+                minAge?: number
+                maxAge?: number
+                minCount: number
+                maxCount: number
+              }[]
+              paxBandsAllowedTotal: {
+                min: number
+                max: number
+              }
+              paxBandDependencies?: {
+                dependentCode: string
+                masterCode: string
+                /** @enum {string} */
+                type: "requires" | "limits_per_master" | "limits_sum" | "excludes"
+                maxPerMaster?: number
+                maxDependentSum?: number
+              }[]
+              travelerFields: {
+                key: string
+                label: string
+                type: string
+                required: boolean
+                options?: {
+                  value: string
+                  label: string
+                }[]
+                appliesToBands?: string[]
+                maxLength?: number
+              }[]
+              bookingFields: {
+                key: string
+                label: string
+                type: string
+                required: boolean
+                /** @enum {string} */
+                group: "billing" | "company" | "preferences"
+                maxLength?: number
+              }[]
+              accommodation?: {
+                roomOptions?: {
+                  id: string
+                  name: string
+                  description?: string | null
+                  capacity?: number | null
+                  baseRateHint?: number | null
+                  ratePlans?: {
+                    id: string
+                    name: string
+                    description?: string | null
+                    /** @enum {string} */
+                    chargeFrequency?: "per_night" | "per_stay"
+                    cancellationPolicy?: string | null
+                    inclusions?: string[]
+                    currency?: string
+                  }[]
+                }[]
+                sharedRoomAllowed: boolean
+                subSteps?: (
+                  | {
+                      /** @enum {string} */
+                      kind: "rooms"
+                      options: {
+                        id: string
+                        name: string
+                        description?: string | null
+                        capacity?: number | null
+                        baseRateHint?: number | null
+                        ratePlans?: {
+                          id: string
+                          name: string
+                          description?: string | null
+                          /** @enum {string} */
+                          chargeFrequency?: "per_night" | "per_stay"
+                          cancellationPolicy?: string | null
+                          inclusions?: string[]
+                          currency?: string
+                        }[]
+                      }[]
+                      sharedRoomAllowed: boolean
+                    }
+                  | {
+                      /** @enum {string} */
+                      kind: "extensions"
+                      options: {
+                        id: string
+                        name: string
+                        city?: string | null
+                        /** @enum {string} */
+                        side: "pre" | "post"
+                        nights?: number | null
+                        pricePerPersonHint?: number | null
+                      }[]
+                      allowsPre: boolean
+                      allowsPost: boolean
+                    }
+                )[]
+              }
+              addons?: {
+                catalog?: {
+                  id: string
+                  name: string
+                  description?: string | null
+                  /** @enum {string} */
+                  kind: "extras" | "excursions" | "insurance"
+                  groupKey?: string | null
+                  pricingMode?: string | null
+                  unitAmountCents?: number | null
+                  currency?: string | null
+                  pricedPerPerson?: boolean | null
+                  /** @enum {string|null} */
+                  selectionType?:
+                    | "optional"
+                    | "required"
+                    | "default_selected"
+                    | "unavailable"
+                    | null
+                  minQuantity?: number | null
+                  maxQuantity?: number | null
+                  defaultQuantity?: number | null
+                }[]
+                groups?: {
+                  /** @enum {string} */
+                  kind: "extras" | "excursions" | "insurance"
+                  label: string
+                  /** @enum {string} */
+                  groupBy?: "port" | "day"
+                  perGuestSelection: boolean
+                  items: {
+                    id: string
+                    name: string
+                    description?: string | null
+                    /** @enum {string} */
+                    kind: "extras" | "excursions" | "insurance"
+                    groupKey?: string | null
+                    pricingMode?: string | null
+                    unitAmountCents?: number | null
+                    currency?: string | null
+                    pricedPerPerson?: boolean | null
+                    /** @enum {string|null} */
+                    selectionType?:
+                      | "optional"
+                      | "required"
+                      | "default_selected"
+                      | "unavailable"
+                      | null
+                    minQuantity?: number | null
+                    maxQuantity?: number | null
+                    defaultQuantity?: number | null
+                  }[]
+                }[]
+              }
+              ancillaries?: {
+                /** @default [] */
+                groups: {
+                  kind: string
+                  label: string
+                  /** @default [] */
+                  offers: {
+                    offerId: string
+                    sourceId: string
+                    providerId: string
+                    providerLabel: string
+                    kind: string
+                    title: string
+                    summary?: string | null
+                    planLabel?: string | null
+                    price: {
+                      amountMinor: number
+                      currency: string
+                    }
+                    /** @default false */
+                    pricedPerPerson: boolean
+                    /** @default [] */
+                    highlights: {
+                      label: string
+                      value?: string
+                    }[]
+                    eligibility: {
+                      /** @enum {string} */
+                      status: "eligible" | "ineligible" | "referral"
+                      /** @default [] */
+                      reasons: {
+                        code: string
+                        message: string
+                      }[]
+                    }
+                    /** @default [] */
+                    disclosures: {
+                      kind: string
+                      label: string
+                      versionId: string
+                      url?: string
+                      required: boolean
+                    }[]
+                    /** @default [] */
+                    requiredTravelerFields: {
+                      key: string
+                      label: string
+                      type: string
+                      required: boolean
+                      /** @default false */
+                      sensitive: boolean
+                      options?: {
+                        value: string
+                        label: string
+                      }[]
+                      helpText?: string
+                    }[]
+                    validUntil: string
+                    quoteRef: string
+                    metadata?: {
+                      [key: string]: unknown
+                    }
+                  }[]
+                  /** @default [] */
+                  diagnostics: {
+                    sourceId: string
+                    providerId?: string
+                    /** @enum {string} */
+                    status: "ok" | "timeout" | "error" | "unavailable"
+                    message?: string
+                    latencyMs?: number
+                  }[]
+                }[]
+              }
+              paymentIntents: ("hold" | "card" | "bank_transfer" | "ticket_on_credit" | "inquiry")[]
+            }
+            pricing?: {
+              currency: string
+              lines: {
+                /** @enum {string} */
+                kind: "base" | "addon" | "accommodation" | "supplement" | "discount" | "fee"
+                label: string
+                quantity?: number
+                unitAmount: number
+                totalAmount: number
+                taxIncluded?: boolean
+                /** @enum {string} */
+                pricingBasis?: "per_person" | "per_unit" | "per_booking"
+                componentId?: string
+                /** @enum {string} */
+                authority?: "booking_quote" | "accepted_proposal_manual"
+              }[]
+              taxes: {
+                code: string
+                label: string
+                rate: number
+                amount: number
+                base: number
+                includedInPrice?: boolean
+                /** @enum {string} */
+                scope?: "included" | "excluded" | "withheld"
+                componentId?: string
+              }[]
+              subtotal: number
+              taxTotal: number
+              total: number
+              appliedOffers?: {
+                offerId: string
+                offerName: string
+                discountAppliedCents: number
+                discountedPriceCents: number
+                currency: string
+                /** @enum {string} */
+                discountKind: "percentage" | "fixed_amount"
+                discountPercent: number | null
+                discountAmountCents: number | null
+                appliedCode: string | null
+                stackable: boolean
+              }[]
+              promotionCodeStatus?:
+                | {
+                    /** @enum {string} */
+                    kind: "code_valid"
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "code_not_found"
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "code_expired"
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "code_not_yet_valid"
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "code_not_applicable"
+                    /** @enum {string} */
+                    reason: "scope" | "min_pax" | "eligibility" | "currency"
+                  }
+              policyEvidence?: {
+                cancellation?: unknown
+                bookingTerms?: unknown
+              }
+              componentPolicies?: {
+                cancellation?: unknown
+                bookingTerms?: unknown
+                componentId: string
+              }[]
+            }
+            /** @enum {string} */
+            unavailableReason?:
+              | "target_not_found"
+              | "target_not_bookable"
+              | "price_unavailable"
+              | "policy_unavailable"
+              | "selection_unavailable"
+          }
+        }
+      | {
+          /** @enum {string} */
+          kind: "rejected"
+          error:
+            | {
+                /** @enum {string} */
+                kind: "revision_conflict"
+                expectedRevision: number
+                actualRevision: number
+                /** @enum {string} */
+                actualState:
+                  | "active"
+                  | "supplier_pending"
+                  | "component_pending"
+                  | "consumed"
+                  | "expired"
+                  | "abandoned"
+              }
+            | {
+                /** @enum {string} */
+                kind: "session_expired"
+              }
+            | {
+                /** @enum {string} */
+                kind: "session_consumed"
+              }
+            | {
+                /** @enum {string} */
+                kind: "capability_required"
+              }
+            | {
+                /** @enum {string} */
+                kind: "capability_scope_required"
+                /** @enum {string} */
+                action:
+                  | "read"
+                  | "update"
+                  | "quote"
+                  | "hold"
+                  | "commit"
+                  | "abandon"
+                  | "adopt"
+                  | "renew"
+              }
+            | {
+                /** @enum {string} */
+                kind: "not_authorized"
+              }
+            | {
+                /** @enum {string} */
+                kind: "idempotency_conflict"
+              }
+            | {
+                /** @enum {string} */
+                kind: "supplier_operation_active"
+                /** @enum {string} */
+                nextAction: "reconcile_supplier_operation"
+              }
+            | {
+                /** @enum {string} */
+                kind: "payment_in_flight"
+                /** @enum {string} */
+                nextAction: "await_payment_outcome"
+              }
+            | {
+                /** @enum {string} */
+                kind: "quote_unavailable"
+                requirements?: {
+                  showsConfigure: boolean
+                  showsBilling: boolean
+                  showsTravelers: boolean
+                  showsAccommodation: boolean
+                  showsAddons: boolean
+                  /** @default false */
+                  showsAncillaries: boolean
+                  showsPayment: boolean
+                  /** @enum {boolean} */
+                  showsReview: true
+                  configureSubSteps?: (
+                    | {
+                        /** @enum {string} */
+                        kind: "departure"
+                        /** @enum {boolean} */
+                        required: true
+                      }
+                    | {
+                        /** @enum {string} */
+                        kind: "product-option"
+                        options: {
+                          id: string
+                          code?: string | null
+                          name: string
+                          description?: string | null
+                          isDefault?: boolean
+                          units?: {
+                            id: string
+                            name: string
+                            description?: string | null
+                            unitType?: string | null
+                            minQuantity?: number | null
+                            maxQuantity?: number | null
+                          }[]
+                        }[]
+                      }
+                    | {
+                        /** @enum {string} */
+                        kind: "option-units"
+                      }
+                    | {
+                        /** @enum {string} */
+                        kind: "cabin-category"
+                        categories: {
+                          id: string
+                          code?: string
+                          name: string
+                          type?: string
+                          capacityMin?: number
+                          capacityMax?: number
+                          description?: string
+                        }[]
+                      }
+                    | {
+                        /** @enum {string} */
+                        kind: "cabin-number"
+                        perCategory: {
+                          [key: string]: {
+                            id: string
+                            code?: string
+                            label: string
+                            capacity?: number
+                            hasAccessibilityFeatures?: boolean
+                          }[]
+                        }
+                      }
+                    | {
+                        /** @enum {string} */
+                        kind: "date-range"
+                        minNights: number
+                        maxNights: number
+                      }
+                    | {
+                        /** @enum {string} */
+                        kind: "occupancy"
+                        bands: {
+                          code: string
+                          label: string
+                          minAge?: number
+                          maxAge?: number
+                          minCount: number
+                          maxCount: number
+                        }[]
+                      }
+                    | {
+                        /** @enum {string} */
+                        kind: "air-arrangement"
+                        required?: boolean
+                      }
+                  )[]
+                  paxBands: {
+                    code: string
+                    label: string
+                    minAge?: number
+                    maxAge?: number
+                    minCount: number
+                    maxCount: number
+                  }[]
+                  paxBandsAllowedTotal: {
+                    min: number
+                    max: number
+                  }
+                  paxBandDependencies?: {
+                    dependentCode: string
+                    masterCode: string
+                    /** @enum {string} */
+                    type: "requires" | "limits_per_master" | "limits_sum" | "excludes"
+                    maxPerMaster?: number
+                    maxDependentSum?: number
+                  }[]
+                  travelerFields: {
+                    key: string
+                    label: string
+                    type: string
+                    required: boolean
+                    options?: {
+                      value: string
+                      label: string
+                    }[]
+                    appliesToBands?: string[]
+                    maxLength?: number
+                  }[]
+                  bookingFields: {
+                    key: string
+                    label: string
+                    type: string
+                    required: boolean
+                    /** @enum {string} */
+                    group: "billing" | "company" | "preferences"
+                    maxLength?: number
+                  }[]
+                  accommodation?: {
+                    roomOptions?: {
+                      id: string
+                      name: string
+                      description?: string | null
+                      capacity?: number | null
+                      baseRateHint?: number | null
+                      ratePlans?: {
+                        id: string
+                        name: string
+                        description?: string | null
+                        /** @enum {string} */
+                        chargeFrequency?: "per_night" | "per_stay"
+                        cancellationPolicy?: string | null
+                        inclusions?: string[]
+                        currency?: string
+                      }[]
+                    }[]
+                    sharedRoomAllowed: boolean
+                    subSteps?: (
+                      | {
+                          /** @enum {string} */
+                          kind: "rooms"
+                          options: {
+                            id: string
+                            name: string
+                            description?: string | null
+                            capacity?: number | null
+                            baseRateHint?: number | null
+                            ratePlans?: {
+                              id: string
+                              name: string
+                              description?: string | null
+                              /** @enum {string} */
+                              chargeFrequency?: "per_night" | "per_stay"
+                              cancellationPolicy?: string | null
+                              inclusions?: string[]
+                              currency?: string
+                            }[]
+                          }[]
+                          sharedRoomAllowed: boolean
+                        }
+                      | {
+                          /** @enum {string} */
+                          kind: "extensions"
+                          options: {
+                            id: string
+                            name: string
+                            city?: string | null
+                            /** @enum {string} */
+                            side: "pre" | "post"
+                            nights?: number | null
+                            pricePerPersonHint?: number | null
+                          }[]
+                          allowsPre: boolean
+                          allowsPost: boolean
+                        }
+                    )[]
+                  }
+                  addons?: {
+                    catalog?: {
+                      id: string
+                      name: string
+                      description?: string | null
+                      /** @enum {string} */
+                      kind: "extras" | "excursions" | "insurance"
+                      groupKey?: string | null
+                      pricingMode?: string | null
+                      unitAmountCents?: number | null
+                      currency?: string | null
+                      pricedPerPerson?: boolean | null
+                      /** @enum {string|null} */
+                      selectionType?:
+                        | "optional"
+                        | "required"
+                        | "default_selected"
+                        | "unavailable"
+                        | null
+                      minQuantity?: number | null
+                      maxQuantity?: number | null
+                      defaultQuantity?: number | null
+                    }[]
+                    groups?: {
+                      /** @enum {string} */
+                      kind: "extras" | "excursions" | "insurance"
+                      label: string
+                      /** @enum {string} */
+                      groupBy?: "port" | "day"
+                      perGuestSelection: boolean
+                      items: {
+                        id: string
+                        name: string
+                        description?: string | null
+                        /** @enum {string} */
+                        kind: "extras" | "excursions" | "insurance"
+                        groupKey?: string | null
+                        pricingMode?: string | null
+                        unitAmountCents?: number | null
+                        currency?: string | null
+                        pricedPerPerson?: boolean | null
+                        /** @enum {string|null} */
+                        selectionType?:
+                          | "optional"
+                          | "required"
+                          | "default_selected"
+                          | "unavailable"
+                          | null
+                        minQuantity?: number | null
+                        maxQuantity?: number | null
+                        defaultQuantity?: number | null
+                      }[]
+                    }[]
+                  }
+                  ancillaries?: {
+                    /** @default [] */
+                    groups: {
+                      kind: string
+                      label: string
+                      /** @default [] */
+                      offers: {
+                        offerId: string
+                        sourceId: string
+                        providerId: string
+                        providerLabel: string
+                        kind: string
+                        title: string
+                        summary?: string | null
+                        planLabel?: string | null
+                        price: {
+                          amountMinor: number
+                          currency: string
+                        }
+                        /** @default false */
+                        pricedPerPerson: boolean
+                        /** @default [] */
+                        highlights: {
+                          label: string
+                          value?: string
+                        }[]
+                        eligibility: {
+                          /** @enum {string} */
+                          status: "eligible" | "ineligible" | "referral"
+                          /** @default [] */
+                          reasons: {
+                            code: string
+                            message: string
+                          }[]
+                        }
+                        /** @default [] */
+                        disclosures: {
+                          kind: string
+                          label: string
+                          versionId: string
+                          url?: string
+                          required: boolean
+                        }[]
+                        /** @default [] */
+                        requiredTravelerFields: {
+                          key: string
+                          label: string
+                          type: string
+                          required: boolean
+                          /** @default false */
+                          sensitive: boolean
+                          options?: {
+                            value: string
+                            label: string
+                          }[]
+                          helpText?: string
+                        }[]
+                        validUntil: string
+                        quoteRef: string
+                        metadata?: {
+                          [key: string]: unknown
+                        }
+                      }[]
+                      /** @default [] */
+                      diagnostics: {
+                        sourceId: string
+                        providerId?: string
+                        /** @enum {string} */
+                        status: "ok" | "timeout" | "error" | "unavailable"
+                        message?: string
+                        latencyMs?: number
+                      }[]
+                    }[]
+                  }
+                  paymentIntents: (
+                    | "hold"
+                    | "card"
+                    | "bank_transfer"
+                    | "ticket_on_credit"
+                    | "inquiry"
+                  )[]
+                }
+                /** @enum {string} */
+                reason:
+                  | "target_not_found"
+                  | "target_not_bookable"
+                  | "price_unavailable"
+                  | "policy_unavailable"
+                  | "selection_unavailable"
+                /** @enum {string} */
+                nextAction: "select_alternative_inventory" | "contact_operator" | "update_selection"
+              }
+            | {
+                /** @enum {string} */
+                kind: "commit_rejected"
+                /** @enum {string} */
+                reason:
+                  | "entity_not_found"
+                  | "entity_not_bookable"
+                  | "incomplete_draft"
+                  | "price_changed"
+                /** @enum {string} */
+                nextAction:
+                  | "select_alternative_inventory"
+                  | "update_selection"
+                  | "request_fresh_quote"
+              }
+            | {
+                /** @enum {string} */
+                kind: "selection_incomplete"
+                unsatisfied: {
+                  requirementKey: string
+                  /** @enum {string} */
+                  reason:
+                    | "pax_band_below_min"
+                    | "pax_band_above_max"
+                    | "pax_total_below_min"
+                    | "pax_total_above_max"
+                    | "pax_band_master_required"
+                    | "pax_band_excluded"
+                    | "pax_band_per_master_exceeded"
+                    | "pax_band_sum_exceeded"
+                    | "departure_required"
+                    | "option_units_required"
+                    | "cabin_category_required"
+                    | "cabin_number_required"
+                    | "date_range_required"
+                    | "date_range_too_short"
+                    | "date_range_too_long"
+                    | "occupancy_required"
+                    | "air_arrangement_required"
+                    | "traveler_field_required"
+                    | "booking_field_required"
+                }[]
+                /** @enum {string} */
+                nextAction: "update_selection"
+              }
+            | {
+                /** @enum {string} */
+                kind: "requirements_changed"
+                requirementsFingerprint: string
+                /** @enum {string} */
+                nextAction: "request_fresh_quote"
+              }
+            | {
+                /** @enum {string} */
+                kind: "checkout_intent_not_offered"
+                /** @enum {string} */
+                checkoutIntent: "hold" | "card" | "bank_transfer" | "ticket_on_credit" | "inquiry"
+                offeredCheckoutIntents: (
+                  | "hold"
+                  | "card"
+                  | "bank_transfer"
+                  | "ticket_on_credit"
+                  | "inquiry"
+                )[]
+                /** @enum {string} */
+                nextAction: "select_supported_checkout_intent"
+              }
+            | {
+                /** @enum {string} */
+                kind: "invalid_selection"
+                /** @enum {string} */
+                reason: "unsupported_target" | "forbidden_field" | "value_too_long"
+                path?: string
+                maxLength?: number
+              }
+            | {
+                /** @enum {string} */
+                kind: "renewal_not_allowed"
+                /** @enum {string} */
+                reason: "session_not_active" | "extension_too_large" | "absolute_lifetime_exceeded"
+              }
+            | {
+                /** @enum {string} */
+                kind: "quote_required"
+                /** @enum {string} */
+                nextAction: "request_fresh_quote"
+              }
+            | {
+                /** @enum {string} */
+                kind: "quote_expired" | "quote_superseded"
+                /** @enum {string} */
+                nextAction: "request_fresh_quote"
+              }
+            | {
+                /** @enum {string} */
+                kind: "hold_required" | "hold_expired" | "availability_changed"
+                /** @enum {string} */
+                nextAction: "request_new_hold"
+              }
+            | {
+                /** @enum {string} */
+                kind: "hold_quantity_mismatch"
+                requestedQuantity: number
+                expectedQuantity: number
+                /** @enum {string} */
+                nextAction: "request_hold_for_expected_quantity"
+              }
+            | {
+                /** @enum {string} */
+                kind: "commit_already_consumed"
+                /** @enum {string} */
+                nextAction: "return_idempotent_result"
+              }
+        }
+    SupplierOperationRecordV1: {
+      id: string
+      /** @enum {string} */
+      subjectType: "booking_session" | "booking_amendment"
+      subjectId: string
+      sessionId: string | null
+      scopeKey: string
+      quoteId: string | null
+      holdId: string | null
+      bookingItemId: string | null
+      amendmentId: string | null
+      /** @enum {string} */
+      operationKind: "reserve" | "modify" | "cancel"
+      /** @enum {string} */
+      state:
+        | "queued"
+        | "submitted"
+        | "pending"
+        | "succeeded"
+        | "refused"
+        | "cancelled"
+        | "in_doubt"
+        | "manual_review"
+        | "manually_resolved"
+      /** @enum {string} */
+      commitmentPolicy: "supplier_first" | "operator_backed"
+      entityModule: string
+      entityId: string
+      sourceKind: string
+      sourceConnectionId: string
+      sourceRef: string
+      adapterKind: string
+      requestFingerprint: string
+      adapterIdempotencyKey: string
+      attemptCount: number
+      upstreamRef: string | null
+      upstreamStatus: string | null
+      bookingId: string | null
+      lastErrorClass: string | null
+      safeEvidence: {
+        [key: string]: unknown
+      }
+      /** Format: date-time */
+      submittedAt: string | null
+      /** Format: date-time */
+      lastCheckedAt: string | null
+      /** Format: date-time */
+      sourceUpdatedAt: string | null
+      /** Format: date-time */
+      nextReconcileAt: string | null
+      /** Format: date-time */
+      resolvedAt: string | null
+      resolvedBy: string | null
+      resolutionReason: string | null
+      /** Format: date-time */
+      createdAt: string
+      /** Format: date-time */
+      updatedAt: string
+    }
   }
   responses: never
   parameters: never
@@ -303,6 +8927,8972 @@ export interface components {
 }
 export type $defs = Record<string, never>
 export interface operations {
+  getPublicAccommodationsPropertiesByIdEffective: {
+    parameters: {
+      query?: {
+        locale?: string
+        audience?: "customer" | "partner"
+        market?: string
+      }
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Effective accommodation property content */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              subject: {
+                /** @enum {string} */
+                module: "accommodation-properties"
+                id: string
+              }
+              locale: {
+                requestedLocale: string
+                sourceLocale: string | null
+                servedLocale: string
+                /** @enum {string} */
+                matchKind: "exact" | "mixed" | "overlay-only"
+              }
+              content: {
+                id: string
+                name?: string | null
+                description?: string | null
+                /** Format: uri */
+                hero_image_url?: string | null
+                gallery?: string[]
+                highlights?: string[]
+                amenities?: string[]
+                star_rating?: number | null
+                brand?: string | null
+                country?: string | null
+                city?: string | null
+                address?: string | null
+                postal_code?: string | null
+                latitude?: number | null
+                longitude?: number | null
+                check_in_time?: string | null
+                check_out_time?: string | null
+              }
+            }
+          }
+        }
+      }
+      /** @description Accommodation property was not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            detail?: string
+            currentVersion?: number | null
+          }
+        }
+      }
+    }
+  }
+  getPublicAccommodationsByIdContent: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Localized accommodation content and provenance. */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description Accommodation content was not found. */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+    }
+  }
+  inspectAuthInvitation: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        token: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description HTTP 200 */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 404 */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 410 */
+      410: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+    }
+  }
+  redeemAuthInvitation: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        token: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          name: string
+          password: string
+        }
+      }
+    }
+    responses: {
+      /** @description HTTP 200 */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 409 */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description HTTP 410 */
+      410: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+    }
+  }
+  getPublicBookingRequirementsProductsByProductIdTransportRequirements: {
+    parameters: {
+      query?: {
+        optionId?: string
+      }
+      header?: never
+      path: {
+        productId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Public transport requirements for a product */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              productId: string
+              optionId: string | null
+              hasTransport: boolean
+              requiresPassengerDocuments: boolean
+              requiresPassport: boolean
+              requiresNationality: boolean
+              requiresDateOfBirth: boolean
+              requiredFields: (
+                | "date_of_birth"
+                | "nationality"
+                | "passport_number"
+                | "passport_expiry"
+              )[]
+              fieldsByScope: {
+                booking: ("date_of_birth" | "nationality" | "passport_number" | "passport_expiry")[]
+                lead_traveler: (
+                  | "date_of_birth"
+                  | "nationality"
+                  | "passport_number"
+                  | "passport_expiry"
+                )[]
+                traveler: (
+                  | "date_of_birth"
+                  | "nationality"
+                  | "passport_number"
+                  | "passport_expiry"
+                )[]
+                booker: ("date_of_birth" | "nationality" | "passport_number" | "passport_expiry")[]
+              }
+              requirements: {
+                /** @enum {string} */
+                fieldKey: "date_of_birth" | "nationality" | "passport_number" | "passport_expiry"
+                /** @enum {string} */
+                scope: "booking" | "lead_traveler" | "traveler" | "booker"
+                isRequired: boolean
+                perTraveler: boolean
+                notes: string | null
+              }[]
+            }
+          }
+        }
+      }
+      /** @description Product not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  postPublicBookingsInquiries: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          productId: string
+          departureId?: string | null
+          contact: {
+            firstName?: string | null
+            lastName?: string | null
+            /** Format: email */
+            email?: string | null
+            phone?: string | null
+          }
+          locale: string
+          message: string
+        }
+      }
+    }
+    responses: {
+      /** @description The previously created durable inquiry receipt */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              channelId: string
+              productId: string
+              departureId: string | null
+              contact: {
+                firstName: string | null
+                lastName: string | null
+                email: string | null
+                phone: string | null
+              }
+              locale: string
+              message: string
+              /** @enum {string} */
+              status: "open" | "closed"
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description A durable inquiry receipt */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              channelId: string
+              productId: string
+              departureId: string | null
+              contact: {
+                firstName: string | null
+                lastName: string | null
+                email: string | null
+                phone: string | null
+              }
+              locale: string
+              message: string
+              /** @enum {string} */
+              status: "open" | "closed"
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description Invalid inquiry or missing Idempotency-Key */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Missing or inactive storefront channel context */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description The idempotency key was already used for another inquiry request */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getPublicBookingsOverview: {
+    parameters: {
+      query?: {
+        bookingId?: string
+        bookingNumber?: string
+        bookingCode?: string
+        email?: string
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Guest-facing committed Booking overview */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              bookingId: string
+              bookingNumber: string
+              revision: number
+              /** @enum {string} */
+              status: "confirmed" | "in_progress" | "completed" | "cancelled"
+              sellCurrency: string
+              sellAmountCents: number | null
+              startDate: string | null
+              endDate: string | null
+              pax: number | null
+              confirmedAt: string | null
+              cancelledAt: string | null
+              completedAt: string | null
+              travelers: {
+                id: string
+                /** @enum {string} */
+                participantType: "traveler" | "occupant" | "other"
+                firstName: string
+                lastName: string
+                isPrimary: boolean
+              }[]
+              items: {
+                id: string
+                title: string
+                description: string | null
+                /** @enum {string} */
+                itemType:
+                  | "unit"
+                  | "extra"
+                  | "service"
+                  | "fee"
+                  | "tax"
+                  | "discount"
+                  | "adjustment"
+                  | "accommodation"
+                  | "transport"
+                  | "other"
+                /** @enum {string} */
+                status: "confirmed" | "cancelled" | "fulfilled"
+                serviceDate: string | null
+                startsAt: string | null
+                endsAt: string | null
+                quantity: number
+                sellCurrency: string
+                unitSellAmountCents: number | null
+                totalSellAmountCents: number | null
+                costCurrency: string | null
+                unitCostAmountCents: number | null
+                totalCostAmountCents: number | null
+                notes: string | null
+                productId: string | null
+                optionId: string | null
+                optionUnitId: string | null
+                pricingCategoryId: string | null
+                travelerLinks: {
+                  id: string
+                  travelerId: string
+                  /** @enum {string} */
+                  role: "traveler" | "occupant" | "beneficiary" | "other"
+                  isPrimary: boolean
+                }[]
+                details?: unknown
+              }[]
+              documents: {
+                id: string
+                travelerId: string | null
+                /** @enum {string} */
+                type:
+                  | "visa"
+                  | "insurance"
+                  | "health"
+                  | "passport_copy"
+                  | "contract"
+                  | "invoice"
+                  | "proforma"
+                  | "credit_note"
+                  | "other"
+                fileName: string
+                fileUrl: string
+              }[]
+              fulfillments: {
+                id: string
+                bookingItemId: string | null
+                travelerId: string | null
+                /** @enum {string} */
+                fulfillmentType:
+                  | "service_voucher"
+                  | "ticket"
+                  | "pdf"
+                  | "qr_code"
+                  | "barcode"
+                  | "mobile"
+                  | "other"
+                /** @enum {string} */
+                deliveryChannel: "download" | "email" | "api" | "wallet" | "other"
+                /** @enum {string} */
+                status: "pending" | "issued" | "reissued" | "revoked" | "failed"
+                artifactUrl: string | null
+              }[]
+            }
+          }
+        }
+      }
+      /** @description Missing guest Booking access capability */
+      401: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Missing or mismatched active storefront channel context */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Booking overview not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Too many guest Booking lookups */
+      429: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  postPublicBookingsGuestLookup: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          bookingCode: string
+          /** Format: email */
+          email: string
+        }
+      }
+    }
+    responses: {
+      /** @description Committed Booking overview with a guest access capability */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              overview: {
+                bookingId: string
+                bookingNumber: string
+                revision: number
+                /** @enum {string} */
+                status: "confirmed" | "in_progress" | "completed" | "cancelled"
+                sellCurrency: string
+                sellAmountCents: number | null
+                startDate: string | null
+                endDate: string | null
+                pax: number | null
+                confirmedAt: string | null
+                cancelledAt: string | null
+                completedAt: string | null
+                travelers: {
+                  id: string
+                  /** @enum {string} */
+                  participantType: "traveler" | "occupant" | "other"
+                  firstName: string
+                  lastName: string
+                  isPrimary: boolean
+                }[]
+                items: {
+                  id: string
+                  title: string
+                  description: string | null
+                  /** @enum {string} */
+                  itemType:
+                    | "unit"
+                    | "extra"
+                    | "service"
+                    | "fee"
+                    | "tax"
+                    | "discount"
+                    | "adjustment"
+                    | "accommodation"
+                    | "transport"
+                    | "other"
+                  /** @enum {string} */
+                  status: "confirmed" | "cancelled" | "fulfilled"
+                  serviceDate: string | null
+                  startsAt: string | null
+                  endsAt: string | null
+                  quantity: number
+                  sellCurrency: string
+                  unitSellAmountCents: number | null
+                  totalSellAmountCents: number | null
+                  costCurrency: string | null
+                  unitCostAmountCents: number | null
+                  totalCostAmountCents: number | null
+                  notes: string | null
+                  productId: string | null
+                  optionId: string | null
+                  optionUnitId: string | null
+                  pricingCategoryId: string | null
+                  travelerLinks: {
+                    id: string
+                    travelerId: string
+                    /** @enum {string} */
+                    role: "traveler" | "occupant" | "beneficiary" | "other"
+                    isPrimary: boolean
+                  }[]
+                  details?: unknown
+                }[]
+                documents: {
+                  id: string
+                  travelerId: string | null
+                  /** @enum {string} */
+                  type:
+                    | "visa"
+                    | "insurance"
+                    | "health"
+                    | "passport_copy"
+                    | "contract"
+                    | "invoice"
+                    | "proforma"
+                    | "credit_note"
+                    | "other"
+                  fileName: string
+                  fileUrl: string
+                }[]
+                fulfillments: {
+                  id: string
+                  bookingItemId: string | null
+                  travelerId: string | null
+                  /** @enum {string} */
+                  fulfillmentType:
+                    | "service_voucher"
+                    | "ticket"
+                    | "pdf"
+                    | "qr_code"
+                    | "barcode"
+                    | "mobile"
+                    | "other"
+                  /** @enum {string} */
+                  deliveryChannel: "download" | "email" | "api" | "wallet" | "other"
+                  /** @enum {string} */
+                  status: "pending" | "issued" | "reissued" | "revoked" | "failed"
+                  artifactUrl: string | null
+                }[]
+              }
+              guestBookingAccess: {
+                token: string
+                expiresAt: string
+                actions: (
+                  | "overview:read"
+                  | "payment:read"
+                  | "payment:start"
+                  | "amendment:read"
+                  | "amendment:preview"
+                  | "amendment:accept"
+                  | "amendment:apply"
+                )[]
+              }
+            }
+          }
+        }
+      }
+      /** @description Missing or mismatched active storefront channel context */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Booking overview not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Too many guest Booking lookups */
+      429: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  postPublicBookingsByBookingIdAmendmentsTravelerCorrectionsPreview: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        bookingId: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          travelerId: string
+          expectedBookingRevision: number
+          reason: string
+          /** @description At least one traveler correction field must be provided. */
+          patch: {
+            firstName?: string
+            lastName?: string
+            /** Format: email */
+            email?: string | null
+            phone?: string | null
+            preferredLanguage?: string | null
+          }
+        }
+      }
+    }
+    responses: {
+      /** @description Idempotent or no-op preview */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": components["schemas"]["BookingAmendmentPreviewNoOpResponse"]
+        }
+      }
+      /** @description Traveler correction preview */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": components["schemas"]["BookingAmendmentOkResponse"]
+        }
+      }
+      /** @description Missing or invalid Idempotency-Key header */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            currentBookingRevision?: number
+            bookingItemId?: string
+            reason?: string
+          }
+        }
+      }
+      /** @description Missing or mismatched Booking access */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            currentBookingRevision?: number
+            bookingItemId?: string
+            reason?: string
+          }
+        }
+      }
+      /** @description Booking or traveler not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            currentBookingRevision?: number
+            bookingItemId?: string
+            reason?: string
+          }
+        }
+      }
+      /** @description Revision or idempotency conflict */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            currentBookingRevision?: number
+            bookingItemId?: string
+            reason?: string
+          }
+        }
+      }
+    }
+  }
+  postPublicBookingsByBookingIdAmendmentsTravelerRosterPreview: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        bookingId: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          expectedBookingRevision: number
+          reason: string
+          change:
+            | {
+                /** @enum {string} */
+                type: "traveler_add"
+                /** @description One or more distinct Booking Item ids; duplicate ids are rejected. */
+                bookingItemIds: string[]
+                traveler: {
+                  personId?: string | null
+                  /**
+                   * @default traveler
+                   * @enum {string}
+                   */
+                  participantType?: "traveler" | "occupant" | "other"
+                  /** @enum {string|null} */
+                  travelerCategory?: "adult" | "child" | "infant" | "senior" | "other" | null
+                  firstName: string
+                  lastName: string
+                  /** Format: email */
+                  email?: string | null
+                  phone?: string | null
+                  preferredLanguage?: string | null
+                }
+              }
+            | {
+                /** @enum {string} */
+                type: "traveler_drop"
+                /** @description One or more distinct Booking Item ids; duplicate ids are rejected. */
+                bookingItemIds: string[]
+                travelerId: string
+              }
+        }
+      }
+    }
+    responses: {
+      /** @description Idempotent or no-op preview */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": components["schemas"]["BookingAmendmentPreviewNoOpResponse"]
+        }
+      }
+      /** @description Traveler correction preview */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": components["schemas"]["BookingAmendmentOkResponse"]
+        }
+      }
+      /** @description Missing or invalid Idempotency-Key header */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            currentBookingRevision?: number
+            bookingItemId?: string
+            reason?: string
+          }
+        }
+      }
+      /** @description Missing or mismatched Booking access */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            currentBookingRevision?: number
+            bookingItemId?: string
+            reason?: string
+          }
+        }
+      }
+      /** @description Booking or traveler not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            currentBookingRevision?: number
+            bookingItemId?: string
+            reason?: string
+          }
+        }
+      }
+      /** @description Revision or idempotency conflict */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            currentBookingRevision?: number
+            bookingItemId?: string
+            reason?: string
+          }
+        }
+      }
+    }
+  }
+  getPublicBookingsByBookingIdAmendments: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        bookingId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Booking Amendment history */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: components["schemas"]["BookingAmendment"][]
+          }
+        }
+      }
+      /** @description Missing or mismatched Booking access */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            currentBookingRevision?: number
+            bookingItemId?: string
+            reason?: string
+          }
+        }
+      }
+    }
+  }
+  getPublicBookingsByBookingIdAmendmentsByAmendmentId: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        bookingId: string
+        amendmentId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Booking Amendment */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: components["schemas"]["BookingAmendment"]
+          }
+        }
+      }
+      /** @description Missing or mismatched Booking access */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            currentBookingRevision?: number
+            bookingItemId?: string
+            reason?: string
+          }
+        }
+      }
+      /** @description Booking Amendment not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            currentBookingRevision?: number
+            bookingItemId?: string
+            reason?: string
+          }
+        }
+      }
+    }
+  }
+  postPublicBookingsByBookingIdAmendmentsByAmendmentIdAccept: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        bookingId: string
+        amendmentId: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          proposedRevisionId: string
+        }
+      }
+    }
+    responses: {
+      /** @description Accepted Booking Amendment */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: components["schemas"]["BookingAmendment"]
+          }
+        }
+      }
+      /** @description Missing or invalid Idempotency-Key header */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            currentBookingRevision?: number
+            bookingItemId?: string
+            reason?: string
+          }
+        }
+      }
+      /** @description Missing or mismatched Booking access */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            currentBookingRevision?: number
+            bookingItemId?: string
+            reason?: string
+          }
+        }
+      }
+      /** @description Booking Amendment not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            currentBookingRevision?: number
+            bookingItemId?: string
+            reason?: string
+          }
+        }
+      }
+      /** @description Acceptance conflict */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            currentBookingRevision?: number
+            bookingItemId?: string
+            reason?: string
+          }
+        }
+      }
+    }
+  }
+  postPublicBookingsByBookingIdAmendmentsByAmendmentIdApply: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        bookingId: string
+        amendmentId: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          expectedBookingRevision: number
+          proposedRevisionId: string
+        }
+      }
+    }
+    responses: {
+      /** @description Applied Booking Amendment */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": components["schemas"]["BookingAmendmentOkResponse"]
+        }
+      }
+      /** @description Booking Amendment is waiting for supplier reconciliation */
+      202: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": components["schemas"]["BookingAmendmentApplyPendingResponse"]
+        }
+      }
+      /** @description Missing or invalid Idempotency-Key header */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            currentBookingRevision?: number
+            bookingItemId?: string
+            reason?: string
+          }
+        }
+      }
+      /** @description Missing or mismatched Booking access */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            currentBookingRevision?: number
+            bookingItemId?: string
+            reason?: string
+          }
+        }
+      }
+      /** @description Booking Amendment not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            currentBookingRevision?: number
+            bookingItemId?: string
+            reason?: string
+          }
+        }
+      }
+      /** @description Apply conflict */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": components["schemas"]["BookingAmendmentApplyConflictResponse"]
+        }
+      }
+    }
+  }
+  postPublicBookingsByBookingIdAmendmentsByAmendmentIdReconcile: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        bookingId: string
+        amendmentId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Applied Booking Amendment */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": components["schemas"]["BookingAmendmentOkResponse"]
+        }
+      }
+      /** @description Booking Amendment is waiting for supplier reconciliation */
+      202: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": components["schemas"]["BookingAmendmentApplyPendingResponse"]
+        }
+      }
+      /** @description Missing or invalid Idempotency-Key header */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            currentBookingRevision?: number
+            bookingItemId?: string
+            reason?: string
+          }
+        }
+      }
+      /** @description Missing or mismatched Booking access */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            currentBookingRevision?: number
+            bookingItemId?: string
+            reason?: string
+          }
+        }
+      }
+      /** @description Booking Amendment not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            currentBookingRevision?: number
+            bookingItemId?: string
+            reason?: string
+          }
+        }
+      }
+      /** @description Apply conflict */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": components["schemas"]["BookingAmendmentApplyConflictResponse"]
+        }
+      }
+    }
+  }
+  getPublicBookingsByBookingIdActions: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        bookingId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Redacted server-projected booking actions */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              /** @enum {string} */
+              kind:
+                | "hold_expiry"
+                | "deposit_due"
+                | "balance_due"
+                | "installment_due"
+                | "supplier_response_due"
+                | "supplier_reconciliation_due"
+                | "legal_acceptance_due"
+                | "legal_signature_due"
+              bookingId: string | null
+              /** Format: date-time */
+              dueAt: string
+              /** Format: date */
+              dueLocalDate: string | null
+              timeZone: string
+              /** @enum {string} */
+              deadlineSemantics: "instant" | "local_date_end"
+              /** @enum {string} */
+              state:
+                | "scheduled"
+                | "due"
+                | "overdue"
+                | "escalated"
+                | "satisfied"
+                | "cancelled"
+                | "superseded"
+                | "invalid_source"
+              /** Format: date-time */
+              satisfiedAt: string | null
+              /** @enum {string|null} */
+              customerNextAction:
+                | "complete_booking"
+                | "make_payment"
+                | "await_supplier_confirmation"
+                | "accept_terms"
+                | "sign_contract"
+                | "none"
+                | null
+            }[]
+            /** Format: date-time */
+            asOf: string
+          }
+        }
+      }
+      /** @description Missing booking access capability */
+      401: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description Booking does not belong to the active storefront channel */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description Booking action projection is not selected */
+      501: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+    }
+  }
+  postPublicCatalogSearch: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          vertical?: string
+          query?: string
+          /** @enum {string} */
+          mode?: "keyword" | "semantic" | "hybrid"
+          /** @enum {string} */
+          sort?: "relevance" | "price-asc" | "price-desc" | "departure-asc" | "newest"
+          /** @enum {string} */
+          projection?: "raw" | "storefront-card"
+          filters?: components["schemas"]["CatalogSearchFilter"][]
+          facets?: {
+            field: string
+            limit?: number
+          }[]
+          pagination?: {
+            limit?: number
+            cursor?: string
+          }
+          alpha?: number
+          distance_threshold?: number
+          query_embedding?: number[]
+          market?: string
+          locale?: string
+          channel?: string
+        }
+      }
+    }
+    responses: {
+      /** @description Search results for the requested vertical slice */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            vertical: string
+            /** @enum {string} */
+            mode: "keyword" | "semantic" | "hybrid"
+            total: number
+            /** @enum {string} */
+            totalRelation?: "eq" | "gte"
+            next_cursor?: string
+            hits: {
+              id: string
+              score: number
+              document: {
+                id: string
+                fields: {
+                  [key: string]: unknown
+                }
+                embeddings?: {
+                  [key: string]: number[]
+                }
+                embedding_model_id?: string
+              }
+            }[]
+            cards?: {
+              id: string
+              name: string | null
+              slug: string | null
+              primaryCategory: {
+                id: string | null
+                name: string | null
+                slug: string | null
+              } | null
+              media: {
+                thumbnailUrl: string | null
+                coverMediaUrl: string | null
+              }
+              priceFrom: {
+                amountCents: number
+                currency: string | null
+                originalAmountCents: number | null
+              } | null
+              offerBadges: {
+                id: string | null
+                name: string | null
+                discountKind: string | null
+                discountPercent: number | null
+                discountAmountCents: number | null
+                minPax?: number | null
+              }[]
+              departures: {
+                upcomingCount: number | null
+                nextDepartureAt: string | null
+                nextDepartureDate: string | null
+                nextDepartureEndsAt: string | null
+                nextDepartureEndDate: string | null
+                timezone: string | null
+                months: string[]
+                dates: string[]
+              }
+              destinations: {
+                regions: string[]
+                countries: string[]
+                cities: string[]
+                ids: string[]
+                slugs: string[]
+              }
+              coordinates: {
+                latitude: number
+                longitude: number
+              } | null
+            }[]
+            facets: {
+              [key: string]: {
+                value: string | number
+                count: number
+              }[]
+            }
+          }
+        }
+      }
+      /** @description invalid_request — body failed validation, `vertical` is missing, or `vertical` names a product-owned vertical that is never independently sellable */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            /** @enum {string} */
+            reason?: "not_independently_sellable"
+            vertical?: string
+            ownedBy?: string
+          }
+        }
+      }
+      /** @description Public storefront channel context is missing or inactive */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            /** @enum {string} */
+            reason?: "not_independently_sellable"
+            vertical?: string
+            ownedBy?: string
+          }
+        }
+      }
+      /** @description Search execution failed */
+      500: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            /** @enum {string} */
+            reason?: "not_independently_sellable"
+            vertical?: string
+            ownedBy?: string
+          }
+        }
+      }
+      /** @description Search indexer is not configured for this deployment */
+      503: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            /** @enum {string} */
+            reason?: "not_independently_sellable"
+            vertical?: string
+            ownedBy?: string
+          }
+        }
+      }
+    }
+  }
+  postPublicCatalogCheckoutStart: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          bookingId: string
+          /** @enum {string} */
+          paymentIntent: "card" | "bank_transfer"
+          contractAcceptance?: {
+            templateId: string
+            templateSlug: string
+            /** @enum {boolean} */
+            acceptedTerms: true
+            acceptedMarketing: boolean
+            /** Format: date-time */
+            acceptedAt: string
+            renderedHtml: string
+          }
+          /** Format: email */
+          payerEmail?: string
+          payerName?: string
+          /** Format: uri */
+          returnOrigin?: string
+        }
+      }
+    }
+    responses: {
+      /** @description Checkout started — card redirect, bank-transfer, inquiry, or hold outcome */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json":
+            | {
+                /** @enum {string} */
+                kind: "card_redirect"
+                bookingId: string
+                paymentSessionId: string
+                redirectUrl: string | null
+                note?: string
+              }
+            | {
+                /** @enum {string} */
+                kind: "bank_transfer_instructions"
+                bookingId: string
+                proformaId: string | null
+                proformaNumber: string | null
+                paymentSessionId: string | null
+                instructions: {
+                  beneficiary: string
+                  iban: string
+                  bankName: string
+                  reference: string
+                  amountCents: number
+                  currency: string
+                  dueAt: string
+                }
+              }
+        }
+      }
+      /** @description invalid_request: request body failed validation */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Booking not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Hold expired */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Checkout setup is incomplete */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Could not create payment session */
+      500: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Payment provider failed */
+      502: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getPublicCharters: {
+    parameters: {
+      query?: {
+        status?: "draft" | "awaiting_review" | "live" | "archived"
+        lineSupplierId?: string
+        region?: string
+        search?: string
+        limit?: number
+        offset?: number | null
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Unified charter browse: local `live` products fanned in with every registered adapter's entries */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              /** @enum {string} */
+              source: "local" | "external"
+              sourceProvider: string | null
+              sourceRef?: unknown
+              key: string
+              product?: unknown
+            }[]
+            total: number
+            limit: number
+            offset: number
+          }
+        }
+      }
+    }
+  }
+  getPublicChartersVoyages: {
+    parameters: {
+      query?: {
+        productId?: string
+        yachtId?: string
+        dateFrom?: string
+        dateTo?: string
+        salesStatus?: "open" | "on_request" | "wait_list" | "sold_out" | "closed"
+        bookingMode?: "per_suite" | "whole_yacht"
+        limit?: number
+        offset?: number | null
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Paginated list of local charter voyages */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              productId: string
+              yachtId: string
+              voyageCode: string
+              name: string | null
+              embarkPortFacilityId: string | null
+              embarkPortName: string | null
+              disembarkPortFacilityId: string | null
+              disembarkPortName: string | null
+              departureDate: string
+              returnDate: string
+              nights: number
+              bookingModes: ("per_suite" | "whole_yacht")[]
+              appointmentOnly: boolean
+              wholeYachtPricesByCurrency: {
+                [key: string]: string
+              }
+              apaPercentOverride: string | null
+              mybaTemplateIdOverride: string | null
+              charterAreaOverride: string | null
+              /** @enum {string} */
+              salesStatus: "open" | "on_request" | "wait_list" | "sold_out" | "closed"
+              availabilityNote: string | null
+              externalRefs: {
+                [key: string]: string
+              } | null
+              lastSyncedAt: string | null
+              createdAt: string
+              updatedAt: string
+            }[]
+            total: number
+            limit: number
+            offset: number
+          }
+        }
+      }
+    }
+  }
+  getPublicChartersVoyagesByKey: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        key: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description A voyage by unified key (local row or external adapter shape) */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data:
+              | {
+                  id: string
+                  productId: string
+                  yachtId: string
+                  voyageCode: string
+                  name: string | null
+                  embarkPortFacilityId: string | null
+                  embarkPortName: string | null
+                  disembarkPortFacilityId: string | null
+                  disembarkPortName: string | null
+                  departureDate: string
+                  returnDate: string
+                  nights: number
+                  bookingModes: ("per_suite" | "whole_yacht")[]
+                  appointmentOnly: boolean
+                  wholeYachtPricesByCurrency: {
+                    [key: string]: string
+                  }
+                  apaPercentOverride: string | null
+                  mybaTemplateIdOverride: string | null
+                  charterAreaOverride: string | null
+                  /** @enum {string} */
+                  salesStatus: "open" | "on_request" | "wait_list" | "sold_out" | "closed"
+                  availabilityNote: string | null
+                  externalRefs: {
+                    [key: string]: string
+                  } | null
+                  lastSyncedAt: string | null
+                  createdAt: string
+                  updatedAt: string
+                  suites?: unknown[]
+                  schedule?: unknown[]
+                }
+              | ({
+                  /** @enum {string} */
+                  source: "external"
+                  sourceProvider: string
+                  sourceRef?: unknown
+                  voyage?: unknown
+                  suites?: unknown
+                  schedule?: unknown
+                } & {
+                  [key: string]: unknown
+                })
+          }
+        }
+      }
+      /** @description Key is not a valid local id or external key */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Voyage not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Referenced adapter is not registered */
+      501: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  postPublicChartersVoyagesByKeyQuotePerSuite: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        key: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          suiteId: string
+          currency: string
+        }
+      }
+    }
+    responses: {
+      /** @description A composed per-suite quote for the requested suite/currency */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              /** @enum {string} */
+              mode: "per_suite"
+              voyageId: string
+              suiteId: string
+              suiteName: string
+              currency: string
+              suitePrice: string
+              portFee: string | null
+              total: string
+            }
+          }
+        }
+      }
+      /** @description Key is not a valid local id or external key */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description No matching suite for the requested key */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Referenced adapter is not registered */
+      501: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  postPublicChartersVoyagesByKeyQuoteWholeYacht: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        key: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          currency: string
+        }
+      }
+    }
+    responses: {
+      /** @description A composed whole-yacht quote for the requested currency */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              /** @enum {string} */
+              mode: "whole_yacht"
+              voyageId: string
+              currency: string
+              charterFee: string
+              apaPercent: string
+              apaAmount: string
+              total: string
+            }
+          }
+        }
+      }
+      /** @description Key is not a valid local id or external key */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Voyage not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Referenced adapter is not registered */
+      501: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  getPublicChartersYachtsByKey: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        key: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description A yacht by unified key (local aggregate or external adapter shape) */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data?: unknown
+          }
+        }
+      }
+      /** @description Key is not a valid local id or external key */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Yacht not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Referenced adapter is not registered */
+      501: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  getPublicChartersProductsByKey: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        key: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description A charter product by unified key (local aggregate or external adapter shape) */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data?: unknown
+          }
+        }
+      }
+      /** @description Product not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Referenced adapter is not registered */
+      501: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  getPublicMarkets: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description The supported markets, locales, and currencies for anonymous discovery */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              code: string
+              name: string
+              regionCode: string | null
+              countryCode: string | null
+              defaultLocale: string
+              defaultCurrency: string
+              locales: {
+                languageTag: string
+                isDefault: boolean
+              }[]
+              currencies: {
+                currencyCode: string
+                isDefault: boolean
+              }[]
+            }[]
+          }
+        }
+      }
+    }
+  }
+  getPublicPricingProductsByProductIdPricing: {
+    parameters: {
+      query?: {
+        catalogId?: string
+        optionId?: string
+        date?: string
+        departureId?: string
+      }
+      header?: never
+      path: {
+        productId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Public pricing snapshot for a product */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              productId: string
+              catalog: {
+                id: string
+                code: string
+                name: string
+                currencyCode: string | null
+              }
+              options: {
+                id: string
+                name: string
+                description: string | null
+                /** @enum {string} */
+                status: "draft" | "active" | "archived"
+                isDefault: boolean
+                /** @enum {string} */
+                bookingMode:
+                  | "date"
+                  | "date_time"
+                  | "open"
+                  | "stay"
+                  | "transfer"
+                  | "itinerary"
+                  | "other"
+                /** @enum {string} */
+                capacityMode: "free_sale" | "limited" | "on_request"
+                pricingRules: {
+                  id: string
+                  name: string
+                  description: string | null
+                  /** @enum {string} */
+                  pricingMode:
+                    | "per_person"
+                    | "per_booking"
+                    | "starting_from"
+                    | "free"
+                    | "on_request"
+                  /** @enum {string|null} */
+                  occupancyPriceBasis: "supplement" | "all_in" | null
+                  baseSellAmountCents: number | null
+                  minPerBooking: number | null
+                  maxPerBooking: number | null
+                  isDefault: boolean
+                  cancellationPolicyId: string | null
+                  unitPrices: {
+                    id: string
+                    unitId: string
+                    unitName: string
+                    /** @enum {string} */
+                    unitType: "person" | "group" | "room" | "vehicle" | "service" | "other"
+                    /** @enum {string} */
+                    pricingMode:
+                      | "per_unit"
+                      | "per_person"
+                      | "per_booking"
+                      | "included"
+                      | "free"
+                      | "on_request"
+                    sellAmountCents: number | null
+                    minQuantity: number | null
+                    maxQuantity: number | null
+                    pricingCategoryId: string | null
+                    sortOrder: number
+                    tiers: {
+                      id: string
+                      minQuantity: number
+                      maxQuantity: number | null
+                      sellAmountCents: number | null
+                      sortOrder: number
+                    }[]
+                  }[]
+                  startTimeAdjustments: {
+                    id: string
+                    startTimeId: string
+                    label: string | null
+                    startTimeLocal: string
+                    /** @enum {string} */
+                    ruleMode: "included" | "excluded" | "override" | "adjustment"
+                    /** @enum {string|null} */
+                    adjustmentType: "fixed" | "percentage" | null
+                    sellAdjustmentCents: number | null
+                    adjustmentBasisPoints: number | null
+                  }[]
+                }[]
+              }[]
+            }
+          }
+        }
+      }
+      /** @description Product or pricing snapshot not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getPublicCruises: {
+    parameters: {
+      query?: {
+        cruiseType?: "ocean" | "river" | "expedition" | "coastal"
+        region?: string
+        regionId?: string
+        waterwayId?: string
+        portId?: string
+        countryIso?: string
+        theme?: string
+        dateFrom?: string
+        dateTo?: string
+        priceMaxCents?: number | null
+        source?: "local" | "external"
+        embarkPortCanonicalPlaceId?: string
+        disembarkPortCanonicalPlaceId?: string
+        portCanonicalPlaceId?: string
+        search?: string
+        limit?: number
+        offset?: number | null
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Paginated list of public cruise search-index rows */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              /** @enum {string} */
+              source: "local" | "external"
+              sourceProvider: string | null
+              sourceRef?: unknown
+              localCruiseId: string | null
+              slug: string
+              name: string
+              /** @enum {string} */
+              cruiseType: "ocean" | "river" | "expedition" | "coastal"
+              lineName: string
+              shipName: string
+              nights: number
+              embarkPortName: string | null
+              embarkPortCanonicalPlaceId: string | null
+              disembarkPortName: string | null
+              disembarkPortCanonicalPlaceId: string | null
+              regionIds: string[] | null
+              waterwayIds: string[] | null
+              portIds: string[] | null
+              countryIso: string[] | null
+              regions: string[] | null
+              waterways: string[] | null
+              ports: string[] | null
+              countries: string[] | null
+              themes: string[] | null
+              earliestDeparture: string | null
+              latestDeparture: string | null
+              departureCount: number | null
+              lowestPriceCents: number | null
+              lowestPriceCurrency: string | null
+              salesStatus: string | null
+              heroImageUrl: string | null
+              refreshedAt: string
+              createdAt: string
+              updatedAt: string
+            }[]
+            total: number
+            limit: number
+            offset: number
+          }
+        }
+      }
+    }
+  }
+  getPublicCruisesSailingsByKey: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        key: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description A sailing by unified key (local id or external key) */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              /** @enum {string} */
+              source: "local" | "external"
+              sourceProvider?: string
+              sailing?: unknown
+              pricing?: unknown
+              itinerary?: unknown
+            } & {
+              [key: string]: unknown
+            }
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Key is not a valid local id or external key */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Sailing not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Referenced adapter is not registered */
+      501: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  postPublicCruisesSailingsByKeyQuote: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        key: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          cabinCategoryId: string
+          cabinCategoryRef?: {
+            [key: string]: unknown
+          } | null
+          occupancy: number
+          guestCount?: number
+          passengerComposition?:
+            | ({
+                adults: number
+                children?: number
+                childAges?: number[]
+                infants?: number
+                seniors?: number
+              } & {
+                [key: string]: unknown
+              })
+            | null
+          fareCode?: string | null
+          /** @enum {string|null} */
+          fareVariant?: "cruise_only" | "air_inclusive" | null
+          bookingTerms?: {
+            [key: string]: unknown
+          } | null
+        }
+      }
+    }
+    responses: {
+      /** @description A composed quote for the requested cabin/occupancy */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              fareCode: string | null
+              fareCodeName: string | null
+              /** @enum {string} */
+              fareVariant: "cruise_only" | "air_inclusive"
+              currency: string
+              occupancy: number
+              guestCount: number
+              basePerPerson: string
+              originalPricePerPerson: string | null
+              singlePricePerPerson: string | null
+              earlyBookingDeadline: string | null
+              earlyBookingBonusDescription: string | null
+              components: {
+                kind: string
+                label: string | null
+                amount: string
+                currency: string
+                /** @enum {string} */
+                direction: "addition" | "inclusion" | "credit"
+                perPerson: boolean
+              }[]
+              totalPerPerson: string
+              totalForCabin: string
+              bookingTerms?: unknown
+            }
+          }
+        }
+      }
+      /** @description Missing guest count, invalid key, or invalid payload */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description No matching price for the requested cabin/occupancy */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Referenced adapter is not registered */
+      501: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  getPublicCruisesShipsByKeyEffective: {
+    parameters: {
+      query?: {
+        locale?: string
+        audience?: "customer" | "partner"
+        market?: string
+      }
+      header?: never
+      path: {
+        key: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Effective ship presentation content with no source/origin data */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data?: unknown
+          }
+        }
+      }
+      /** @description Key is not a valid local ship subject id */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Ship subject not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Referenced adapter is not registered */
+      501: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  getPublicCruisesShipsByKey: {
+    parameters: {
+      query?: {
+        locale?: string
+        audience?: "customer" | "partner"
+        market?: string
+      }
+      header?: never
+      path: {
+        key: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description A ship by unified key (local aggregate or external adapter shape) */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data?: unknown
+          }
+        }
+      }
+      /** @description Key is not a valid local id or external key */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Ship not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Referenced adapter is not registered */
+      501: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  getPublicCruisesBySlug: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        slug: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description A public cruise by slug (local aggregate or external adapter shape) */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              /** @enum {string} */
+              source: "local" | "external"
+              sourceProvider: string | null
+              sourceRef?: unknown
+              summary: {
+                id: string
+                /** @enum {string} */
+                source: "local" | "external"
+                sourceProvider: string | null
+                sourceRef?: unknown
+                localCruiseId: string | null
+                slug: string
+                name: string
+                /** @enum {string} */
+                cruiseType: "ocean" | "river" | "expedition" | "coastal"
+                lineName: string
+                shipName: string
+                nights: number
+                embarkPortName: string | null
+                embarkPortCanonicalPlaceId: string | null
+                disembarkPortName: string | null
+                disembarkPortCanonicalPlaceId: string | null
+                regionIds: string[] | null
+                waterwayIds: string[] | null
+                portIds: string[] | null
+                countryIso: string[] | null
+                regions: string[] | null
+                waterways: string[] | null
+                ports: string[] | null
+                countries: string[] | null
+                themes: string[] | null
+                earliestDeparture: string | null
+                latestDeparture: string | null
+                departureCount: number | null
+                lowestPriceCents: number | null
+                lowestPriceCurrency: string | null
+                salesStatus: string | null
+                heroImageUrl: string | null
+                refreshedAt: string
+                createdAt: string
+                updatedAt: string
+              }
+              cruise?: unknown
+              sailings?: unknown
+            }
+          }
+        }
+      }
+      /** @description Cruise not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Search-index entry is malformed */
+      500: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Referenced adapter is not registered */
+      501: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  postPublicFinanceTravelCreditsValidate: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          code: string
+          bookingId?: string | null
+          currency?: string | null
+          amountCents?: number | null
+        }
+      }
+    }
+    responses: {
+      /** @description Travel credit validity result */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              valid: boolean
+              /** @enum {string|null} */
+              reason:
+                | "not_found"
+                | "inactive"
+                | "not_started"
+                | "expired"
+                | "booking_mismatch"
+                | "currency_mismatch"
+                | "insufficient_balance"
+                | null
+              travelCredit: {
+                id: string
+                code: string
+                currency: string | null
+                amountCents: number | null
+                remainingAmountCents: number | null
+                expiresAt: string | null
+              } | null
+            }
+          }
+        }
+      }
+      /** @description Missing or mismatched active storefront channel context */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getPublicFinanceDocumentsByReference: {
+    parameters: {
+      query: {
+        reference: string
+        invoiceType?: "invoice" | "proforma" | "credit_note"
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Finance document resolved by external reference */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              invoiceId: string
+              invoiceNumber: string
+              /** @enum {string} */
+              invoiceType: "invoice" | "proforma" | "credit_note"
+              /** @enum {string} */
+              invoiceStatus:
+                | "draft"
+                | "pending_external_allocation"
+                | "issued"
+                | "partially_paid"
+                | "paid"
+                | "overdue"
+                | "void"
+              currency: string
+              totalCents: number
+              paidCents: number
+              balanceDueCents: number
+              issueDate: string
+              dueDate: string
+              renditionId: string | null
+              /** @enum {string} */
+              documentStatus: "missing" | "pending" | "ready" | "failed" | "stale"
+              /** @enum {string|null} */
+              format: "html" | "pdf" | "xml" | "json" | null
+              language: string | null
+              generatedAt: string | null
+              fileSize: number | null
+              checksum: string | null
+              downloadUrl: string | null
+              bookingId: string
+            }
+          }
+        }
+      }
+      /** @description Missing or mismatched active storefront channel context */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Finance document not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getPublicFinanceBookingsByBookingIdDocuments: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        bookingId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Finance documents for a booking */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              bookingId: string
+              documents: {
+                invoiceId: string
+                invoiceNumber: string
+                /** @enum {string} */
+                invoiceType: "invoice" | "proforma" | "credit_note"
+                /** @enum {string} */
+                invoiceStatus:
+                  | "draft"
+                  | "pending_external_allocation"
+                  | "issued"
+                  | "partially_paid"
+                  | "paid"
+                  | "overdue"
+                  | "void"
+                currency: string
+                totalCents: number
+                paidCents: number
+                balanceDueCents: number
+                issueDate: string
+                dueDate: string
+                renditionId: string | null
+                /** @enum {string} */
+                documentStatus: "missing" | "pending" | "ready" | "failed" | "stale"
+                /** @enum {string|null} */
+                format: "html" | "pdf" | "xml" | "json" | null
+                language: string | null
+                generatedAt: string | null
+                fileSize: number | null
+                checksum: string | null
+                downloadUrl: string | null
+              }[]
+            }
+          }
+        }
+      }
+      /** @description Missing or mismatched active storefront channel context */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Booking documents not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getPublicFinanceBookingsByBookingIdDocumentsByReference: {
+    parameters: {
+      query: {
+        reference: string
+        invoiceType?: "invoice" | "proforma" | "credit_note"
+      }
+      header?: never
+      path: {
+        bookingId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Finance document for a booking resolved by external reference */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              invoiceId: string
+              invoiceNumber: string
+              /** @enum {string} */
+              invoiceType: "invoice" | "proforma" | "credit_note"
+              /** @enum {string} */
+              invoiceStatus:
+                | "draft"
+                | "pending_external_allocation"
+                | "issued"
+                | "partially_paid"
+                | "paid"
+                | "overdue"
+                | "void"
+              currency: string
+              totalCents: number
+              paidCents: number
+              balanceDueCents: number
+              issueDate: string
+              dueDate: string
+              renditionId: string | null
+              /** @enum {string} */
+              documentStatus: "missing" | "pending" | "ready" | "failed" | "stale"
+              /** @enum {string|null} */
+              format: "html" | "pdf" | "xml" | "json" | null
+              language: string | null
+              generatedAt: string | null
+              fileSize: number | null
+              checksum: string | null
+              downloadUrl: string | null
+              bookingId: string
+            }
+          }
+        }
+      }
+      /** @description Missing or mismatched active storefront channel context */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Finance document not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getPublicFinanceBookingsByBookingIdPayments: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        bookingId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Payments recorded against a booking */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              bookingId: string
+              payments: {
+                id: string
+                /**
+                 * @default payment
+                 * @enum {string}
+                 */
+                source: "payment" | "travel_credit_redemption"
+                invoiceId: string | null
+                invoiceNumber: string | null
+                /** @enum {string|null} */
+                invoiceType: "invoice" | "proforma" | "credit_note" | null
+                /** @enum {string} */
+                status: "pending" | "completed" | "failed" | "refunded"
+                /** @enum {string} */
+                paymentMethod:
+                  | "bank_transfer"
+                  | "credit_card"
+                  | "debit_card"
+                  | "cash"
+                  | "cheque"
+                  | "wallet"
+                  | "direct_bill"
+                  | "travel_credit"
+                  | "other"
+                amountCents: number
+                currency: string
+                baseCurrency: string | null
+                baseAmountCents: number | null
+                paymentDate: string
+                referenceNumber: string | null
+                notes: string | null
+              }[]
+            }
+          }
+        }
+      }
+      /** @description Missing or mismatched active storefront channel context */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Booking payments not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getPublicFinanceBookingsByBookingIdPaymentOptions: {
+    parameters: {
+      query?: {
+        personId?: string
+        organizationId?: string
+        provider?: string
+        instrumentType?:
+          | "credit_card"
+          | "debit_card"
+          | "bank_account"
+          | "wallet"
+          | "travel_credit"
+          | "direct_bill"
+          | "cash"
+          | "other"
+        includeInactive?: boolean | null
+      }
+      header?: never
+      path: {
+        bookingId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Payment options (instruments, schedules, guarantees) for a booking */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              bookingId: string
+              accounts: {
+                id: string
+                label: string
+                provider: string | null
+                /** @enum {string} */
+                instrumentType:
+                  | "credit_card"
+                  | "debit_card"
+                  | "bank_account"
+                  | "wallet"
+                  | "travel_credit"
+                  | "direct_bill"
+                  | "cash"
+                  | "other"
+                /** @enum {string} */
+                status: "active" | "inactive" | "expired" | "revoked" | "failed_verification"
+                brand: string | null
+                last4: string | null
+                expiryMonth: number | null
+                expiryYear: number | null
+                isDefault: boolean
+              }[]
+              schedules: {
+                id: string
+                /** @enum {string} */
+                scheduleType: "deposit" | "installment" | "balance" | "hold" | "other"
+                /** @enum {string} */
+                status: "pending" | "due" | "paid" | "waived" | "cancelled" | "expired"
+                dueDate: string
+                dueTimeZone: string
+                currency: string
+                amountCents: number
+                notes: string | null
+              }[]
+              guarantees: {
+                id: string
+                bookingPaymentScheduleId: string | null
+                guaranteeType: string
+                status: string
+                currency: string | null
+                amountCents: number | null
+                provider: string | null
+                referenceNumber: string | null
+                expiresAt: string | null
+                notes: string | null
+              }[]
+              recommendedTarget: {
+                /** @enum {string|null} */
+                targetType: "booking_payment_schedule" | "booking_guarantee" | null
+                targetId: string | null
+              } | null
+            }
+          }
+        }
+      }
+      /** @description Missing or mismatched active storefront channel context */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Booking payment options not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getPublicFinancePaymentSessionsBySessionId: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        sessionId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description A redacted public payment-session projection */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              target?:
+                | {
+                    /** @enum {string} */
+                    type: "booking_session"
+                    bookingSessionId: string
+                  }
+                | {
+                    /** @enum {string} */
+                    type: "booking"
+                    bookingId: string
+                  }
+                | {
+                    /** @enum {string} */
+                    type: "invoice"
+                    invoiceId: string
+                  }
+                | {
+                    /** @enum {string} */
+                    type: "booking_payment_schedule"
+                    bookingPaymentScheduleId: string
+                  }
+                | {
+                    /** @enum {string} */
+                    type: "booking_guarantee"
+                    bookingGuaranteeId: string
+                  }
+                | {
+                    /** @enum {string} */
+                    type: "flight_order"
+                    flightOrderId: string
+                  }
+                | {
+                    /** @enum {string} */
+                    type: "program"
+                    programId: string
+                  }
+                | {
+                    /** @enum {string} */
+                    type: "supplier_settlement"
+                    supplierSettlementId: string
+                  }
+                | {
+                    /** @enum {string} */
+                    type: "channel_settlement"
+                    channelSettlementId: string
+                  }
+                | {
+                    /** @enum {string} */
+                    type: "provider_reference"
+                    provider: string
+                    reference: string
+                  }
+                | {
+                    /** @enum {string} */
+                    type: "legacy_order"
+                    legacyOrderId: string
+                  }
+                | null
+              provenance?: {
+                /**
+                 * @default operator
+                 * @enum {string}
+                 */
+                source:
+                  | "operator"
+                  | "storefront"
+                  | "customer_portal"
+                  | "payment_provider"
+                  | "supplier_channel"
+                  | "migration"
+                  | "other"
+                provider?: string | null
+                reference?: string | null
+                idempotencyKey?: string | null
+              } | null
+              /** @enum {string} */
+              targetType:
+                | "booking_session"
+                | "booking"
+                | "order"
+                | "invoice"
+                | "booking_payment_schedule"
+                | "booking_guarantee"
+                | "flight_order"
+                | "other"
+              targetId: string | null
+              bookingId: string | null
+              legacyOrderId?: string | null
+              invoiceId: string | null
+              bookingPaymentScheduleId: string | null
+              bookingGuaranteeId: string | null
+              /** @enum {string} */
+              status:
+                | "pending"
+                | "requires_redirect"
+                | "processing"
+                | "authorized"
+                | "paid"
+                | "failed"
+                | "cancelled"
+                | "expired"
+              provider: string | null
+              providerConnectionId?: string | null
+              providerSessionId: string | null
+              providerPaymentId: string | null
+              externalReference: string | null
+              clientReference: string | null
+              currency: string
+              amountCents: number
+              /** @enum {string|null} */
+              paymentMethod:
+                | "bank_transfer"
+                | "credit_card"
+                | "debit_card"
+                | "cash"
+                | "cheque"
+                | "wallet"
+                | "direct_bill"
+                | "travel_credit"
+                | "other"
+                | null
+              payerEmail: string | null
+              payerName: string | null
+              redirectUrl: string | null
+              checkout:
+                | {
+                    /** @enum {string} */
+                    kind: "hosted_checkout" | "redirect"
+                    url: string
+                    expiresAt?: string | null
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "embedded"
+                    clientSecret: string
+                    publishableKey: string
+                    providerAccountId?: string | null
+                    expiresAt?: string | null
+                  }
+                | null
+              returnUrl: string | null
+              cancelUrl: string | null
+              expiresAt: string | null
+              completedAt: string | null
+              failureCode: string | null
+              failureMessage: string | null
+              notes: string | null
+            }
+          }
+        }
+      }
+      /** @description Payment session not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  postPublicFinanceBookingsByBookingIdPaymentSchedulesByScheduleIdPaymentSession: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        bookingId: string
+        scheduleId: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          target?:
+            | {
+                /** @enum {string} */
+                type: "booking_session"
+                bookingSessionId: string
+              }
+            | {
+                /** @enum {string} */
+                type: "booking"
+                bookingId: string
+              }
+            | {
+                /** @enum {string} */
+                type: "invoice"
+                invoiceId: string
+              }
+            | {
+                /** @enum {string} */
+                type: "booking_payment_schedule"
+                bookingPaymentScheduleId: string
+              }
+            | {
+                /** @enum {string} */
+                type: "booking_guarantee"
+                bookingGuaranteeId: string
+              }
+            | {
+                /** @enum {string} */
+                type: "flight_order"
+                flightOrderId: string
+              }
+            | {
+                /** @enum {string} */
+                type: "program"
+                programId: string
+              }
+            | {
+                /** @enum {string} */
+                type: "supplier_settlement"
+                supplierSettlementId: string
+              }
+            | {
+                /** @enum {string} */
+                type: "channel_settlement"
+                channelSettlementId: string
+              }
+            | {
+                /** @enum {string} */
+                type: "provider_reference"
+                provider: string
+                reference: string
+              }
+            | {
+                /** @enum {string} */
+                type: "legacy_order"
+                legacyOrderId: string
+              }
+          provenance?: {
+            /**
+             * @default operator
+             * @enum {string}
+             */
+            source?:
+              | "operator"
+              | "storefront"
+              | "customer_portal"
+              | "payment_provider"
+              | "supplier_channel"
+              | "migration"
+              | "other"
+            provider?: string | null
+            reference?: string | null
+            idempotencyKey?: string | null
+          }
+          provider?: string | null
+          providerConnectionId?: string | null
+          /** @enum {string|null} */
+          paymentMethod?:
+            | "bank_transfer"
+            | "credit_card"
+            | "debit_card"
+            | "cash"
+            | "cheque"
+            | "wallet"
+            | "direct_bill"
+            | "travel_credit"
+            | "other"
+            | null
+          paymentInstrumentId?: string | null
+          payerPersonId?: string | null
+          payerOrganizationId?: string | null
+          /** Format: email */
+          payerEmail?: string | null
+          payerName?: string | null
+          externalReference?: string | null
+          idempotencyKey?: string | null
+          clientReference?: string | null
+          /** Format: uri */
+          returnUrl?: string | null
+          /** Format: uri */
+          cancelUrl?: string | null
+          /** Format: uri */
+          callbackUrl?: string | null
+          expiresAt?: string | null
+          notes?: string | null
+          providerPayload?: {
+            [key: string]: unknown
+          } | null
+          metadata?: {
+            [key: string]: unknown
+          } | null
+        }
+      }
+    }
+    responses: {
+      /** @description Started payment session for a booking payment schedule */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              target?:
+                | {
+                    /** @enum {string} */
+                    type: "booking_session"
+                    bookingSessionId: string
+                  }
+                | {
+                    /** @enum {string} */
+                    type: "booking"
+                    bookingId: string
+                  }
+                | {
+                    /** @enum {string} */
+                    type: "invoice"
+                    invoiceId: string
+                  }
+                | {
+                    /** @enum {string} */
+                    type: "booking_payment_schedule"
+                    bookingPaymentScheduleId: string
+                  }
+                | {
+                    /** @enum {string} */
+                    type: "booking_guarantee"
+                    bookingGuaranteeId: string
+                  }
+                | {
+                    /** @enum {string} */
+                    type: "flight_order"
+                    flightOrderId: string
+                  }
+                | {
+                    /** @enum {string} */
+                    type: "program"
+                    programId: string
+                  }
+                | {
+                    /** @enum {string} */
+                    type: "supplier_settlement"
+                    supplierSettlementId: string
+                  }
+                | {
+                    /** @enum {string} */
+                    type: "channel_settlement"
+                    channelSettlementId: string
+                  }
+                | {
+                    /** @enum {string} */
+                    type: "provider_reference"
+                    provider: string
+                    reference: string
+                  }
+                | {
+                    /** @enum {string} */
+                    type: "legacy_order"
+                    legacyOrderId: string
+                  }
+                | null
+              provenance?: {
+                /**
+                 * @default operator
+                 * @enum {string}
+                 */
+                source:
+                  | "operator"
+                  | "storefront"
+                  | "customer_portal"
+                  | "payment_provider"
+                  | "supplier_channel"
+                  | "migration"
+                  | "other"
+                provider?: string | null
+                reference?: string | null
+                idempotencyKey?: string | null
+              } | null
+              /** @enum {string} */
+              targetType:
+                | "booking_session"
+                | "booking"
+                | "order"
+                | "invoice"
+                | "booking_payment_schedule"
+                | "booking_guarantee"
+                | "flight_order"
+                | "other"
+              targetId: string | null
+              bookingId: string | null
+              legacyOrderId?: string | null
+              invoiceId: string | null
+              bookingPaymentScheduleId: string | null
+              bookingGuaranteeId: string | null
+              /** @enum {string} */
+              status:
+                | "pending"
+                | "requires_redirect"
+                | "processing"
+                | "authorized"
+                | "paid"
+                | "failed"
+                | "cancelled"
+                | "expired"
+              provider: string | null
+              providerConnectionId?: string | null
+              providerSessionId: string | null
+              providerPaymentId: string | null
+              externalReference: string | null
+              clientReference: string | null
+              currency: string
+              amountCents: number
+              /** @enum {string|null} */
+              paymentMethod:
+                | "bank_transfer"
+                | "credit_card"
+                | "debit_card"
+                | "cash"
+                | "cheque"
+                | "wallet"
+                | "direct_bill"
+                | "travel_credit"
+                | "other"
+                | null
+              payerEmail: string | null
+              payerName: string | null
+              redirectUrl: string | null
+              checkout:
+                | {
+                    /** @enum {string} */
+                    kind: "hosted_checkout" | "redirect"
+                    url: string
+                    expiresAt?: string | null
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "embedded"
+                    clientSecret: string
+                    publishableKey: string
+                    providerAccountId?: string | null
+                    expiresAt?: string | null
+                  }
+                | null
+              returnUrl: string | null
+              cancelUrl: string | null
+              expiresAt: string | null
+              completedAt: string | null
+              failureCode: string | null
+              failureMessage: string | null
+              notes: string | null
+            }
+          }
+        }
+      }
+      /** @description Missing or mismatched active storefront channel context */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Booking payment schedule not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Payment session could not be started */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  postPublicFinanceBookingsByBookingIdGuaranteesByGuaranteeIdPaymentSession: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        bookingId: string
+        guaranteeId: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          target?:
+            | {
+                /** @enum {string} */
+                type: "booking_session"
+                bookingSessionId: string
+              }
+            | {
+                /** @enum {string} */
+                type: "booking"
+                bookingId: string
+              }
+            | {
+                /** @enum {string} */
+                type: "invoice"
+                invoiceId: string
+              }
+            | {
+                /** @enum {string} */
+                type: "booking_payment_schedule"
+                bookingPaymentScheduleId: string
+              }
+            | {
+                /** @enum {string} */
+                type: "booking_guarantee"
+                bookingGuaranteeId: string
+              }
+            | {
+                /** @enum {string} */
+                type: "flight_order"
+                flightOrderId: string
+              }
+            | {
+                /** @enum {string} */
+                type: "program"
+                programId: string
+              }
+            | {
+                /** @enum {string} */
+                type: "supplier_settlement"
+                supplierSettlementId: string
+              }
+            | {
+                /** @enum {string} */
+                type: "channel_settlement"
+                channelSettlementId: string
+              }
+            | {
+                /** @enum {string} */
+                type: "provider_reference"
+                provider: string
+                reference: string
+              }
+            | {
+                /** @enum {string} */
+                type: "legacy_order"
+                legacyOrderId: string
+              }
+          provenance?: {
+            /**
+             * @default operator
+             * @enum {string}
+             */
+            source?:
+              | "operator"
+              | "storefront"
+              | "customer_portal"
+              | "payment_provider"
+              | "supplier_channel"
+              | "migration"
+              | "other"
+            provider?: string | null
+            reference?: string | null
+            idempotencyKey?: string | null
+          }
+          provider?: string | null
+          providerConnectionId?: string | null
+          /** @enum {string|null} */
+          paymentMethod?:
+            | "bank_transfer"
+            | "credit_card"
+            | "debit_card"
+            | "cash"
+            | "cheque"
+            | "wallet"
+            | "direct_bill"
+            | "travel_credit"
+            | "other"
+            | null
+          paymentInstrumentId?: string | null
+          payerPersonId?: string | null
+          payerOrganizationId?: string | null
+          /** Format: email */
+          payerEmail?: string | null
+          payerName?: string | null
+          externalReference?: string | null
+          idempotencyKey?: string | null
+          clientReference?: string | null
+          /** Format: uri */
+          returnUrl?: string | null
+          /** Format: uri */
+          cancelUrl?: string | null
+          /** Format: uri */
+          callbackUrl?: string | null
+          expiresAt?: string | null
+          notes?: string | null
+          providerPayload?: {
+            [key: string]: unknown
+          } | null
+          metadata?: {
+            [key: string]: unknown
+          } | null
+        }
+      }
+    }
+    responses: {
+      /** @description Started payment session for a booking guarantee */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              target?:
+                | {
+                    /** @enum {string} */
+                    type: "booking_session"
+                    bookingSessionId: string
+                  }
+                | {
+                    /** @enum {string} */
+                    type: "booking"
+                    bookingId: string
+                  }
+                | {
+                    /** @enum {string} */
+                    type: "invoice"
+                    invoiceId: string
+                  }
+                | {
+                    /** @enum {string} */
+                    type: "booking_payment_schedule"
+                    bookingPaymentScheduleId: string
+                  }
+                | {
+                    /** @enum {string} */
+                    type: "booking_guarantee"
+                    bookingGuaranteeId: string
+                  }
+                | {
+                    /** @enum {string} */
+                    type: "flight_order"
+                    flightOrderId: string
+                  }
+                | {
+                    /** @enum {string} */
+                    type: "program"
+                    programId: string
+                  }
+                | {
+                    /** @enum {string} */
+                    type: "supplier_settlement"
+                    supplierSettlementId: string
+                  }
+                | {
+                    /** @enum {string} */
+                    type: "channel_settlement"
+                    channelSettlementId: string
+                  }
+                | {
+                    /** @enum {string} */
+                    type: "provider_reference"
+                    provider: string
+                    reference: string
+                  }
+                | {
+                    /** @enum {string} */
+                    type: "legacy_order"
+                    legacyOrderId: string
+                  }
+                | null
+              provenance?: {
+                /**
+                 * @default operator
+                 * @enum {string}
+                 */
+                source:
+                  | "operator"
+                  | "storefront"
+                  | "customer_portal"
+                  | "payment_provider"
+                  | "supplier_channel"
+                  | "migration"
+                  | "other"
+                provider?: string | null
+                reference?: string | null
+                idempotencyKey?: string | null
+              } | null
+              /** @enum {string} */
+              targetType:
+                | "booking_session"
+                | "booking"
+                | "order"
+                | "invoice"
+                | "booking_payment_schedule"
+                | "booking_guarantee"
+                | "flight_order"
+                | "other"
+              targetId: string | null
+              bookingId: string | null
+              legacyOrderId?: string | null
+              invoiceId: string | null
+              bookingPaymentScheduleId: string | null
+              bookingGuaranteeId: string | null
+              /** @enum {string} */
+              status:
+                | "pending"
+                | "requires_redirect"
+                | "processing"
+                | "authorized"
+                | "paid"
+                | "failed"
+                | "cancelled"
+                | "expired"
+              provider: string | null
+              providerConnectionId?: string | null
+              providerSessionId: string | null
+              providerPaymentId: string | null
+              externalReference: string | null
+              clientReference: string | null
+              currency: string
+              amountCents: number
+              /** @enum {string|null} */
+              paymentMethod:
+                | "bank_transfer"
+                | "credit_card"
+                | "debit_card"
+                | "cash"
+                | "cheque"
+                | "wallet"
+                | "direct_bill"
+                | "travel_credit"
+                | "other"
+                | null
+              payerEmail: string | null
+              payerName: string | null
+              redirectUrl: string | null
+              checkout:
+                | {
+                    /** @enum {string} */
+                    kind: "hosted_checkout" | "redirect"
+                    url: string
+                    expiresAt?: string | null
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "embedded"
+                    clientSecret: string
+                    publishableKey: string
+                    providerAccountId?: string | null
+                    expiresAt?: string | null
+                  }
+                | null
+              returnUrl: string | null
+              cancelUrl: string | null
+              expiresAt: string | null
+              completedAt: string | null
+              failureCode: string | null
+              failureMessage: string | null
+              notes: string | null
+            }
+          }
+        }
+      }
+      /** @description Missing or mismatched active storefront channel context */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Booking guarantee not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Payment session could not be started */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  postPublicFinanceInvoicesByInvoiceIdPaymentSession: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        invoiceId: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          target?:
+            | {
+                /** @enum {string} */
+                type: "booking_session"
+                bookingSessionId: string
+              }
+            | {
+                /** @enum {string} */
+                type: "booking"
+                bookingId: string
+              }
+            | {
+                /** @enum {string} */
+                type: "invoice"
+                invoiceId: string
+              }
+            | {
+                /** @enum {string} */
+                type: "booking_payment_schedule"
+                bookingPaymentScheduleId: string
+              }
+            | {
+                /** @enum {string} */
+                type: "booking_guarantee"
+                bookingGuaranteeId: string
+              }
+            | {
+                /** @enum {string} */
+                type: "flight_order"
+                flightOrderId: string
+              }
+            | {
+                /** @enum {string} */
+                type: "program"
+                programId: string
+              }
+            | {
+                /** @enum {string} */
+                type: "supplier_settlement"
+                supplierSettlementId: string
+              }
+            | {
+                /** @enum {string} */
+                type: "channel_settlement"
+                channelSettlementId: string
+              }
+            | {
+                /** @enum {string} */
+                type: "provider_reference"
+                provider: string
+                reference: string
+              }
+            | {
+                /** @enum {string} */
+                type: "legacy_order"
+                legacyOrderId: string
+              }
+          provenance?: {
+            /**
+             * @default operator
+             * @enum {string}
+             */
+            source?:
+              | "operator"
+              | "storefront"
+              | "customer_portal"
+              | "payment_provider"
+              | "supplier_channel"
+              | "migration"
+              | "other"
+            provider?: string | null
+            reference?: string | null
+            idempotencyKey?: string | null
+          }
+          provider?: string | null
+          providerConnectionId?: string | null
+          /** @enum {string|null} */
+          paymentMethod?:
+            | "bank_transfer"
+            | "credit_card"
+            | "debit_card"
+            | "cash"
+            | "cheque"
+            | "wallet"
+            | "direct_bill"
+            | "travel_credit"
+            | "other"
+            | null
+          paymentInstrumentId?: string | null
+          payerPersonId?: string | null
+          payerOrganizationId?: string | null
+          /** Format: email */
+          payerEmail?: string | null
+          payerName?: string | null
+          externalReference?: string | null
+          idempotencyKey?: string | null
+          clientReference?: string | null
+          /** Format: uri */
+          returnUrl?: string | null
+          /** Format: uri */
+          cancelUrl?: string | null
+          /** Format: uri */
+          callbackUrl?: string | null
+          expiresAt?: string | null
+          notes?: string | null
+          providerPayload?: {
+            [key: string]: unknown
+          } | null
+          metadata?: {
+            [key: string]: unknown
+          } | null
+        }
+      }
+    }
+    responses: {
+      /** @description Started payment session for an invoice */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              target?:
+                | {
+                    /** @enum {string} */
+                    type: "booking_session"
+                    bookingSessionId: string
+                  }
+                | {
+                    /** @enum {string} */
+                    type: "booking"
+                    bookingId: string
+                  }
+                | {
+                    /** @enum {string} */
+                    type: "invoice"
+                    invoiceId: string
+                  }
+                | {
+                    /** @enum {string} */
+                    type: "booking_payment_schedule"
+                    bookingPaymentScheduleId: string
+                  }
+                | {
+                    /** @enum {string} */
+                    type: "booking_guarantee"
+                    bookingGuaranteeId: string
+                  }
+                | {
+                    /** @enum {string} */
+                    type: "flight_order"
+                    flightOrderId: string
+                  }
+                | {
+                    /** @enum {string} */
+                    type: "program"
+                    programId: string
+                  }
+                | {
+                    /** @enum {string} */
+                    type: "supplier_settlement"
+                    supplierSettlementId: string
+                  }
+                | {
+                    /** @enum {string} */
+                    type: "channel_settlement"
+                    channelSettlementId: string
+                  }
+                | {
+                    /** @enum {string} */
+                    type: "provider_reference"
+                    provider: string
+                    reference: string
+                  }
+                | {
+                    /** @enum {string} */
+                    type: "legacy_order"
+                    legacyOrderId: string
+                  }
+                | null
+              provenance?: {
+                /**
+                 * @default operator
+                 * @enum {string}
+                 */
+                source:
+                  | "operator"
+                  | "storefront"
+                  | "customer_portal"
+                  | "payment_provider"
+                  | "supplier_channel"
+                  | "migration"
+                  | "other"
+                provider?: string | null
+                reference?: string | null
+                idempotencyKey?: string | null
+              } | null
+              /** @enum {string} */
+              targetType:
+                | "booking_session"
+                | "booking"
+                | "order"
+                | "invoice"
+                | "booking_payment_schedule"
+                | "booking_guarantee"
+                | "flight_order"
+                | "other"
+              targetId: string | null
+              bookingId: string | null
+              legacyOrderId?: string | null
+              invoiceId: string | null
+              bookingPaymentScheduleId: string | null
+              bookingGuaranteeId: string | null
+              /** @enum {string} */
+              status:
+                | "pending"
+                | "requires_redirect"
+                | "processing"
+                | "authorized"
+                | "paid"
+                | "failed"
+                | "cancelled"
+                | "expired"
+              provider: string | null
+              providerConnectionId?: string | null
+              providerSessionId: string | null
+              providerPaymentId: string | null
+              externalReference: string | null
+              clientReference: string | null
+              currency: string
+              amountCents: number
+              /** @enum {string|null} */
+              paymentMethod:
+                | "bank_transfer"
+                | "credit_card"
+                | "debit_card"
+                | "cash"
+                | "cheque"
+                | "wallet"
+                | "direct_bill"
+                | "travel_credit"
+                | "other"
+                | null
+              payerEmail: string | null
+              payerName: string | null
+              redirectUrl: string | null
+              checkout:
+                | {
+                    /** @enum {string} */
+                    kind: "hosted_checkout" | "redirect"
+                    url: string
+                    expiresAt?: string | null
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "embedded"
+                    clientSecret: string
+                    publishableKey: string
+                    providerAccountId?: string | null
+                    expiresAt?: string | null
+                  }
+                | null
+              returnUrl: string | null
+              cancelUrl: string | null
+              expiresAt: string | null
+              completedAt: string | null
+              failureCode: string | null
+              failureMessage: string | null
+              notes: string | null
+            }
+          }
+        }
+      }
+      /** @description Missing or mismatched active storefront channel context */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Invoice not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Payment session could not be started */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getPublicFinanceAccountantByTokenSummary: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        token: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Accountant share profitability summary (scope + departure/product rollups) */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              scope: {
+                from?: string | null
+                to?: string | null
+              }
+              departures?: unknown
+              products?: unknown
+            }
+          }
+        }
+      }
+      /** @description Share not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Share expired or revoked */
+      410: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getPublicFinanceAccountantByTokenInvoices: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        token: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Invoices (with attachments) visible to an accountant share */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: unknown[]
+          }
+        }
+      }
+      /** @description Share not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Share expired or revoked */
+      410: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getPublicPaymentLinkConfig: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Public payment-link configuration (checkout base URL + bank-transfer details) */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              paymentLinkUrlTemplate: string | null
+              publicCheckoutBaseUrl: string | null
+              bankTransfer: {
+                beneficiary: string
+                iban: string
+                bankName?: string | null
+              } | null
+              cardPayments: {
+                available: boolean
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  postPublicPaymentLinkBySessionIdRetry: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        sessionId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description A fresh (or already-paid) payment session for the link */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              sessionId: string
+              alreadyPaid?: boolean
+            }
+          }
+        }
+      }
+      /** @description Session not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Failed to create a fresh payment session */
+      500: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getPublicPaymentLinkResolve: {
+    parameters: {
+      query?: {
+        ref?: string
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description The payment-session id matched by reference */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              sessionId: string
+            }
+          }
+        }
+      }
+      /** @description Missing ref query param */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Payment session not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  postPublicPaymentLinkBySessionIdStartCard: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        sessionId: string
+      }
+      cookie?: never
+    }
+    requestBody?: {
+      content: {
+        "application/json": {
+          billing?: {
+            email: string
+            phone?: string
+            firstName: string
+            lastName?: string
+            city?: string
+            country?: number | string
+            state?: string
+            postalCode?: string
+            details?: string
+          }
+          description?: string
+          shipping?: {
+            [key: string]: unknown
+          }
+          acceptedCheckoutHandoffs?: ("redirect" | "embedded")[]
+        }
+      }
+    }
+    responses: {
+      /** @description The card-provider handoff for the session */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              redirectUrl: string | null
+              checkout:
+                | {
+                    /** @enum {string} */
+                    kind: "hosted_checkout" | "redirect"
+                    url: string
+                    expiresAt?: string | null
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: "embedded"
+                    clientSecret: string
+                    publishableKey: string
+                    providerAccountId?: string | null
+                    expiresAt?: string | null
+                  }
+                | null
+              session?: {
+                id: string
+                status: string
+                amountCents: number
+                currency: string
+                redirectUrl: string | null
+                checkout:
+                  | {
+                      /** @enum {string} */
+                      kind: "hosted_checkout" | "redirect"
+                      url: string
+                      expiresAt?: string | null
+                    }
+                  | {
+                      /** @enum {string} */
+                      kind: "embedded"
+                      clientSecret: string
+                      publishableKey: string
+                      providerAccountId?: string | null
+                      expiresAt?: string | null
+                    }
+                  | null
+              }
+            }
+          }
+        }
+      }
+      /** @description Session not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Card processor failed to start the payment */
+      502: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Card processor not configured */
+      503: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getPublicPaymentLinkBySessionIdTripSummary: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        sessionId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Trip summary for a trip-issued payment session (null for non-trip sessions) */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              envelopeId: string
+              currency: string
+              totalAmountCents: number
+              components: {
+                id: string
+                kind: string
+                entityModule: string | null
+                title: string
+                thumbnailUrl: string | null
+                thumbnailAlt: string | null
+                scheduledStartsAt: string | null
+                scheduledEndsAt: string | null
+                sourceAmountCents: number | null
+                sourceCurrency: string
+                targetAmountCents: number | null
+                targetCurrency: string
+                fx: {
+                  rate: number
+                  quotedAt: string
+                } | null
+              }[]
+            } | null
+          }
+        }
+      }
+      /** @description Session not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getPublicPaymentLinkBySessionIdBookingSummary: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        sessionId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Booking summary for a booking-attached payment session (null otherwise) */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              bookingId: string
+              bookingNumber: string
+              status: string
+              pax: number | null
+              startDate: string | null
+              endDate: string | null
+              chargeAmountCents: number
+              currency: string
+              bookingTotalAmountCents: number | null
+              bookingCurrency: string
+              items: {
+                id: string
+                productName: string
+                optionName: string | null
+                unitName: string | null
+                departureLabel: string | null
+                startsAt: string | null
+                endsAt: string | null
+                serviceDate: string | null
+                quantity: number
+                itemType: string
+                amountCents: number | null
+                currency: string
+              }[]
+            } | null
+          }
+        }
+      }
+      /** @description Session not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getPublicBookingsByBookingIdCheckoutStatus: {
+    parameters: {
+      query?: {
+        session?: string
+        orderId?: string
+        ref?: string
+      }
+      header?: never
+      path: {
+        bookingId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description The booking's checkout/payment status with its latest session */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              bookingId: string
+              bookingNumber: string
+              bookingStatus: string
+              /** @enum {string} */
+              paymentStatus: "paid" | "failed" | "pending"
+              session: {
+                id: string
+                status: string
+                amountCents: number
+                currency: string
+                invoiceId: string | null
+                paymentMethod: string | null
+                completedAt: string | null
+                failedAt: string | null
+                updatedAt: string | null
+              } | null
+              bankTransferInstructions: {
+                beneficiary: string
+                iban: string
+                bankName: string
+                reference: string
+                amountCents: number
+                currency: string
+                dueAt: string | null
+                proformaNumber: string | null
+              } | null
+              updatedAt: string | null
+            }
+          }
+        }
+      }
+      /** @description Booking not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  postPublicStorefrontVerificationEmailStart: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          /** Format: email */
+          email: string
+          /** @default contact_confirmation */
+          purpose?: string
+          locale?: string | null
+          metadata?: {
+            [key: string]: unknown
+          } | null
+          /** @description What this challenge authorizes beyond its purpose - the booking draft id for a self-service create. Bound at start so a verified challenge cannot be redirected at another draft. */
+          subjectRef?: string | null
+        }
+      }
+    }
+    responses: {
+      /** @description An email verification challenge was started */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              /** @enum {string} */
+              channel: "email" | "sms"
+              destination: string
+              purpose: string
+              /** @enum {string} */
+              status: "pending" | "verified" | "expired" | "failed" | "cancelled"
+              /** Format: date-time */
+              expiresAt: string
+              /** Format: date-time */
+              verifiedAt: string | null
+              /** Format: date-time */
+              createdAt: string
+              /** Format: date-time */
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description Malformed verification request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            code?: string
+          }
+        }
+      }
+      /** @description Too many verification attempts */
+      429: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            code?: string
+          }
+        }
+      }
+      /** @description Verification sender is not configured */
+      501: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            code?: string
+          }
+        }
+      }
+    }
+  }
+  postPublicStorefrontVerificationSmsStart: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          phone: string
+          /** @default contact_confirmation */
+          purpose?: string
+          locale?: string | null
+          metadata?: {
+            [key: string]: unknown
+          } | null
+          /** @description What this challenge authorizes beyond its purpose - the booking draft id for a self-service create. Bound at start so a verified challenge cannot be redirected at another draft. */
+          subjectRef?: string | null
+        }
+      }
+    }
+    responses: {
+      /** @description An SMS verification challenge was started */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              /** @enum {string} */
+              channel: "email" | "sms"
+              destination: string
+              purpose: string
+              /** @enum {string} */
+              status: "pending" | "verified" | "expired" | "failed" | "cancelled"
+              /** Format: date-time */
+              expiresAt: string
+              /** Format: date-time */
+              verifiedAt: string | null
+              /** Format: date-time */
+              createdAt: string
+              /** Format: date-time */
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description Malformed verification request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            code?: string
+          }
+        }
+      }
+      /** @description Too many verification attempts */
+      429: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            code?: string
+          }
+        }
+      }
+      /** @description Verification sender is not configured */
+      501: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            code?: string
+          }
+        }
+      }
+    }
+  }
+  postPublicStorefrontVerificationEmailConfirm: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          /** Format: email */
+          email: string
+          code: string
+          /** @default contact_confirmation */
+          purpose?: string
+        }
+      }
+    }
+    responses: {
+      /** @description The email verification challenge was confirmed */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              /** @enum {string} */
+              channel: "email" | "sms"
+              destination: string
+              purpose: string
+              /** @enum {string} */
+              status: "verified"
+              /** Format: date-time */
+              expiresAt: string
+              /** Format: date-time */
+              verifiedAt: string | null
+              /** Format: date-time */
+              createdAt: string
+              /** Format: date-time */
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description Malformed verification request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            code?: string
+          }
+        }
+      }
+      /** @description Verification challenge not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            code?: string
+          }
+        }
+      }
+      /** @description Verification code is invalid or the attempt failed */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            code?: string
+          }
+        }
+      }
+      /** @description Verification challenge has expired */
+      410: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            code?: string
+          }
+        }
+      }
+    }
+  }
+  postPublicStorefrontVerificationSmsConfirm: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          phone: string
+          code: string
+          /** @default contact_confirmation */
+          purpose?: string
+        }
+      }
+    }
+    responses: {
+      /** @description The SMS verification challenge was confirmed */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              /** @enum {string} */
+              channel: "email" | "sms"
+              destination: string
+              purpose: string
+              /** @enum {string} */
+              status: "verified"
+              /** Format: date-time */
+              expiresAt: string
+              /** Format: date-time */
+              verifiedAt: string | null
+              /** Format: date-time */
+              createdAt: string
+              /** Format: date-time */
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description Malformed verification request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            code?: string
+          }
+        }
+      }
+      /** @description Verification challenge not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            code?: string
+          }
+        }
+      }
+      /** @description Verification code is invalid or the attempt failed */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            code?: string
+          }
+        }
+      }
+      /** @description Verification challenge has expired */
+      410: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            code?: string
+          }
+        }
+      }
+    }
+  }
+  getPublicProductsTags: {
+    parameters: {
+      query?: {
+        search?: string
+        limit?: number
+        offset?: number | null
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Paginated list of public catalog tags */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              name: string
+            }[]
+            total: number
+            limit: number
+            offset: number
+          }
+        }
+      }
+    }
+  }
+  getPublicProductsCategories: {
+    parameters: {
+      query?: {
+        search?: string
+        parentId?: string
+        limit?: number
+        offset?: number | null
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Paginated list of public catalog categories */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              parentId: string | null
+              name: string
+              slug: string
+              description: string | null
+              sortOrder: number
+            }[]
+            total: number
+            limit: number
+            offset: number
+          }
+        }
+      }
+    }
+  }
+  getPublicProductsDestinations: {
+    parameters: {
+      query?: {
+        search?: string
+        parentId?: string
+        active?: "0" | "1" | "true" | "false"
+        languageTag?: string
+        destinationType?:
+          | "destination"
+          | "region"
+          | "country"
+          | "city"
+          | "port"
+          | "river"
+          | "sea"
+          | "ocean"
+          | "canal"
+          | "lake"
+        canonicalPlaceId?: string
+        limit?: number
+        offset?: number | null
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Paginated list of public catalog destinations */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              parentId: string | null
+              slug: string
+              canonicalPlaceId: string | null
+              name: string
+              description: string | null
+              seoTitle: string | null
+              seoDescription: string | null
+              destinationType: string
+              latitude: number | null
+              longitude: number | null
+              sortOrder: number
+            }[]
+            total: number
+            limit: number
+            offset: number
+          }
+        }
+      }
+    }
+  }
+  getPublicProducts: {
+    parameters: {
+      query?: {
+        search?: string
+        languageTag?: string
+        bookingMode?: "date" | "date_time" | "open" | "stay" | "transfer" | "itinerary" | "other"
+        capacityMode?: "free_sale" | "limited" | "on_request"
+        productTypeId?: string
+        categoryId?: string
+        tagId?: string
+        destinationId?: string
+        destinationSlug?: string
+        locationTitle?: string
+        locationCity?: string
+        locationCountryCode?: string
+        locationType?:
+          | "start"
+          | "end"
+          | "meeting_point"
+          | "pickup"
+          | "dropoff"
+          | "point_of_interest"
+          | "other"
+        featured?: "0" | "1" | "true" | "false"
+        sort?: "name" | "createdAt" | "startDate" | "price"
+        direction?: "asc" | "desc"
+        limit?: number
+        offset?: number | null
+        includeContent?: "0" | "1" | "true" | "false"
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Paginated list of public catalog products */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              name: string
+              description: string | null
+              inclusionsHtml: string | null
+              exclusionsHtml: string | null
+              termsHtml: string | null
+              contentLanguageTag: string | null
+              slug: string | null
+              shortDescription: string | null
+              seoTitle: string | null
+              seoDescription: string | null
+              bookingMode: string
+              capacityMode: string
+              visibility: string
+              sellCurrency: string
+              sellAmountCents: number | null
+              startDate: string | null
+              endDate: string | null
+              pax: number | null
+              contractTemplateId: string | null
+              productType: {
+                id: string
+                code: string
+                name: string
+                description: string | null
+              } | null
+              categories: {
+                id: string
+                parentId: string | null
+                name: string
+                slug: string
+                description: string | null
+                sortOrder: number
+              }[]
+              tags: {
+                id: string
+                name: string
+              }[]
+              destinations: {
+                id: string
+                parentId: string | null
+                slug: string
+                canonicalPlaceId: string | null
+                name: string
+                description: string | null
+                seoTitle: string | null
+                seoDescription: string | null
+                destinationType: string
+                latitude: number | null
+                longitude: number | null
+                sortOrder: number
+              }[]
+              locations: {
+                id: string
+                locationType: string
+                title: string
+                address: string | null
+                city: string | null
+                countryCode: string | null
+                latitude: number | null
+                longitude: number | null
+                sortOrder: number
+              }[]
+              capabilities: string[]
+              coverMedia: {
+                id: string
+                mediaType: string
+                name: string
+                url: string
+                mimeType: string | null
+                width: number | null
+                height: number | null
+                altText: string | null
+                sortOrder: number
+                isCover: boolean
+                isOpenGraph: boolean
+                isBrochure: boolean
+                isBrochureCurrent: boolean
+                brochureVersion: number | null
+              } | null
+              isFeatured: boolean
+              media?: {
+                id: string
+                mediaType: string
+                name: string
+                url: string
+                mimeType: string | null
+                width: number | null
+                height: number | null
+                altText: string | null
+                sortOrder: number
+                isCover: boolean
+                isOpenGraph: boolean
+                isBrochure: boolean
+                isBrochureCurrent: boolean
+                brochureVersion: number | null
+              }[]
+              brochure?: {
+                id: string
+                mediaType: string
+                name: string
+                url: string
+                mimeType: string | null
+                width: number | null
+                height: number | null
+                altText: string | null
+                sortOrder: number
+                isCover: boolean
+                isOpenGraph: boolean
+                isBrochure: boolean
+                isBrochureCurrent: boolean
+                brochureVersion: number | null
+              } | null
+              openGraphImage?: {
+                id: string
+                mediaType: string
+                name: string
+                url: string
+                mimeType: string | null
+                width: number | null
+                height: number | null
+                altText: string | null
+                sortOrder: number
+                isCover: boolean
+                isOpenGraph: boolean
+                isBrochure: boolean
+                isBrochureCurrent: boolean
+                brochureVersion: number | null
+              } | null
+              features?: {
+                id: string
+                featureType: string
+                title: string
+                description: string | null
+                sortOrder: number
+              }[]
+              faqs?: {
+                id: string
+                question: string
+                answer: string
+                sortOrder: number
+              }[]
+              itinerary?: {
+                id: string
+                name: string
+                days: {
+                  id: string
+                  dayNumber: number
+                  title: string | null
+                  description: string | null
+                  location: string | null
+                  thumbnailUrl: string | null
+                  services: {
+                    id: string
+                    serviceType: string
+                    name: string
+                    description: string | null
+                    sortOrder: number | null
+                  }[]
+                }[]
+              } | null
+            }[]
+            total: number
+            limit: number
+            offset: number
+          }
+        }
+      }
+    }
+  }
+  getPublicProductsSlugBySlug: {
+    parameters: {
+      query?: {
+        languageTag?: string
+        include?: string
+      }
+      header?: never
+      path: {
+        slug: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description A public catalog product by slug */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              name: string
+              description: string | null
+              inclusionsHtml: string | null
+              exclusionsHtml: string | null
+              termsHtml: string | null
+              contentLanguageTag: string | null
+              slug: string | null
+              shortDescription: string | null
+              seoTitle: string | null
+              seoDescription: string | null
+              bookingMode: string
+              capacityMode: string
+              visibility: string
+              sellCurrency: string
+              sellAmountCents: number | null
+              startDate: string | null
+              endDate: string | null
+              pax: number | null
+              contractTemplateId: string | null
+              productType: {
+                id: string
+                code: string
+                name: string
+                description: string | null
+              } | null
+              categories: {
+                id: string
+                parentId: string | null
+                name: string
+                slug: string
+                description: string | null
+                sortOrder: number
+              }[]
+              tags: {
+                id: string
+                name: string
+              }[]
+              destinations: {
+                id: string
+                parentId: string | null
+                slug: string
+                canonicalPlaceId: string | null
+                name: string
+                description: string | null
+                seoTitle: string | null
+                seoDescription: string | null
+                destinationType: string
+                latitude: number | null
+                longitude: number | null
+                sortOrder: number
+              }[]
+              locations: {
+                id: string
+                locationType: string
+                title: string
+                address: string | null
+                city: string | null
+                countryCode: string | null
+                latitude: number | null
+                longitude: number | null
+                sortOrder: number
+              }[]
+              capabilities: string[]
+              coverMedia: {
+                id: string
+                mediaType: string
+                name: string
+                url: string
+                mimeType: string | null
+                width: number | null
+                height: number | null
+                altText: string | null
+                sortOrder: number
+                isCover: boolean
+                isOpenGraph: boolean
+                isBrochure: boolean
+                isBrochureCurrent: boolean
+                brochureVersion: number | null
+              } | null
+              isFeatured: boolean
+              media?: {
+                id: string
+                mediaType: string
+                name: string
+                url: string
+                mimeType: string | null
+                width: number | null
+                height: number | null
+                altText: string | null
+                sortOrder: number
+                isCover: boolean
+                isOpenGraph: boolean
+                isBrochure: boolean
+                isBrochureCurrent: boolean
+                brochureVersion: number | null
+              }[]
+              brochure?: {
+                id: string
+                mediaType: string
+                name: string
+                url: string
+                mimeType: string | null
+                width: number | null
+                height: number | null
+                altText: string | null
+                sortOrder: number
+                isCover: boolean
+                isOpenGraph: boolean
+                isBrochure: boolean
+                isBrochureCurrent: boolean
+                brochureVersion: number | null
+              } | null
+              openGraphImage?: {
+                id: string
+                mediaType: string
+                name: string
+                url: string
+                mimeType: string | null
+                width: number | null
+                height: number | null
+                altText: string | null
+                sortOrder: number
+                isCover: boolean
+                isOpenGraph: boolean
+                isBrochure: boolean
+                isBrochureCurrent: boolean
+                brochureVersion: number | null
+              } | null
+              features?: {
+                id: string
+                featureType: string
+                title: string
+                description: string | null
+                sortOrder: number
+              }[]
+              faqs?: {
+                id: string
+                question: string
+                answer: string
+                sortOrder: number
+              }[]
+              itinerary?: {
+                id: string
+                name: string
+                days: {
+                  id: string
+                  dayNumber: number
+                  title: string | null
+                  description: string | null
+                  location: string | null
+                  thumbnailUrl: string | null
+                  services: {
+                    id: string
+                    serviceType: string
+                    name: string
+                    description: string | null
+                    sortOrder: number | null
+                  }[]
+                }[]
+              } | null
+            }
+          }
+        }
+      }
+      /** @description Catalog product not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getPublicProductsById: {
+    parameters: {
+      query?: {
+        languageTag?: string
+        include?: string
+      }
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description A public catalog product by id */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              name: string
+              description: string | null
+              inclusionsHtml: string | null
+              exclusionsHtml: string | null
+              termsHtml: string | null
+              contentLanguageTag: string | null
+              slug: string | null
+              shortDescription: string | null
+              seoTitle: string | null
+              seoDescription: string | null
+              bookingMode: string
+              capacityMode: string
+              visibility: string
+              sellCurrency: string
+              sellAmountCents: number | null
+              startDate: string | null
+              endDate: string | null
+              pax: number | null
+              contractTemplateId: string | null
+              productType: {
+                id: string
+                code: string
+                name: string
+                description: string | null
+              } | null
+              categories: {
+                id: string
+                parentId: string | null
+                name: string
+                slug: string
+                description: string | null
+                sortOrder: number
+              }[]
+              tags: {
+                id: string
+                name: string
+              }[]
+              destinations: {
+                id: string
+                parentId: string | null
+                slug: string
+                canonicalPlaceId: string | null
+                name: string
+                description: string | null
+                seoTitle: string | null
+                seoDescription: string | null
+                destinationType: string
+                latitude: number | null
+                longitude: number | null
+                sortOrder: number
+              }[]
+              locations: {
+                id: string
+                locationType: string
+                title: string
+                address: string | null
+                city: string | null
+                countryCode: string | null
+                latitude: number | null
+                longitude: number | null
+                sortOrder: number
+              }[]
+              capabilities: string[]
+              coverMedia: {
+                id: string
+                mediaType: string
+                name: string
+                url: string
+                mimeType: string | null
+                width: number | null
+                height: number | null
+                altText: string | null
+                sortOrder: number
+                isCover: boolean
+                isOpenGraph: boolean
+                isBrochure: boolean
+                isBrochureCurrent: boolean
+                brochureVersion: number | null
+              } | null
+              isFeatured: boolean
+              media?: {
+                id: string
+                mediaType: string
+                name: string
+                url: string
+                mimeType: string | null
+                width: number | null
+                height: number | null
+                altText: string | null
+                sortOrder: number
+                isCover: boolean
+                isOpenGraph: boolean
+                isBrochure: boolean
+                isBrochureCurrent: boolean
+                brochureVersion: number | null
+              }[]
+              brochure?: {
+                id: string
+                mediaType: string
+                name: string
+                url: string
+                mimeType: string | null
+                width: number | null
+                height: number | null
+                altText: string | null
+                sortOrder: number
+                isCover: boolean
+                isOpenGraph: boolean
+                isBrochure: boolean
+                isBrochureCurrent: boolean
+                brochureVersion: number | null
+              } | null
+              openGraphImage?: {
+                id: string
+                mediaType: string
+                name: string
+                url: string
+                mimeType: string | null
+                width: number | null
+                height: number | null
+                altText: string | null
+                sortOrder: number
+                isCover: boolean
+                isOpenGraph: boolean
+                isBrochure: boolean
+                isBrochureCurrent: boolean
+                brochureVersion: number | null
+              } | null
+              features?: {
+                id: string
+                featureType: string
+                title: string
+                description: string | null
+                sortOrder: number
+              }[]
+              faqs?: {
+                id: string
+                question: string
+                answer: string
+                sortOrder: number
+              }[]
+              itinerary?: {
+                id: string
+                name: string
+                days: {
+                  id: string
+                  dayNumber: number
+                  title: string | null
+                  description: string | null
+                  location: string | null
+                  thumbnailUrl: string | null
+                  services: {
+                    id: string
+                    serviceType: string
+                    name: string
+                    description: string | null
+                    sortOrder: number | null
+                  }[]
+                }[]
+              } | null
+            }
+          }
+        }
+      }
+      /** @description Catalog product not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getPublicProductsByIdBrochure: {
+    parameters: {
+      query?: {
+        languageTag?: string
+        include?: string
+      }
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description A product's current brochure media */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              mediaType: string
+              name: string
+              url: string
+              mimeType: string | null
+              width: number | null
+              height: number | null
+              altText: string | null
+              sortOrder: number
+              isCover: boolean
+              isOpenGraph: boolean
+              isBrochure: boolean
+              isBrochureCurrent: boolean
+              brochureVersion: number | null
+            }
+          }
+        }
+      }
+      /** @description Catalog product brochure not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getPublicProductsByIdContent: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Resolved product content with locale + freshness metadata */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              content: {
+                product: {
+                  id: string
+                  name: string
+                  status?: string
+                  description?: string | null
+                  seo_title?: string | null
+                  seo_description?: string | null
+                  open_graph_image_url?: string | null
+                  open_graph_image_width?: number | null
+                  open_graph_image_height?: number | null
+                  open_graph_image_type?: string | null
+                  open_graph_image_alt?: string | null
+                  inclusions_html?: string | null
+                  exclusions_html?: string | null
+                  terms_html?: string | null
+                  contract_template_id?: string | null
+                  contractTemplateId?: string | null
+                  highlights?: string[]
+                  hero_image_url?: string | null
+                  duration_days?: number | null
+                  start_date?: string | null
+                  end_date?: string | null
+                  sell_currency?: string | null
+                  supplier?: string | null
+                  country?: string | null
+                  departure_city?: string | null
+                  tags?: string[]
+                }
+                /** @default [] */
+                options: {
+                  id: string
+                  name: string
+                  description?: string | null
+                  /** @enum {string|null} */
+                  board_basis?:
+                    | "room_only"
+                    | "bed_breakfast"
+                    | "half_board"
+                    | "full_board"
+                    | "all_inclusive"
+                    | null
+                  /** @default [] */
+                  units: {
+                    id: string
+                    type: string
+                    label?: string
+                    description?: string | null
+                    capacity?: number | null
+                  }[]
+                  /** @default [] */
+                  inclusions: string[]
+                }[]
+                /** @default [] */
+                days: {
+                  id?: string
+                  day_number: number
+                  title?: string | null
+                  description?: string | null
+                  location?: string | null
+                  hero_image_url?: string | null
+                  /** @default [] */
+                  services: string[]
+                }[]
+                /** @default [] */
+                media: {
+                  url: string
+                  /**
+                   * @default image
+                   * @enum {string}
+                   */
+                  type: "image" | "video" | "document"
+                  caption?: string | null
+                  alt?: string | null
+                }[]
+                /** @default [] */
+                policies: {
+                  /** @enum {string} */
+                  kind: "cancellation" | "payment" | "supplier_notes" | "requirements"
+                  body: string
+                  rules?: unknown
+                }[]
+                /** @default [] */
+                departures: {
+                  id: string
+                  starts_at: string
+                  ends_at?: string | null
+                  status?: string | null
+                  capacity?: number | null
+                  remaining?: number | null
+                  lowest_price_cents?: number | null
+                  currency?: string | null
+                  note?: string | null
+                }[]
+              }
+              provenance?: {
+                source_kind: string
+                source_provider?: string
+                source_connection_id?: string
+                source_ref?: string
+              }
+              served_locale: string
+              /** @enum {string} */
+              match_kind: "exact" | "language_match" | "fallback_chain" | "any"
+              /** @enum {string} */
+              source: "sourced-cache" | "sourced-fresh" | "synthesized" | "owned"
+              served_stale: boolean
+              synthesized: boolean
+              machine_translated: boolean
+            }
+          }
+        }
+      }
+      /** @description Product not found (no owned row + no sourced-entry row) */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+            detail: string
+          }
+        }
+      }
+    }
+  }
+  getPublicLegalContractsTemplatesDefault: {
+    parameters: {
+      query?: {
+        scope?: "customer" | "supplier" | "partner" | "channel" | "other"
+        channelId?: string
+        language?: string
+        fallbackLanguages?: string
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description The resolved default contract template for the scope/language */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              name: string
+              slug: string
+              /** @enum {string} */
+              scope: "customer" | "supplier" | "partner" | "channel" | "other"
+              language: string
+              description: string | null
+              body: string
+              variableSchema?: unknown
+              currentVersionId: string | null
+              channelId: string | null
+              isDefault: boolean
+              active: boolean
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description Template not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  postPublicLegalContractsTemplatesByIdPreview: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          variables: {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+    responses: {
+      /** @description The rendered template preview */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              [key: string]: unknown
+            }
+          }
+        }
+      }
+      /** @description invalid_request: request body failed validation */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Template not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  postPublicLegalContractsTemplatesByIdRenderPreview: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          variables: {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+    responses: {
+      /** @description The rendered template preview */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              [key: string]: unknown
+            }
+          }
+        }
+      }
+      /** @description invalid_request: request body failed validation */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Template not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  postPublicLegalContractsTemplatesBySlugBySlugPreview: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        slug: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          variables: {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+    responses: {
+      /** @description The rendered template preview (with template descriptor) */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              [key: string]: unknown
+            }
+          }
+        }
+      }
+      /** @description invalid_request: request body failed validation */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Template not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  postPublicLegalContractsTemplatesBySlugBySlugRenderPreview: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        slug: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          variables: {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+    responses: {
+      /** @description The rendered template preview (with template descriptor) */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              [key: string]: unknown
+            }
+          }
+        }
+      }
+      /** @description invalid_request: request body failed validation */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Template not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getPublicLegalContractsById: {
+    parameters: {
+      query?: {
+        token?: string
+      }
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description A token-authorized public-safe contract */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              contractNumber: string | null
+              /** @enum {string} */
+              scope: "customer" | "supplier" | "partner" | "channel" | "other"
+              /** @enum {string} */
+              status: "draft" | "issued" | "sent" | "signed" | "executed" | "expired" | "void"
+              title: string
+              issuedAt: string | null
+              sentAt: string | null
+              executedAt: string | null
+              expiresAt: string | null
+              voidedAt: string | null
+              language: string
+              /** @enum {string} */
+              renderedBodyFormat: "markdown" | "html" | "lexical_json"
+              renderedBody: string | null
+            }
+          }
+        }
+      }
+      /** @description Contract not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Contract access grant is no longer available */
+      410: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  postPublicLegalContractsByIdSign: {
+    parameters: {
+      query?: {
+        token?: string
+      }
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          signerName: string
+          /** Format: email */
+          signerEmail?: string | null
+          signerRole?: string | null
+          /**
+           * @default manual
+           * @enum {string}
+           */
+          method?: "manual" | "electronic" | "docusign" | "other"
+          signatureData?: string | null
+        }
+      }
+    }
+    responses: {
+      /** @description The recorded signature */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              signature: {
+                signerName: string
+                signerEmail: string | null
+                signerRole: string | null
+                /** @enum {string} */
+                method: "manual" | "electronic" | "docusign" | "other"
+                signedAt: string
+              }
+            }
+          }
+        }
+      }
+      /** @description invalid_request: request body failed validation */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Contract not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Contract is not in a signable state */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Contract access grant is no longer available */
+      410: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getPublicLegalPoliciesBySlug: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        slug: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description A policy and its current published version, by slug */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              policy: {
+                id: string
+                /** @enum {string} */
+                kind:
+                  | "cancellation"
+                  | "payment"
+                  | "terms_and_conditions"
+                  | "privacy"
+                  | "refund"
+                  | "commission"
+                  | "guarantee"
+                  | "other"
+                name: string
+                slug: string
+                description: string | null
+                language: string
+                currentVersionId: string | null
+                metadata?: unknown
+                createdAt: string
+                updatedAt: string
+              }
+              version: {
+                id: string
+                policyId: string
+                version: number
+                /** @enum {string} */
+                status: "draft" | "published" | "retired"
+                title: string
+                body: string | null
+                publishedAt: string | null
+                publishedBy: string | null
+                retiredAt: string | null
+                metadata?: unknown
+                createdAt: string
+                updatedAt: string
+              }
+            }
+          }
+        }
+      }
+      /** @description Policy not found or has no published version */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  postPublicLegalPoliciesByIdAccept: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          policyVersionId: string
+          personId?: string | null
+          bookingId?: string | null
+          /** @enum {string|null} */
+          targetKind?:
+            | "booking"
+            | "proposal_version"
+            | "program"
+            | "product"
+            | "inventory_item"
+            | "supplier_channel_relationship"
+            | "provider_source_ref"
+            | null
+          targetId?: "" | string | null
+          targetProvider?: "" | string | null
+          targetSourceRef?: "" | string | null
+          legacyTransactionOfferId?: "" | string | null
+          legacyTransactionOrderId?: "" | string | null
+          acceptedBy?: string | null
+          /**
+           * @default implicit
+           * @enum {string}
+           */
+          method?: "implicit" | "explicit_checkbox" | "signature"
+          ipAddress?: string | null
+          userAgent?: string | null
+          metadata?: {
+            [key: string]: unknown
+          } | null
+        }
+      }
+    }
+    responses: {
+      /** @description The recorded policy acceptance */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              policyVersionId: string
+              personId: string | null
+              bookingId: string | null
+              /** @enum {string|null} */
+              targetKind:
+                | "booking"
+                | "proposal_version"
+                | "program"
+                | "product"
+                | "inventory_item"
+                | "supplier_channel_relationship"
+                | "provider_source_ref"
+                | null
+              targetId: string | null
+              targetProvider: string | null
+              targetSourceRef: string | null
+              legacyTransactionOfferId: string | null
+              legacyTransactionOrderId: string | null
+              acceptedAt: string
+              acceptedBy: string | null
+              /** @enum {string} */
+              method: "implicit" | "explicit_checkbox" | "signature"
+              ipAddress: string | null
+              userAgent: string | null
+              metadata?: unknown
+              createdAt: string
+            }
+          }
+        }
+      }
+      /** @description Invalid request body */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getPublicLegalTerms: {
+    parameters: {
+      query?: {
+        limit?: number
+        offset?: number | null
+        contractId?: string
+        policyVersionId?: string
+        targetKind?:
+          | "booking"
+          | "proposal_version"
+          | "program"
+          | "product"
+          | "inventory_item"
+          | "supplier_channel_relationship"
+          | "provider_source_ref"
+        targetId?: string
+        targetProvider?: string
+        targetSourceRef?: string
+        legacyTransactionOfferId?: string
+        legacyTransactionOrderId?: string
+        termType?:
+          | "terms_and_conditions"
+          | "cancellation"
+          | "guarantee"
+          | "payment"
+          | "pricing"
+          | "commission"
+          | "insurer_product_information"
+          | "insurer_terms"
+          | "demands_and_needs"
+          | "other"
+        acceptanceStatus?: "not_required" | "pending" | "accepted" | "declined"
+        sourceVersionId?: string
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Paginated list of legal terms (public read) */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              contractId: string | null
+              policyVersionId: string | null
+              /** @enum {string|null} */
+              targetKind:
+                | "booking"
+                | "proposal_version"
+                | "program"
+                | "product"
+                | "inventory_item"
+                | "supplier_channel_relationship"
+                | "provider_source_ref"
+                | null
+              targetId: string | null
+              targetProvider: string | null
+              targetSourceRef: string | null
+              legacyTransactionOfferId: string | null
+              legacyTransactionOrderId: string | null
+              /** @enum {string} */
+              termType:
+                | "terms_and_conditions"
+                | "cancellation"
+                | "guarantee"
+                | "payment"
+                | "pricing"
+                | "commission"
+                | "insurer_product_information"
+                | "insurer_terms"
+                | "demands_and_needs"
+                | "other"
+              title: string
+              body: string
+              language: string | null
+              required: boolean
+              sortOrder: number
+              /** @enum {string} */
+              acceptanceStatus: "not_required" | "pending" | "accepted" | "declined"
+              acceptedAt: string | null
+              acceptedBy: string | null
+              sourceVersionId: string | null
+              archivedStorageKey: string | null
+              archivedChecksum: string | null
+              metadata?: unknown
+              createdAt: string
+              updatedAt: string
+            }[]
+            total: number
+            limit: number
+            offset: number
+          }
+        }
+      }
+    }
+  }
+  getPublicLegalTermsById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description A legal term by id (public read) */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              contractId: string | null
+              policyVersionId: string | null
+              /** @enum {string|null} */
+              targetKind:
+                | "booking"
+                | "proposal_version"
+                | "program"
+                | "product"
+                | "inventory_item"
+                | "supplier_channel_relationship"
+                | "provider_source_ref"
+                | null
+              targetId: string | null
+              targetProvider: string | null
+              targetSourceRef: string | null
+              legacyTransactionOfferId: string | null
+              legacyTransactionOrderId: string | null
+              /** @enum {string} */
+              termType:
+                | "terms_and_conditions"
+                | "cancellation"
+                | "guarantee"
+                | "payment"
+                | "pricing"
+                | "commission"
+                | "insurer_product_information"
+                | "insurer_terms"
+                | "demands_and_needs"
+                | "other"
+              title: string
+              body: string
+              language: string | null
+              required: boolean
+              sortOrder: number
+              /** @enum {string} */
+              acceptanceStatus: "not_required" | "pending" | "accepted" | "declined"
+              acceptedAt: string | null
+              acceptedBy: string | null
+              sourceVersionId: string | null
+              archivedStorageKey: string | null
+              archivedChecksum: string | null
+              metadata?: unknown
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description Legal term not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getPublicOperatorProfile: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description The public operator profile (null when unset) */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              name: string
+              legalName: string
+              address: string
+              phone: string
+              email: string
+              website: string
+              logoLightAssetKey: string | null
+              logoLightUrl: string | null
+              logoLightMimeType: string | null
+              logoDarkAssetKey: string | null
+              logoDarkUrl: string | null
+              logoDarkMimeType: string | null
+              iconLightAssetKey: string | null
+              iconLightUrl: string | null
+              iconLightMimeType: string | null
+              iconDarkAssetKey: string | null
+              iconDarkUrl: string | null
+              iconDarkMimeType: string | null
+              brandColor: string
+              cornerRadius: string
+              headingFont: string
+              bodyFont: string
+              faviconAssetKey: string | null
+              faviconUrl: string | null
+              faviconMimeType: string | null
+              supportEmail: string | null
+              termsUrl: string | null
+              privacyUrl: string | null
+              supportedLocales: string[]
+              defaultLocale: string
+              license: string
+              licenseAuthority: string
+              customerPaymentPolicy?: unknown
+              bookingCheckoutUrlTemplate: string | null
+              invoicePayUrlTemplate: string | null
+            } | null
+          }
+        }
+      }
+    }
+  }
+  getPublicSettingsOperator: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description The public operator settings (null when unset) */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              name: string
+              legalName: string
+              address: string
+              phone: string
+              email: string
+              website: string
+              logoLightAssetKey: string | null
+              logoLightUrl: string | null
+              logoLightMimeType: string | null
+              logoDarkAssetKey: string | null
+              logoDarkUrl: string | null
+              logoDarkMimeType: string | null
+              iconLightAssetKey: string | null
+              iconLightUrl: string | null
+              iconLightMimeType: string | null
+              iconDarkAssetKey: string | null
+              iconDarkUrl: string | null
+              iconDarkMimeType: string | null
+              brandColor: string
+              cornerRadius: string
+              headingFont: string
+              bodyFont: string
+              faviconAssetKey: string | null
+              faviconUrl: string | null
+              faviconMimeType: string | null
+              supportEmail: string | null
+              termsUrl: string | null
+              privacyUrl: string | null
+              supportedLocales: string[]
+              defaultLocale: string
+              license: string
+              licenseAuthority: string
+              customerPaymentPolicy?: unknown
+              bookingCheckoutUrlTemplate: string | null
+              invoicePayUrlTemplate: string | null
+            } | null
+          }
+        }
+      }
+    }
+  }
+  getPublicProposalsByProposalVersionId: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful response. */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+    }
+  }
+  postPublicProposalsByProposalVersionIdAccept: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful response. */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+    }
+  }
+  postPublicProposalsByProposalVersionIdDecline: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful response. */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+    }
+  }
+  postPublicProposalsByProposalVersionIdRequestEdits: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful response. */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+    }
+  }
+  getPublicCustomerPortalMe: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description The authenticated customer's portal profile */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              userId: string
+              /** Format: email */
+              email: string | null
+              phoneNumber?: string | null
+              emailVerified: boolean
+              firstName: string | null
+              middleName: string | null
+              lastName: string | null
+              avatarUrl: string | null
+              locale: string
+              timezone: string | null
+              /** @enum {string|null} */
+              seatingPreference: "aisle" | "window" | "middle" | "no_preference" | null
+              dateOfBirth: string | null
+              address: {
+                country: string | null
+                state: string | null
+                city: string | null
+                postalCode: string | null
+                addressLine1: string | null
+                addressLine2: string | null
+              } | null
+              accessibility: string | null
+              dietary: string | null
+              loyalty: string | null
+              insurance: string | null
+              marketingConsent: boolean
+              marketingConsentAt: string | null
+              marketingConsentSource: string | null
+              notificationDefaults: {
+                [key: string]: unknown
+              } | null
+              uiPrefs: {
+                [key: string]: unknown
+              } | null
+              customerRecord: {
+                id: string
+                firstName: string
+                lastName: string
+                preferredLanguage: string | null
+                preferredCurrency: string | null
+                dateOfBirth: string | null
+                email: string | null
+                phone: string | null
+                billingAddress: {
+                  id: string
+                  /** @enum {string} */
+                  label:
+                    | "primary"
+                    | "billing"
+                    | "shipping"
+                    | "mailing"
+                    | "meeting"
+                    | "service"
+                    | "legal"
+                    | "other"
+                  fullText: string | null
+                  line1: string | null
+                  line2: string | null
+                  city: string | null
+                  region: string | null
+                  postalCode: string | null
+                  country: string | null
+                  isPrimary: boolean
+                } | null
+                relation: string | null
+                status: string
+              } | null
+            }
+          }
+        }
+      }
+      /** @description Customer profile not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  patchPublicCustomerPortalMe: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          firstName?: string | null
+          middleName?: string | null
+          lastName?: string | null
+          /** Format: uri */
+          avatarUrl?: string | null
+          locale?: string
+          timezone?: string | null
+          /** @enum {string|null} */
+          seatingPreference?: "aisle" | "window" | "middle" | "no_preference" | null
+          /** Format: date */
+          dateOfBirth?: string | null
+          address?: {
+            country?: string | null
+            state?: string | null
+            city?: string | null
+            postalCode?: string | null
+            addressLine1?: string | null
+            addressLine2?: string | null
+          }
+          accessibility?: string | null
+          dietary?: string | null
+          loyalty?: string | null
+          insurance?: string | null
+          marketingConsent?: boolean
+          marketingConsentSource?: string | null
+          notificationDefaults?: {
+            [key: string]: unknown
+          } | null
+          uiPrefs?: {
+            [key: string]: unknown
+          } | null
+          customerRecord?: {
+            preferredLanguage?: string | null
+            preferredCurrency?: string | null
+            /** Format: date */
+            dateOfBirth?: string | null
+            phone?: string | null
+            billingAddress?: {
+              /** @enum {string} */
+              label?:
+                | "primary"
+                | "billing"
+                | "shipping"
+                | "mailing"
+                | "meeting"
+                | "service"
+                | "legal"
+                | "other"
+              fullText?: string | null
+              line1?: string | null
+              line2?: string | null
+              city?: string | null
+              region?: string | null
+              postalCode?: string | null
+              country?: string | null
+              isPrimary?: boolean
+            }
+          }
+        }
+      }
+    }
+    responses: {
+      /** @description The updated customer portal profile */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              userId: string
+              /** Format: email */
+              email: string | null
+              phoneNumber?: string | null
+              emailVerified: boolean
+              firstName: string | null
+              middleName: string | null
+              lastName: string | null
+              avatarUrl: string | null
+              locale: string
+              timezone: string | null
+              /** @enum {string|null} */
+              seatingPreference: "aisle" | "window" | "middle" | "no_preference" | null
+              dateOfBirth: string | null
+              address: {
+                country: string | null
+                state: string | null
+                city: string | null
+                postalCode: string | null
+                addressLine1: string | null
+                addressLine2: string | null
+              } | null
+              accessibility: string | null
+              dietary: string | null
+              loyalty: string | null
+              insurance: string | null
+              marketingConsent: boolean
+              marketingConsentAt: string | null
+              marketingConsentSource: string | null
+              notificationDefaults: {
+                [key: string]: unknown
+              } | null
+              uiPrefs: {
+                [key: string]: unknown
+              } | null
+              customerRecord: {
+                id: string
+                firstName: string
+                lastName: string
+                preferredLanguage: string | null
+                preferredCurrency: string | null
+                dateOfBirth: string | null
+                email: string | null
+                phone: string | null
+                billingAddress: {
+                  id: string
+                  /** @enum {string} */
+                  label:
+                    | "primary"
+                    | "billing"
+                    | "shipping"
+                    | "mailing"
+                    | "meeting"
+                    | "service"
+                    | "legal"
+                    | "other"
+                  fullText: string | null
+                  line1: string | null
+                  line2: string | null
+                  city: string | null
+                  region: string | null
+                  postalCode: string | null
+                  country: string | null
+                  isPrimary: boolean
+                } | null
+                relation: string | null
+                status: string
+              } | null
+            }
+          }
+        }
+      }
+      /** @description Customer profile not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Customer record is not linked to this account */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getPublicCustomerPortalMeDocuments: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description The authenticated customer's identity documents */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              /** @enum {string} */
+              type: "passport" | "id_card" | "visa" | "drivers_license" | "other"
+              number: string | null
+              issuingAuthority: string | null
+              issuingCountry: string | null
+              issueDate: string | null
+              expiryDate: string | null
+              attachmentId: string | null
+              isPrimary: boolean
+              notes: string | null
+              createdAt: string
+              updatedAt: string
+            }[]
+          }
+        }
+      }
+    }
+  }
+  postPublicCustomerPortalMeDocuments: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          /** @enum {string} */
+          type: "passport" | "id_card" | "visa" | "drivers_license" | "other"
+          number?: string | null
+          issuingAuthority?: string | null
+          issuingCountry?: string | null
+          /** Format: date */
+          issueDate?: string | null
+          /** Format: date */
+          expiryDate?: string | null
+          attachmentId?: string | null
+          isPrimary?: boolean
+          notes?: string | null
+        }
+      }
+    }
+    responses: {
+      /** @description The created identity document */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              /** @enum {string} */
+              type: "passport" | "id_card" | "visa" | "drivers_license" | "other"
+              number: string | null
+              issuingAuthority: string | null
+              issuingCountry: string | null
+              issueDate: string | null
+              expiryDate: string | null
+              attachmentId: string | null
+              isPrimary: boolean
+              notes: string | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description Customer profile not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  postPublicCustomerPortalMeDocumentsByIdSetPrimary: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description The document marked as primary */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              /** @enum {string} */
+              type: "passport" | "id_card" | "visa" | "drivers_license" | "other"
+              number: string | null
+              issuingAuthority: string | null
+              issuingCountry: string | null
+              issueDate: string | null
+              expiryDate: string | null
+              attachmentId: string | null
+              isPrimary: boolean
+              notes: string | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description Document not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  deletePublicCustomerPortalMeDocumentsById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description The identity document was deleted */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            /** @enum {boolean} */
+            success: true
+          }
+        }
+      }
+      /** @description Document not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  patchPublicCustomerPortalMeDocumentsById: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          /** @enum {string} */
+          type?: "passport" | "id_card" | "visa" | "drivers_license" | "other"
+          number?: string | null
+          issuingAuthority?: string | null
+          issuingCountry?: string | null
+          /** Format: date */
+          issueDate?: string | null
+          /** Format: date */
+          expiryDate?: string | null
+          attachmentId?: string | null
+          isPrimary?: boolean
+          notes?: string | null
+        }
+      }
+    }
+    responses: {
+      /** @description The updated identity document */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              /** @enum {string} */
+              type: "passport" | "id_card" | "visa" | "drivers_license" | "other"
+              number: string | null
+              issuingAuthority: string | null
+              issuingCountry: string | null
+              issueDate: string | null
+              expiryDate: string | null
+              attachmentId: string | null
+              isPrimary: boolean
+              notes: string | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description Document not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  postPublicCustomerPortalBootstrap: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          customerRecordId?: string
+          /** @default true */
+          createCustomerIfMissing?: boolean
+          firstName?: string | null
+          lastName?: string | null
+          marketingConsent?: boolean
+          marketingConsentSource?: string | null
+          customerRecord?: {
+            preferredLanguage?: string | null
+            preferredCurrency?: string | null
+            /** Format: date */
+            dateOfBirth?: string | null
+            phone?: string | null
+            billingAddress?: {
+              /** @enum {string} */
+              label?:
+                | "primary"
+                | "billing"
+                | "shipping"
+                | "mailing"
+                | "meeting"
+                | "service"
+                | "legal"
+                | "other"
+              fullText?: string | null
+              line1?: string | null
+              line2?: string | null
+              city?: string | null
+              region?: string | null
+              postalCode?: string | null
+              country?: string | null
+              isPrimary?: boolean
+            }
+          }
+        }
+      }
+    }
+    responses: {
+      /** @description The bootstrapped (linked or created) customer portal profile */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              /** @enum {string} */
+              status:
+                | "already_linked"
+                | "linked_existing_customer"
+                | "created_customer"
+                | "customer_selection_required"
+              profile: {
+                userId: string
+                /** Format: email */
+                email: string | null
+                phoneNumber?: string | null
+                emailVerified: boolean
+                firstName: string | null
+                middleName: string | null
+                lastName: string | null
+                avatarUrl: string | null
+                locale: string
+                timezone: string | null
+                /** @enum {string|null} */
+                seatingPreference: "aisle" | "window" | "middle" | "no_preference" | null
+                dateOfBirth: string | null
+                address: {
+                  country: string | null
+                  state: string | null
+                  city: string | null
+                  postalCode: string | null
+                  addressLine1: string | null
+                  addressLine2: string | null
+                } | null
+                accessibility: string | null
+                dietary: string | null
+                loyalty: string | null
+                insurance: string | null
+                marketingConsent: boolean
+                marketingConsentAt: string | null
+                marketingConsentSource: string | null
+                notificationDefaults: {
+                  [key: string]: unknown
+                } | null
+                uiPrefs: {
+                  [key: string]: unknown
+                } | null
+                customerRecord: {
+                  id: string
+                  firstName: string
+                  lastName: string
+                  preferredLanguage: string | null
+                  preferredCurrency: string | null
+                  dateOfBirth: string | null
+                  email: string | null
+                  phone: string | null
+                  billingAddress: {
+                    id: string
+                    /** @enum {string} */
+                    label:
+                      | "primary"
+                      | "billing"
+                      | "shipping"
+                      | "mailing"
+                      | "meeting"
+                      | "service"
+                      | "legal"
+                      | "other"
+                    fullText: string | null
+                    line1: string | null
+                    line2: string | null
+                    city: string | null
+                    region: string | null
+                    postalCode: string | null
+                    country: string | null
+                    isPrimary: boolean
+                  } | null
+                  relation: string | null
+                  status: string
+                } | null
+              } | null
+              /** @default [] */
+              candidates: {
+                id: string
+                firstName: string
+                lastName: string
+                preferredLanguage: string | null
+                preferredCurrency: string | null
+                dateOfBirth: string | null
+                email: string | null
+                phone: string | null
+                billingAddress: {
+                  id: string
+                  /** @enum {string} */
+                  label:
+                    | "primary"
+                    | "billing"
+                    | "shipping"
+                    | "mailing"
+                    | "meeting"
+                    | "service"
+                    | "legal"
+                    | "other"
+                  fullText: string | null
+                  line1: string | null
+                  line2: string | null
+                  city: string | null
+                  region: string | null
+                  postalCode: string | null
+                  country: string | null
+                  isPrimary: boolean
+                } | null
+                relation: string | null
+                status: string
+                linkable: boolean
+                claimedByAnotherUser: boolean
+              }[]
+            }
+          }
+        }
+      }
+      /** @description Customer profile or customer record not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Customer selection required, or record already linked to another account */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json":
+            | {
+                data: {
+                  /** @enum {string} */
+                  status:
+                    | "already_linked"
+                    | "linked_existing_customer"
+                    | "created_customer"
+                    | "customer_selection_required"
+                  profile: {
+                    userId: string
+                    /** Format: email */
+                    email: string | null
+                    phoneNumber?: string | null
+                    emailVerified: boolean
+                    firstName: string | null
+                    middleName: string | null
+                    lastName: string | null
+                    avatarUrl: string | null
+                    locale: string
+                    timezone: string | null
+                    /** @enum {string|null} */
+                    seatingPreference: "aisle" | "window" | "middle" | "no_preference" | null
+                    dateOfBirth: string | null
+                    address: {
+                      country: string | null
+                      state: string | null
+                      city: string | null
+                      postalCode: string | null
+                      addressLine1: string | null
+                      addressLine2: string | null
+                    } | null
+                    accessibility: string | null
+                    dietary: string | null
+                    loyalty: string | null
+                    insurance: string | null
+                    marketingConsent: boolean
+                    marketingConsentAt: string | null
+                    marketingConsentSource: string | null
+                    notificationDefaults: {
+                      [key: string]: unknown
+                    } | null
+                    uiPrefs: {
+                      [key: string]: unknown
+                    } | null
+                    customerRecord: {
+                      id: string
+                      firstName: string
+                      lastName: string
+                      preferredLanguage: string | null
+                      preferredCurrency: string | null
+                      dateOfBirth: string | null
+                      email: string | null
+                      phone: string | null
+                      billingAddress: {
+                        id: string
+                        /** @enum {string} */
+                        label:
+                          | "primary"
+                          | "billing"
+                          | "shipping"
+                          | "mailing"
+                          | "meeting"
+                          | "service"
+                          | "legal"
+                          | "other"
+                        fullText: string | null
+                        line1: string | null
+                        line2: string | null
+                        city: string | null
+                        region: string | null
+                        postalCode: string | null
+                        country: string | null
+                        isPrimary: boolean
+                      } | null
+                      relation: string | null
+                      status: string
+                    } | null
+                  } | null
+                  /** @default [] */
+                  candidates: {
+                    id: string
+                    firstName: string
+                    lastName: string
+                    preferredLanguage: string | null
+                    preferredCurrency: string | null
+                    dateOfBirth: string | null
+                    email: string | null
+                    phone: string | null
+                    billingAddress: {
+                      id: string
+                      /** @enum {string} */
+                      label:
+                        | "primary"
+                        | "billing"
+                        | "shipping"
+                        | "mailing"
+                        | "meeting"
+                        | "service"
+                        | "legal"
+                        | "other"
+                      fullText: string | null
+                      line1: string | null
+                      line2: string | null
+                      city: string | null
+                      region: string | null
+                      postalCode: string | null
+                      country: string | null
+                      isPrimary: boolean
+                    } | null
+                    relation: string | null
+                    status: string
+                    linkable: boolean
+                    claimedByAnotherUser: boolean
+                  }[]
+                }
+              }
+            | {
+                error: string
+              }
+        }
+      }
+    }
+  }
+  getPublicCustomerPortalCompanions: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description The authenticated customer's saved companions */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              role: string
+              name: string
+              title: string | null
+              email: string | null
+              phone: string | null
+              isPrimary: boolean
+              notes: string | null
+              typeKey: string | null
+              person: {
+                firstName: string | null
+                middleName: string | null
+                lastName: string | null
+                dateOfBirth: string | null
+                addresses: {
+                  type: string | null
+                  country: string | null
+                  state: string | null
+                  city: string | null
+                  postalCode: string | null
+                  addressLine1: string | null
+                  addressLine2: string | null
+                  isDefault: boolean
+                }[]
+                documents: {
+                  /** @enum {string} */
+                  type: "passport" | "id_card" | "visa" | "drivers_license" | "other"
+                  number: string | null
+                  issuingAuthority: string | null
+                  country: string | null
+                  issueDate: string | null
+                  expiryDate: string | null
+                }[]
+              }
+              metadata: {
+                [key: string]: unknown
+              } | null
+            }[]
+          }
+        }
+      }
+    }
+  }
+  postPublicCustomerPortalCompanions: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          /**
+           * @default other
+           * @enum {string}
+           */
+          role?:
+            | "general"
+            | "primary"
+            | "reservations"
+            | "operations"
+            | "front_desk"
+            | "sales"
+            | "emergency"
+            | "accounting"
+            | "legal"
+            | "other"
+          name: string
+          title?: string | null
+          /** Format: email */
+          email?: string | null
+          phone?: string | null
+          /** @default false */
+          isPrimary?: boolean
+          notes?: string | null
+          typeKey?: string | null
+          person?: {
+            firstName?: string | null
+            middleName?: string | null
+            lastName?: string | null
+            /** Format: date */
+            dateOfBirth?: string | null
+            addresses?: {
+              type?: string | null
+              country?: string | null
+              state?: string | null
+              city?: string | null
+              postalCode?: string | null
+              addressLine1?: string | null
+              addressLine2?: string | null
+              isDefault?: boolean
+            }[]
+            documents?: {
+              /** @enum {string} */
+              type: "passport" | "id_card" | "visa" | "drivers_license" | "other"
+              number?: string | null
+              issuingAuthority?: string | null
+              country?: string | null
+              /** Format: date */
+              issueDate?: string | null
+              /** Format: date */
+              expiryDate?: string | null
+            }[]
+          }
+          metadata?: {
+            [key: string]: unknown
+          } | null
+        }
+      }
+    }
+    responses: {
+      /** @description The created companion */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              role: string
+              name: string
+              title: string | null
+              email: string | null
+              phone: string | null
+              isPrimary: boolean
+              notes: string | null
+              typeKey: string | null
+              person: {
+                firstName: string | null
+                middleName: string | null
+                lastName: string | null
+                dateOfBirth: string | null
+                addresses: {
+                  type: string | null
+                  country: string | null
+                  state: string | null
+                  city: string | null
+                  postalCode: string | null
+                  addressLine1: string | null
+                  addressLine2: string | null
+                  isDefault: boolean
+                }[]
+                documents: {
+                  /** @enum {string} */
+                  type: "passport" | "id_card" | "visa" | "drivers_license" | "other"
+                  number: string | null
+                  issuingAuthority: string | null
+                  country: string | null
+                  issueDate: string | null
+                  expiryDate: string | null
+                }[]
+              }
+              metadata: {
+                [key: string]: unknown
+              } | null
+            }
+          }
+        }
+      }
+      /** @description Customer record is not linked to this account */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  postPublicCustomerPortalCompanionsImportBookingTravelers: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          bookingIds?: string[]
+        }
+      }
+    }
+    responses: {
+      /** @description Companions imported from the customer's booking travelers */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              created: {
+                id: string
+                role: string
+                name: string
+                title: string | null
+                email: string | null
+                phone: string | null
+                isPrimary: boolean
+                notes: string | null
+                typeKey: string | null
+                person: {
+                  firstName: string | null
+                  middleName: string | null
+                  lastName: string | null
+                  dateOfBirth: string | null
+                  addresses: {
+                    type: string | null
+                    country: string | null
+                    state: string | null
+                    city: string | null
+                    postalCode: string | null
+                    addressLine1: string | null
+                    addressLine2: string | null
+                    isDefault: boolean
+                  }[]
+                  documents: {
+                    /** @enum {string} */
+                    type: "passport" | "id_card" | "visa" | "drivers_license" | "other"
+                    number: string | null
+                    issuingAuthority: string | null
+                    country: string | null
+                    issueDate: string | null
+                    expiryDate: string | null
+                  }[]
+                }
+                metadata: {
+                  [key: string]: unknown
+                } | null
+              }[]
+              skippedCount: number
+            }
+          }
+        }
+      }
+      /** @description Customer record is not linked to this account */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  deletePublicCustomerPortalCompanionsByCompanionId: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        companionId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description The companion was deleted */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            /** @enum {boolean} */
+            success: true
+          }
+        }
+      }
+      /** @description Companion does not belong to this customer */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Companion not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  patchPublicCustomerPortalCompanionsByCompanionId: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        companionId: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          /**
+           * @default other
+           * @enum {string}
+           */
+          role?:
+            | "general"
+            | "primary"
+            | "reservations"
+            | "operations"
+            | "front_desk"
+            | "sales"
+            | "emergency"
+            | "accounting"
+            | "legal"
+            | "other"
+          name?: string
+          title?: string | null
+          /** Format: email */
+          email?: string | null
+          phone?: string | null
+          /** @default false */
+          isPrimary?: boolean
+          notes?: string | null
+          typeKey?: string | null
+          person?: {
+            firstName?: string | null
+            middleName?: string | null
+            lastName?: string | null
+            /** Format: date */
+            dateOfBirth?: string | null
+            addresses?: {
+              type?: string | null
+              country?: string | null
+              state?: string | null
+              city?: string | null
+              postalCode?: string | null
+              addressLine1?: string | null
+              addressLine2?: string | null
+              isDefault?: boolean
+            }[]
+            documents?: {
+              /** @enum {string} */
+              type: "passport" | "id_card" | "visa" | "drivers_license" | "other"
+              number?: string | null
+              issuingAuthority?: string | null
+              country?: string | null
+              /** Format: date */
+              issueDate?: string | null
+              /** Format: date */
+              expiryDate?: string | null
+            }[]
+          }
+          metadata?: {
+            [key: string]: unknown
+          } | null
+        }
+      }
+    }
+    responses: {
+      /** @description The updated companion */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              role: string
+              name: string
+              title: string | null
+              email: string | null
+              phone: string | null
+              isPrimary: boolean
+              notes: string | null
+              typeKey: string | null
+              person: {
+                firstName: string | null
+                middleName: string | null
+                lastName: string | null
+                dateOfBirth: string | null
+                addresses: {
+                  type: string | null
+                  country: string | null
+                  state: string | null
+                  city: string | null
+                  postalCode: string | null
+                  addressLine1: string | null
+                  addressLine2: string | null
+                  isDefault: boolean
+                }[]
+                documents: {
+                  /** @enum {string} */
+                  type: "passport" | "id_card" | "visa" | "drivers_license" | "other"
+                  number: string | null
+                  issuingAuthority: string | null
+                  country: string | null
+                  issueDate: string | null
+                  expiryDate: string | null
+                }[]
+              }
+              metadata: {
+                [key: string]: unknown
+              } | null
+            }
+          }
+        }
+      }
+      /** @description Companion does not belong to this customer */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Customer profile not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getPublicCustomerPortalBookings: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description The authenticated customer's bookings */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              bookingId: string
+              bookingNumber: string
+              /** @enum {string} */
+              status: "confirmed" | "in_progress" | "completed" | "cancelled"
+              sellCurrency: string
+              sellAmountCents: number | null
+              productTitle: string | null
+              /** @enum {string} */
+              paymentStatus: "unpaid" | "partially_paid" | "paid" | "overdue"
+              startDate: string | null
+              endDate: string | null
+              pax: number | null
+              confirmedAt: string | null
+              completedAt: string | null
+              travelerCount: number
+              primaryTravelerName: string | null
+            }[]
+          }
+        }
+      }
+      /** @description Customer profile not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getPublicCustomerPortalBookingsByBookingId: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        bookingId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description The booking detail */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              bookingId: string
+              bookingNumber: string
+              /** @enum {string} */
+              status: "confirmed" | "in_progress" | "completed" | "cancelled"
+              sellCurrency: string
+              sellAmountCents: number | null
+              startDate: string | null
+              endDate: string | null
+              pax: number | null
+              confirmedAt: string | null
+              cancelledAt: string | null
+              completedAt: string | null
+              travelers: {
+                id: string
+                /** @enum {string} */
+                participantType: "traveler" | "occupant" | "other"
+                firstName: string
+                lastName: string
+                isPrimary: boolean
+              }[]
+              items: {
+                id: string
+                title: string
+                description: string | null
+                /** @enum {string} */
+                itemType:
+                  | "unit"
+                  | "extra"
+                  | "service"
+                  | "fee"
+                  | "tax"
+                  | "discount"
+                  | "adjustment"
+                  | "accommodation"
+                  | "transport"
+                  | "other"
+                /** @enum {string} */
+                status: "confirmed" | "cancelled" | "fulfilled"
+                serviceDate: string | null
+                startsAt: string | null
+                endsAt: string | null
+                quantity: number
+                sellCurrency: string
+                unitSellAmountCents: number | null
+                totalSellAmountCents: number | null
+                notes: string | null
+                travelerLinks: {
+                  id: string
+                  travelerId: string
+                  /** @enum {string} */
+                  role: "traveler" | "occupant" | "beneficiary" | "other"
+                  isPrimary: boolean
+                }[]
+              }[]
+              billingContact: {
+                email: string | null
+                phone: string | null
+                firstName: string | null
+                lastName: string | null
+                country: string | null
+                state: string | null
+                city: string | null
+                address1: string | null
+                address2: string | null
+                postal: string | null
+              } | null
+              documents: {
+                id: string
+                /** @enum {string} */
+                source: "booking_document" | "legal" | "finance"
+                travelerId: string | null
+                /** @enum {string} */
+                type:
+                  | "visa"
+                  | "insurance"
+                  | "health"
+                  | "passport_copy"
+                  | "contract"
+                  | "invoice"
+                  | "proforma"
+                  | "credit_note"
+                  | "other"
+                fileName: string
+                fileUrl: string
+                mimeType: string | null
+                reference: string | null
+              }[]
+              financials: {
+                documents: {
+                  invoiceId: string
+                  invoiceNumber: string
+                  /** @enum {string} */
+                  invoiceType: "invoice" | "proforma" | "credit_note"
+                  /** @enum {string} */
+                  invoiceStatus:
+                    | "draft"
+                    | "pending_external_allocation"
+                    | "issued"
+                    | "partially_paid"
+                    | "paid"
+                    | "overdue"
+                    | "void"
+                  currency: string
+                  totalCents: number
+                  paidCents: number
+                  balanceDueCents: number
+                  issueDate: string
+                  dueDate: string
+                  /** @enum {string} */
+                  documentStatus: "missing" | "pending" | "ready" | "failed" | "stale"
+                  /** @enum {string|null} */
+                  format: "html" | "pdf" | "xml" | "json" | null
+                  generatedAt: string | null
+                  downloadUrl: string | null
+                }[]
+                payments: {
+                  id: string
+                  invoiceId: string
+                  invoiceNumber: string
+                  /** @enum {string} */
+                  invoiceType: "invoice" | "proforma" | "credit_note"
+                  /** @enum {string} */
+                  status: "pending" | "completed" | "failed" | "refunded"
+                  /** @enum {string} */
+                  paymentMethod:
+                    | "bank_transfer"
+                    | "credit_card"
+                    | "debit_card"
+                    | "cash"
+                    | "cheque"
+                    | "wallet"
+                    | "direct_bill"
+                    | "travel_credit"
+                    | "other"
+                  amountCents: number
+                  currency: string
+                  paymentDate: string
+                  referenceNumber: string | null
+                  notes: string | null
+                }[]
+              }
+              fulfillments: {
+                id: string
+                bookingItemId: string | null
+                travelerId: string | null
+                /** @enum {string} */
+                fulfillmentType:
+                  | "service_voucher"
+                  | "ticket"
+                  | "pdf"
+                  | "qr_code"
+                  | "barcode"
+                  | "mobile"
+                  | "other"
+                /** @enum {string} */
+                deliveryChannel: "download" | "email" | "api" | "wallet" | "other"
+                /** @enum {string} */
+                status: "pending" | "issued" | "reissued" | "revoked" | "failed"
+                artifactUrl: string | null
+              }[]
+            }
+          }
+        }
+      }
+      /** @description Booking not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getPublicCustomerPortalBookingsByBookingIdDocuments: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        bookingId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description The booking's documents */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              /** @enum {string} */
+              source: "booking_document" | "legal" | "finance"
+              travelerId: string | null
+              /** @enum {string} */
+              type:
+                | "visa"
+                | "insurance"
+                | "health"
+                | "passport_copy"
+                | "contract"
+                | "invoice"
+                | "proforma"
+                | "credit_note"
+                | "other"
+              fileName: string
+              fileUrl: string
+              mimeType: string | null
+              reference: string | null
+            }[]
+          }
+        }
+      }
+      /** @description Booking not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  getPublicCustomerPortalBookingsByBookingIdBillingContact: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        bookingId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description The booking's billing contact */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              email: string | null
+              phone: string | null
+              firstName: string | null
+              lastName: string | null
+              country: string | null
+              state: string | null
+              city: string | null
+              address1: string | null
+              address2: string | null
+              postal: string | null
+            }
+          }
+        }
+      }
+      /** @description Booking not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
   getPublicProductsByProductIdOffers: {
     parameters: {
       query?: {
@@ -1944,7 +19534,3048 @@ export interface operations {
       }
     }
   }
-  postPublicShoppingTripSelections: {
+  getPublicDocumentsByToken: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description The granted document bytes. */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description The grant or stored document does not exist. */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description The grant is expired or revoked. */
+      410: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description Document storage is not configured. */
+      503: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+    }
+  }
+  postPublicRealtimeToken: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description A short-lived capability-scoped client token. */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description Realtime is not configured for this deployment. */
+      204: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description Authentication is required. */
+      401: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+    }
+  }
+  getPublicTripsHealth: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Trips module health status */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              /** @enum {string} */
+              module: "trips"
+              /** @enum {string} */
+              status: "scaffolded"
+            }
+          }
+        }
+      }
+    }
+  }
+  getPublicTrips: {
+    parameters: {
+      query?: {
+        status?:
+          | "draft"
+          | "priced"
+          | "reserve_in_progress"
+          | "reserved"
+          | "checkout_started"
+          | "booked"
+          | "failed"
+          | "cancelled"
+        search?: string
+        productId?: string
+        accommodationId?: string
+        cruiseId?: string
+        hasFlight?: boolean | null
+        totalMinCents?: number | null
+        totalMaxCents?: number | null
+        createdFrom?: string
+        createdTo?: string
+        sortBy?: "updatedAt" | "createdAt" | "status" | "total"
+        sortDir?: "asc" | "desc"
+        limit?: number
+        offset?: number | null
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Paginated list of trip envelopes with their components */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              envelope: {
+                id: string
+                /** @enum {string} */
+                status:
+                  | "draft"
+                  | "priced"
+                  | "reserve_in_progress"
+                  | "reserved"
+                  | "checkout_started"
+                  | "booked"
+                  | "failed"
+                  | "cancelled"
+                title: string | null
+                description: string | null
+                travelerParty: {
+                  [key: string]: unknown
+                }
+                constraints: {
+                  [key: string]: unknown
+                }
+                aggregateCurrency: string | null
+                aggregateSubtotalAmountCents: number | null
+                aggregateTaxAmountCents: number | null
+                aggregateTotalAmountCents: number | null
+                aggregatePricingSnapshot?: unknown
+                currentPriceExpiresAt: string | null
+                bookingGroupId: string | null
+                orderId: string | null
+                paymentSessionId: string | null
+                reserveIdempotencyKey: string | null
+                reserveStartedAt: string | null
+                reservedAt: string | null
+                checkoutIdempotencyKey: string | null
+                checkoutStartedAt: string | null
+                createdBy: string | null
+                updatedBy: string | null
+                createdAt: string
+                updatedAt: string
+              }
+              components: {
+                id: string
+                envelopeId: string
+                sequence: number
+                /** @enum {string} */
+                kind:
+                  | "catalog_booking"
+                  | "manual_placeholder"
+                  | "flight_placeholder"
+                  | "flight_order"
+                  | "external_order"
+                /** @enum {string} */
+                status:
+                  | "draft"
+                  | "priced"
+                  | "unavailable"
+                  | "held"
+                  | "booked"
+                  | "checkout_started"
+                  | "failed"
+                  | "cancelled"
+                  | "removed"
+                title: string | null
+                description: string | null
+                entityModule: string | null
+                entityId: string | null
+                sourceKind: string | null
+                sourceConnectionId: string | null
+                sourceRef: string | null
+                bookingDraftId: string | null
+                catalogQuoteId: string | null
+                bookingId: string | null
+                bookingGroupId: string | null
+                orderId: string | null
+                paymentSessionId: string | null
+                providerRef: string | null
+                supplierRef: string | null
+                componentCurrency: string | null
+                componentSubtotalAmountCents: number | null
+                componentTaxAmountCents: number | null
+                componentTotalAmountCents: number | null
+                pricingSnapshot?: unknown
+                taxLines: unknown[] | null
+                cancellationSnapshot?: unknown
+                holdToken: string | null
+                holdExpiresAt: string | null
+                priceExpiresAt: string | null
+                warningCodes: string[]
+                metadata: {
+                  [key: string]: unknown
+                }
+                createdAt: string
+                updatedAt: string
+              }[]
+            }[]
+            total: number
+            limit: number
+            offset: number
+          }
+        }
+      }
+    }
+  }
+  postPublicTrips: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          title?: string
+          description?: string
+          /** @default {} */
+          travelerParty?: {
+            [key: string]: unknown
+          }
+          /** @default {} */
+          constraints?: {
+            [key: string]: unknown
+          }
+          createdBy?: string
+        }
+      }
+    }
+    responses: {
+      /** @description The created trip envelope with its (initially empty) components */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              envelope: {
+                id: string
+                /** @enum {string} */
+                status:
+                  | "draft"
+                  | "priced"
+                  | "reserve_in_progress"
+                  | "reserved"
+                  | "checkout_started"
+                  | "booked"
+                  | "failed"
+                  | "cancelled"
+                title: string | null
+                description: string | null
+                travelerParty: {
+                  [key: string]: unknown
+                }
+                constraints: {
+                  [key: string]: unknown
+                }
+                aggregateCurrency: string | null
+                aggregateSubtotalAmountCents: number | null
+                aggregateTaxAmountCents: number | null
+                aggregateTotalAmountCents: number | null
+                aggregatePricingSnapshot?: unknown
+                currentPriceExpiresAt: string | null
+                bookingGroupId: string | null
+                orderId: string | null
+                paymentSessionId: string | null
+                reserveIdempotencyKey: string | null
+                reserveStartedAt: string | null
+                reservedAt: string | null
+                checkoutIdempotencyKey: string | null
+                checkoutStartedAt: string | null
+                createdBy: string | null
+                updatedBy: string | null
+                createdAt: string
+                updatedAt: string
+              }
+              components: {
+                id: string
+                envelopeId: string
+                sequence: number
+                /** @enum {string} */
+                kind:
+                  | "catalog_booking"
+                  | "manual_placeholder"
+                  | "flight_placeholder"
+                  | "flight_order"
+                  | "external_order"
+                /** @enum {string} */
+                status:
+                  | "draft"
+                  | "priced"
+                  | "unavailable"
+                  | "held"
+                  | "booked"
+                  | "checkout_started"
+                  | "failed"
+                  | "cancelled"
+                  | "removed"
+                title: string | null
+                description: string | null
+                entityModule: string | null
+                entityId: string | null
+                sourceKind: string | null
+                sourceConnectionId: string | null
+                sourceRef: string | null
+                bookingDraftId: string | null
+                catalogQuoteId: string | null
+                bookingId: string | null
+                bookingGroupId: string | null
+                orderId: string | null
+                paymentSessionId: string | null
+                providerRef: string | null
+                supplierRef: string | null
+                componentCurrency: string | null
+                componentSubtotalAmountCents: number | null
+                componentTaxAmountCents: number | null
+                componentTotalAmountCents: number | null
+                pricingSnapshot?: unknown
+                taxLines: unknown[] | null
+                cancellationSnapshot?: unknown
+                holdToken: string | null
+                holdExpiresAt: string | null
+                priceExpiresAt: string | null
+                warningCodes: string[]
+                metadata: {
+                  [key: string]: unknown
+                }
+                createdAt: string
+                updatedAt: string
+              }[]
+            }
+          }
+        }
+      }
+      /** @description invalid_request — body failed validation */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description A referenced entity was not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description The envelope could not be created in the requested state */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  getPublicTripsByEnvelopeId: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        envelopeId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description A trip envelope with its components */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              envelope: {
+                id: string
+                /** @enum {string} */
+                status:
+                  | "draft"
+                  | "priced"
+                  | "reserve_in_progress"
+                  | "reserved"
+                  | "checkout_started"
+                  | "booked"
+                  | "failed"
+                  | "cancelled"
+                title: string | null
+                description: string | null
+                travelerParty: {
+                  [key: string]: unknown
+                }
+                constraints: {
+                  [key: string]: unknown
+                }
+                aggregateCurrency: string | null
+                aggregateSubtotalAmountCents: number | null
+                aggregateTaxAmountCents: number | null
+                aggregateTotalAmountCents: number | null
+                aggregatePricingSnapshot?: unknown
+                currentPriceExpiresAt: string | null
+                bookingGroupId: string | null
+                orderId: string | null
+                paymentSessionId: string | null
+                reserveIdempotencyKey: string | null
+                reserveStartedAt: string | null
+                reservedAt: string | null
+                checkoutIdempotencyKey: string | null
+                checkoutStartedAt: string | null
+                createdBy: string | null
+                updatedBy: string | null
+                createdAt: string
+                updatedAt: string
+              }
+              components: {
+                id: string
+                envelopeId: string
+                sequence: number
+                /** @enum {string} */
+                kind:
+                  | "catalog_booking"
+                  | "manual_placeholder"
+                  | "flight_placeholder"
+                  | "flight_order"
+                  | "external_order"
+                /** @enum {string} */
+                status:
+                  | "draft"
+                  | "priced"
+                  | "unavailable"
+                  | "held"
+                  | "booked"
+                  | "checkout_started"
+                  | "failed"
+                  | "cancelled"
+                  | "removed"
+                title: string | null
+                description: string | null
+                entityModule: string | null
+                entityId: string | null
+                sourceKind: string | null
+                sourceConnectionId: string | null
+                sourceRef: string | null
+                bookingDraftId: string | null
+                catalogQuoteId: string | null
+                bookingId: string | null
+                bookingGroupId: string | null
+                orderId: string | null
+                paymentSessionId: string | null
+                providerRef: string | null
+                supplierRef: string | null
+                componentCurrency: string | null
+                componentSubtotalAmountCents: number | null
+                componentTaxAmountCents: number | null
+                componentTotalAmountCents: number | null
+                pricingSnapshot?: unknown
+                taxLines: unknown[] | null
+                cancellationSnapshot?: unknown
+                holdToken: string | null
+                holdExpiresAt: string | null
+                priceExpiresAt: string | null
+                warningCodes: string[]
+                metadata: {
+                  [key: string]: unknown
+                }
+                createdAt: string
+                updatedAt: string
+              }[]
+            }
+          }
+        }
+      }
+      /** @description Trip envelope not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  patchPublicTripsByEnvelopeId: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        envelopeId: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          title?: string | null
+          description?: string | null
+          travelerParty?: {
+            [key: string]: unknown
+          }
+          constraints?: {
+            [key: string]: unknown
+          }
+          /** @enum {string} */
+          status?:
+            | "draft"
+            | "priced"
+            | "reserve_in_progress"
+            | "reserved"
+            | "checkout_started"
+            | "booked"
+            | "failed"
+            | "cancelled"
+          updatedBy?: string | null
+        }
+      }
+    }
+    responses: {
+      /** @description The updated trip envelope */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              /** @enum {string} */
+              status:
+                | "draft"
+                | "priced"
+                | "reserve_in_progress"
+                | "reserved"
+                | "checkout_started"
+                | "booked"
+                | "failed"
+                | "cancelled"
+              title: string | null
+              description: string | null
+              travelerParty: {
+                [key: string]: unknown
+              }
+              constraints: {
+                [key: string]: unknown
+              }
+              aggregateCurrency: string | null
+              aggregateSubtotalAmountCents: number | null
+              aggregateTaxAmountCents: number | null
+              aggregateTotalAmountCents: number | null
+              aggregatePricingSnapshot?: unknown
+              currentPriceExpiresAt: string | null
+              bookingGroupId: string | null
+              orderId: string | null
+              paymentSessionId: string | null
+              reserveIdempotencyKey: string | null
+              reserveStartedAt: string | null
+              reservedAt: string | null
+              checkoutIdempotencyKey: string | null
+              checkoutStartedAt: string | null
+              createdBy: string | null
+              updatedBy: string | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request — body failed validation */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Admin-only operation invoked on the public surface */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Trip envelope not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Invalid trip envelope state transition */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  getPublicTripsByEnvelopeIdSnapshots: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        envelopeId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Frozen snapshots for a trip envelope */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              envelopeId: string
+              sourceEnvelopeUpdatedAt: string
+              titleSnapshot: string | null
+              descriptionSnapshot: string | null
+              travelerPartySnapshot: {
+                [key: string]: unknown
+              }
+              constraintsSnapshot: {
+                [key: string]: unknown
+              }
+              currency: string
+              subtotalAmountCents: number
+              taxAmountCents: number
+              totalAmountCents: number
+              componentCount: number
+              pricedComponentCount: number
+              frozenEnvelope?: unknown
+              frozenComponents: unknown[]
+              proposal?: unknown
+              createdBy: string | null
+              createdAt: string
+            }[]
+          }
+        }
+      }
+      /** @description Admin-only operation invoked on the public surface */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  postPublicTripsByEnvelopeIdSnapshots: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        envelopeId: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          createdBy?: string | null
+        }
+      }
+    }
+    responses: {
+      /** @description The frozen trip snapshot */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              envelopeId: string
+              sourceEnvelopeUpdatedAt: string
+              titleSnapshot: string | null
+              descriptionSnapshot: string | null
+              travelerPartySnapshot: {
+                [key: string]: unknown
+              }
+              constraintsSnapshot: {
+                [key: string]: unknown
+              }
+              currency: string
+              subtotalAmountCents: number
+              taxAmountCents: number
+              totalAmountCents: number
+              componentCount: number
+              pricedComponentCount: number
+              frozenEnvelope?: unknown
+              frozenComponents: unknown[]
+              proposal?: unknown
+              createdBy: string | null
+              createdAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request — body failed validation */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Admin-only operation invoked on the public surface */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Trip envelope not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Trip envelope cannot be snapshotted in its current state */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  getPublicTripsSnapshotsBySnapshotId: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        snapshotId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description A frozen trip snapshot by id */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              envelopeId: string
+              sourceEnvelopeUpdatedAt: string
+              titleSnapshot: string | null
+              descriptionSnapshot: string | null
+              travelerPartySnapshot: {
+                [key: string]: unknown
+              }
+              constraintsSnapshot: {
+                [key: string]: unknown
+              }
+              currency: string
+              subtotalAmountCents: number
+              taxAmountCents: number
+              totalAmountCents: number
+              componentCount: number
+              pricedComponentCount: number
+              frozenEnvelope?: unknown
+              frozenComponents: unknown[]
+              proposal?: unknown
+              createdBy: string | null
+              createdAt: string
+            }
+          }
+        }
+      }
+      /** @description Admin-only operation invoked on the public surface */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Trip snapshot not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  postPublicTripsByEnvelopeIdComponents: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        envelopeId: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          /** @default 0 */
+          sequence?: number
+          /** @enum {string} */
+          kind:
+            | "catalog_booking"
+            | "manual_placeholder"
+            | "flight_placeholder"
+            | "flight_order"
+            | "external_order"
+          description?: string
+          catalogRef?: {
+            entityModule: string
+            entityId: string
+            sourceKind: string
+            sourceConnectionId?: string
+            sourceRef?: string
+          }
+          estimatedPricing?: {
+            currency: string
+            subtotalAmountCents: number
+            taxAmountCents: number
+            totalAmountCents: number
+            /** Format: date-time */
+            priceExpiresAt?: string
+            warnings?: string[]
+          }
+          /** @default {} */
+          metadata?: {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+    responses: {
+      /** @description The created trip component */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              envelopeId: string
+              sequence: number
+              /** @enum {string} */
+              kind:
+                | "catalog_booking"
+                | "manual_placeholder"
+                | "flight_placeholder"
+                | "flight_order"
+                | "external_order"
+              /** @enum {string} */
+              status:
+                | "draft"
+                | "priced"
+                | "unavailable"
+                | "held"
+                | "booked"
+                | "checkout_started"
+                | "failed"
+                | "cancelled"
+                | "removed"
+              title: string | null
+              description: string | null
+              entityModule: string | null
+              entityId: string | null
+              sourceKind: string | null
+              sourceConnectionId: string | null
+              sourceRef: string | null
+              bookingDraftId: string | null
+              catalogQuoteId: string | null
+              bookingId: string | null
+              bookingGroupId: string | null
+              orderId: string | null
+              paymentSessionId: string | null
+              providerRef: string | null
+              supplierRef: string | null
+              componentCurrency: string | null
+              componentSubtotalAmountCents: number | null
+              componentTaxAmountCents: number | null
+              componentTotalAmountCents: number | null
+              pricingSnapshot?: unknown
+              taxLines: unknown[] | null
+              cancellationSnapshot?: unknown
+              holdToken: string | null
+              holdExpiresAt: string | null
+              priceExpiresAt: string | null
+              warningCodes: string[]
+              metadata: {
+                [key: string]: unknown
+              }
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request — body failed validation (manual services require metadata.manualService.name) */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Trip envelope not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Trip component cannot be added in the envelope's current state */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  postPublicTripsByEnvelopeIdComponentsReorder: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        envelopeId: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          componentIds: string[]
+        }
+      }
+    }
+    responses: {
+      /** @description The reordered trip components */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              envelopeId: string
+              sequence: number
+              /** @enum {string} */
+              kind:
+                | "catalog_booking"
+                | "manual_placeholder"
+                | "flight_placeholder"
+                | "flight_order"
+                | "external_order"
+              /** @enum {string} */
+              status:
+                | "draft"
+                | "priced"
+                | "unavailable"
+                | "held"
+                | "booked"
+                | "checkout_started"
+                | "failed"
+                | "cancelled"
+                | "removed"
+              title: string | null
+              description: string | null
+              entityModule: string | null
+              entityId: string | null
+              sourceKind: string | null
+              sourceConnectionId: string | null
+              sourceRef: string | null
+              bookingDraftId: string | null
+              catalogQuoteId: string | null
+              bookingId: string | null
+              bookingGroupId: string | null
+              orderId: string | null
+              paymentSessionId: string | null
+              providerRef: string | null
+              supplierRef: string | null
+              componentCurrency: string | null
+              componentSubtotalAmountCents: number | null
+              componentTaxAmountCents: number | null
+              componentTotalAmountCents: number | null
+              pricingSnapshot?: unknown
+              taxLines: unknown[] | null
+              cancellationSnapshot?: unknown
+              holdToken: string | null
+              holdExpiresAt: string | null
+              priceExpiresAt: string | null
+              warningCodes: string[]
+              metadata: {
+                [key: string]: unknown
+              }
+              createdAt: string
+              updatedAt: string
+            }[]
+          }
+        }
+      }
+      /** @description invalid_request — body failed validation */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Admin-only operation invoked on the public surface */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Trip envelope not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Component set mismatch or invalid reorder */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  deletePublicTripsComponentsByComponentId: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        componentId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description The removed trip component */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              envelopeId: string
+              sequence: number
+              /** @enum {string} */
+              kind:
+                | "catalog_booking"
+                | "manual_placeholder"
+                | "flight_placeholder"
+                | "flight_order"
+                | "external_order"
+              /** @enum {string} */
+              status:
+                | "draft"
+                | "priced"
+                | "unavailable"
+                | "held"
+                | "booked"
+                | "checkout_started"
+                | "failed"
+                | "cancelled"
+                | "removed"
+              title: string | null
+              description: string | null
+              entityModule: string | null
+              entityId: string | null
+              sourceKind: string | null
+              sourceConnectionId: string | null
+              sourceRef: string | null
+              bookingDraftId: string | null
+              catalogQuoteId: string | null
+              bookingId: string | null
+              bookingGroupId: string | null
+              orderId: string | null
+              paymentSessionId: string | null
+              providerRef: string | null
+              supplierRef: string | null
+              componentCurrency: string | null
+              componentSubtotalAmountCents: number | null
+              componentTaxAmountCents: number | null
+              componentTotalAmountCents: number | null
+              pricingSnapshot?: unknown
+              taxLines: unknown[] | null
+              cancellationSnapshot?: unknown
+              holdToken: string | null
+              holdExpiresAt: string | null
+              priceExpiresAt: string | null
+              warningCodes: string[]
+              metadata: {
+                [key: string]: unknown
+              }
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request — the removal could not be processed */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Admin-only operation invoked on the public surface */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Trip component not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Trip component cannot be removed in its current state */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  patchPublicTripsComponentsByComponentId: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        componentId: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          sequence?: number
+          /** @enum {string} */
+          status?:
+            | "draft"
+            | "priced"
+            | "unavailable"
+            | "held"
+            | "booked"
+            | "checkout_started"
+            | "failed"
+            | "cancelled"
+            | "removed"
+          description?: string | null
+          catalogRef?: {
+            entityModule: string
+            entityId: string
+            sourceKind: string
+            sourceConnectionId?: string
+            sourceRef?: string
+          } | null
+          metadata?: {
+            [key: string]: unknown
+          }
+          warningCodes?: string[]
+        }
+      }
+    }
+    responses: {
+      /** @description The updated trip component */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              envelopeId: string
+              sequence: number
+              /** @enum {string} */
+              kind:
+                | "catalog_booking"
+                | "manual_placeholder"
+                | "flight_placeholder"
+                | "flight_order"
+                | "external_order"
+              /** @enum {string} */
+              status:
+                | "draft"
+                | "priced"
+                | "unavailable"
+                | "held"
+                | "booked"
+                | "checkout_started"
+                | "failed"
+                | "cancelled"
+                | "removed"
+              title: string | null
+              description: string | null
+              entityModule: string | null
+              entityId: string | null
+              sourceKind: string | null
+              sourceConnectionId: string | null
+              sourceRef: string | null
+              bookingDraftId: string | null
+              catalogQuoteId: string | null
+              bookingId: string | null
+              bookingGroupId: string | null
+              orderId: string | null
+              paymentSessionId: string | null
+              providerRef: string | null
+              supplierRef: string | null
+              componentCurrency: string | null
+              componentSubtotalAmountCents: number | null
+              componentTaxAmountCents: number | null
+              componentTotalAmountCents: number | null
+              pricingSnapshot?: unknown
+              taxLines: unknown[] | null
+              cancellationSnapshot?: unknown
+              holdToken: string | null
+              holdExpiresAt: string | null
+              priceExpiresAt: string | null
+              warningCodes: string[]
+              metadata: {
+                [key: string]: unknown
+              }
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request — body failed validation */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Admin-only operation invoked on the public surface */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Trip component not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Trip component cannot be updated in its current state */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  postPublicTripsComponentsByComponentIdRefs: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        componentId: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          bookingDraftId?: string
+          catalogQuoteId?: string
+          committedRef?: {
+            bookingId?: string
+            bookingGroupId?: string
+            orderId?: string
+            paymentSessionId?: string
+            providerRef?: string
+            supplierRef?: string
+          }
+        }
+      }
+    }
+    responses: {
+      /** @description The trip component with updated commit references */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              envelopeId: string
+              sequence: number
+              /** @enum {string} */
+              kind:
+                | "catalog_booking"
+                | "manual_placeholder"
+                | "flight_placeholder"
+                | "flight_order"
+                | "external_order"
+              /** @enum {string} */
+              status:
+                | "draft"
+                | "priced"
+                | "unavailable"
+                | "held"
+                | "booked"
+                | "checkout_started"
+                | "failed"
+                | "cancelled"
+                | "removed"
+              title: string | null
+              description: string | null
+              entityModule: string | null
+              entityId: string | null
+              sourceKind: string | null
+              sourceConnectionId: string | null
+              sourceRef: string | null
+              bookingDraftId: string | null
+              catalogQuoteId: string | null
+              bookingId: string | null
+              bookingGroupId: string | null
+              orderId: string | null
+              paymentSessionId: string | null
+              providerRef: string | null
+              supplierRef: string | null
+              componentCurrency: string | null
+              componentSubtotalAmountCents: number | null
+              componentTaxAmountCents: number | null
+              componentTotalAmountCents: number | null
+              pricingSnapshot?: unknown
+              taxLines: unknown[] | null
+              cancellationSnapshot?: unknown
+              holdToken: string | null
+              holdExpiresAt: string | null
+              priceExpiresAt: string | null
+              warningCodes: string[]
+              metadata: {
+                [key: string]: unknown
+              }
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request — body failed validation */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Admin-only operation invoked on the public surface */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Trip component not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Trip component cannot receive references in its current state */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  getPublicTripsByEnvelopeIdRequirements: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        envelopeId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Requirements for a trip envelope */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              envelopeId: string
+              sequence: number
+              status: string
+              title: string | null
+              description: string | null
+              vertical: string
+              criteria: {
+                [key: string]: unknown
+              }
+              criteriaVersion: string
+              required: boolean
+              selectedCandidateId: string | null
+              resolvedComponentId: string | null
+              lastSourcedAt: string | null
+              metadata: {
+                [key: string]: unknown
+              }
+              createdAt: string
+              updatedAt: string
+            }[]
+          }
+        }
+      }
+      /** @description invalid_request — the requirements could not be listed */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Admin-only operation invoked on the public surface */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Trip envelope not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Requirements cannot be listed in the envelope's current state */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  postPublicTripsByEnvelopeIdRequirements: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        envelopeId: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          vertical: string
+          /** @default {} */
+          criteria?: {
+            [key: string]: unknown
+          }
+          criteriaVersion: string
+          sequence?: number
+          required?: boolean
+          title?: string
+          description?: string
+          metadata?: {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+    responses: {
+      /** @description The created trip requirement */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              envelopeId: string
+              sequence: number
+              status: string
+              title: string | null
+              description: string | null
+              vertical: string
+              criteria: {
+                [key: string]: unknown
+              }
+              criteriaVersion: string
+              required: boolean
+              selectedCandidateId: string | null
+              resolvedComponentId: string | null
+              lastSourcedAt: string | null
+              metadata: {
+                [key: string]: unknown
+              }
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description invalid_request — body failed validation */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Admin-only operation invoked on the public surface */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Trip envelope not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Requirement cannot be added in the envelope's current state */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  getPublicTripsRequirementsByRequirementIdSourcingOperationsByOperationId: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        requirementId: string
+        operationId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Durable sourcing operation status, immutable accepted result, terminal outcome, and error */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              operationId: string
+              requirementId: string
+              /** @enum {string} */
+              status: "pending" | "processing" | "retry" | "completed" | "dead_letter"
+              result: {
+                /** @enum {string} */
+                status: "accepted"
+                operationId: string
+                requirementId: string
+                /** @enum {string} */
+                statusTool: "get_trip_requirement_sourcing_operation"
+              }
+              outcome:
+                | {
+                    /** @enum {string} */
+                    status: "completed"
+                    candidateCount: number
+                    /** @enum {string} */
+                    requirementStatus: "candidates_ready" | "no_availability"
+                  }
+                | {
+                    /** @enum {string} */
+                    status: "dead_letter"
+                    error: string
+                  }
+                | null
+              error: string | null
+              attempts: number
+              maxAttempts: number
+              nextAttemptAt: string
+              completedAt: string | null
+              createdAt: string
+              updatedAt: string
+            }
+          }
+        }
+      }
+      /** @description Admin-only operation invoked on the public surface */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Sourcing operation not found for this organization and requirement */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  postPublicTripsRequirementsByRequirementIdSelect: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        requirementId: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          candidateId: string
+        }
+      }
+    }
+    responses: {
+      /** @description The resolved requirement, selected candidate, and pinned component */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              requirement: {
+                id: string
+                envelopeId: string
+                sequence: number
+                status: string
+                title: string | null
+                description: string | null
+                vertical: string
+                criteria: {
+                  [key: string]: unknown
+                }
+                criteriaVersion: string
+                required: boolean
+                selectedCandidateId: string | null
+                resolvedComponentId: string | null
+                lastSourcedAt: string | null
+                metadata: {
+                  [key: string]: unknown
+                }
+                createdAt: string
+                updatedAt: string
+              }
+              candidate: {
+                id: string
+                requirementId: string
+                envelopeId: string
+                rank: number
+                status: string
+                candidateRef: string
+                entityModule: string
+                entityId: string
+                sourceKind: string
+                sourceConnectionId: string | null
+                sourceModule: string | null
+                selection: {
+                  [key: string]: unknown
+                }
+                priceCurrency: string
+                priceAmount: string
+                expiresAt: string | null
+                providerData?: unknown
+                createdAt: string
+                updatedAt: string
+              }
+              component: {
+                id: string
+                envelopeId: string
+                sequence: number
+                /** @enum {string} */
+                kind:
+                  | "catalog_booking"
+                  | "manual_placeholder"
+                  | "flight_placeholder"
+                  | "flight_order"
+                  | "external_order"
+                /** @enum {string} */
+                status:
+                  | "draft"
+                  | "priced"
+                  | "unavailable"
+                  | "held"
+                  | "booked"
+                  | "checkout_started"
+                  | "failed"
+                  | "cancelled"
+                  | "removed"
+                title: string | null
+                description: string | null
+                entityModule: string | null
+                entityId: string | null
+                sourceKind: string | null
+                sourceConnectionId: string | null
+                sourceRef: string | null
+                bookingDraftId: string | null
+                catalogQuoteId: string | null
+                bookingId: string | null
+                bookingGroupId: string | null
+                orderId: string | null
+                paymentSessionId: string | null
+                providerRef: string | null
+                supplierRef: string | null
+                componentCurrency: string | null
+                componentSubtotalAmountCents: number | null
+                componentTaxAmountCents: number | null
+                componentTotalAmountCents: number | null
+                pricingSnapshot?: unknown
+                taxLines: unknown[] | null
+                cancellationSnapshot?: unknown
+                holdToken: string | null
+                holdExpiresAt: string | null
+                priceExpiresAt: string | null
+                warningCodes: string[]
+                metadata: {
+                  [key: string]: unknown
+                }
+                createdAt: string
+                updatedAt: string
+              }
+            }
+          }
+        }
+      }
+      /** @description invalid_request — body failed validation */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Admin-only operation invoked on the public surface */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Trip requirement or candidate not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Candidate is not selectable (expired / superseded / wrong state) */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  postPublicTripsByEnvelopeIdPrice: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        envelopeId: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          scope: {
+            locale: string
+            /** @enum {string} */
+            audience: "staff" | "customer" | "partner" | "supplier"
+            market: string
+            currency?: string
+          }
+          ttlMs?: number
+        }
+      }
+    }
+    responses: {
+      /** @description The priced envelope with components and a composed pricing result */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              envelope: {
+                id: string
+                /** @enum {string} */
+                status:
+                  | "draft"
+                  | "priced"
+                  | "reserve_in_progress"
+                  | "reserved"
+                  | "checkout_started"
+                  | "booked"
+                  | "failed"
+                  | "cancelled"
+                title: string | null
+                description: string | null
+                travelerParty: {
+                  [key: string]: unknown
+                }
+                constraints: {
+                  [key: string]: unknown
+                }
+                aggregateCurrency: string | null
+                aggregateSubtotalAmountCents: number | null
+                aggregateTaxAmountCents: number | null
+                aggregateTotalAmountCents: number | null
+                aggregatePricingSnapshot?: unknown
+                currentPriceExpiresAt: string | null
+                bookingGroupId: string | null
+                orderId: string | null
+                paymentSessionId: string | null
+                reserveIdempotencyKey: string | null
+                reserveStartedAt: string | null
+                reservedAt: string | null
+                checkoutIdempotencyKey: string | null
+                checkoutStartedAt: string | null
+                createdBy: string | null
+                updatedBy: string | null
+                createdAt: string
+                updatedAt: string
+              }
+              components: {
+                id: string
+                envelopeId: string
+                sequence: number
+                /** @enum {string} */
+                kind:
+                  | "catalog_booking"
+                  | "manual_placeholder"
+                  | "flight_placeholder"
+                  | "flight_order"
+                  | "external_order"
+                /** @enum {string} */
+                status:
+                  | "draft"
+                  | "priced"
+                  | "unavailable"
+                  | "held"
+                  | "booked"
+                  | "checkout_started"
+                  | "failed"
+                  | "cancelled"
+                  | "removed"
+                title: string | null
+                description: string | null
+                entityModule: string | null
+                entityId: string | null
+                sourceKind: string | null
+                sourceConnectionId: string | null
+                sourceRef: string | null
+                bookingDraftId: string | null
+                catalogQuoteId: string | null
+                bookingId: string | null
+                bookingGroupId: string | null
+                orderId: string | null
+                paymentSessionId: string | null
+                providerRef: string | null
+                supplierRef: string | null
+                componentCurrency: string | null
+                componentSubtotalAmountCents: number | null
+                componentTaxAmountCents: number | null
+                componentTotalAmountCents: number | null
+                pricingSnapshot?: unknown
+                taxLines: unknown[] | null
+                cancellationSnapshot?: unknown
+                holdToken: string | null
+                holdExpiresAt: string | null
+                priceExpiresAt: string | null
+                warningCodes: string[]
+                metadata: {
+                  [key: string]: unknown
+                }
+                createdAt: string
+                updatedAt: string
+              }[]
+            } & {
+              [key: string]: unknown
+            }
+          }
+        }
+      }
+      /** @description invalid_request — body failed validation */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Trip envelope not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Envelope cannot be priced in its current state */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Trips price dependencies are not configured */
+      501: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  postPublicTripsByEnvelopeIdReserve: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        envelopeId: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          idempotencyKey?: string
+          refreshScope?: {
+            locale: string
+            /** @enum {string} */
+            audience: "staff" | "customer" | "partner" | "supplier"
+            market: string
+            currency?: string
+          }
+        }
+      }
+    }
+    responses: {
+      /** @description The reserved envelope with components and a composed reservation result */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              envelope: {
+                id: string
+                /** @enum {string} */
+                status:
+                  | "draft"
+                  | "priced"
+                  | "reserve_in_progress"
+                  | "reserved"
+                  | "checkout_started"
+                  | "booked"
+                  | "failed"
+                  | "cancelled"
+                title: string | null
+                description: string | null
+                travelerParty: {
+                  [key: string]: unknown
+                }
+                constraints: {
+                  [key: string]: unknown
+                }
+                aggregateCurrency: string | null
+                aggregateSubtotalAmountCents: number | null
+                aggregateTaxAmountCents: number | null
+                aggregateTotalAmountCents: number | null
+                aggregatePricingSnapshot?: unknown
+                currentPriceExpiresAt: string | null
+                bookingGroupId: string | null
+                orderId: string | null
+                paymentSessionId: string | null
+                reserveIdempotencyKey: string | null
+                reserveStartedAt: string | null
+                reservedAt: string | null
+                checkoutIdempotencyKey: string | null
+                checkoutStartedAt: string | null
+                createdBy: string | null
+                updatedBy: string | null
+                createdAt: string
+                updatedAt: string
+              }
+              components: {
+                id: string
+                envelopeId: string
+                sequence: number
+                /** @enum {string} */
+                kind:
+                  | "catalog_booking"
+                  | "manual_placeholder"
+                  | "flight_placeholder"
+                  | "flight_order"
+                  | "external_order"
+                /** @enum {string} */
+                status:
+                  | "draft"
+                  | "priced"
+                  | "unavailable"
+                  | "held"
+                  | "booked"
+                  | "checkout_started"
+                  | "failed"
+                  | "cancelled"
+                  | "removed"
+                title: string | null
+                description: string | null
+                entityModule: string | null
+                entityId: string | null
+                sourceKind: string | null
+                sourceConnectionId: string | null
+                sourceRef: string | null
+                bookingDraftId: string | null
+                catalogQuoteId: string | null
+                bookingId: string | null
+                bookingGroupId: string | null
+                orderId: string | null
+                paymentSessionId: string | null
+                providerRef: string | null
+                supplierRef: string | null
+                componentCurrency: string | null
+                componentSubtotalAmountCents: number | null
+                componentTaxAmountCents: number | null
+                componentTotalAmountCents: number | null
+                pricingSnapshot?: unknown
+                taxLines: unknown[] | null
+                cancellationSnapshot?: unknown
+                holdToken: string | null
+                holdExpiresAt: string | null
+                priceExpiresAt: string | null
+                warningCodes: string[]
+                metadata: {
+                  [key: string]: unknown
+                }
+                createdAt: string
+                updatedAt: string
+              }[]
+            } & {
+              [key: string]: unknown
+            }
+          }
+        }
+      }
+      /** @description invalid_request — body failed validation */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Trip envelope not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Envelope cannot be reserved in its current state */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Trips reserve dependencies are not configured */
+      501: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  postPublicTripsByEnvelopeIdCheckout: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        envelopeId: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          idempotencyKey?: string
+          /**
+           * @default card
+           * @enum {string}
+           */
+          intent?: "card" | "bank_transfer"
+          /** @default {} */
+          request?: {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+    responses: {
+      /** @description The checkout-started envelope with components and a composed handoff result */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              envelope: {
+                id: string
+                /** @enum {string} */
+                status:
+                  | "draft"
+                  | "priced"
+                  | "reserve_in_progress"
+                  | "reserved"
+                  | "checkout_started"
+                  | "booked"
+                  | "failed"
+                  | "cancelled"
+                title: string | null
+                description: string | null
+                travelerParty: {
+                  [key: string]: unknown
+                }
+                constraints: {
+                  [key: string]: unknown
+                }
+                aggregateCurrency: string | null
+                aggregateSubtotalAmountCents: number | null
+                aggregateTaxAmountCents: number | null
+                aggregateTotalAmountCents: number | null
+                aggregatePricingSnapshot?: unknown
+                currentPriceExpiresAt: string | null
+                bookingGroupId: string | null
+                orderId: string | null
+                paymentSessionId: string | null
+                reserveIdempotencyKey: string | null
+                reserveStartedAt: string | null
+                reservedAt: string | null
+                checkoutIdempotencyKey: string | null
+                checkoutStartedAt: string | null
+                createdBy: string | null
+                updatedBy: string | null
+                createdAt: string
+                updatedAt: string
+              }
+              components: {
+                id: string
+                envelopeId: string
+                sequence: number
+                /** @enum {string} */
+                kind:
+                  | "catalog_booking"
+                  | "manual_placeholder"
+                  | "flight_placeholder"
+                  | "flight_order"
+                  | "external_order"
+                /** @enum {string} */
+                status:
+                  | "draft"
+                  | "priced"
+                  | "unavailable"
+                  | "held"
+                  | "booked"
+                  | "checkout_started"
+                  | "failed"
+                  | "cancelled"
+                  | "removed"
+                title: string | null
+                description: string | null
+                entityModule: string | null
+                entityId: string | null
+                sourceKind: string | null
+                sourceConnectionId: string | null
+                sourceRef: string | null
+                bookingDraftId: string | null
+                catalogQuoteId: string | null
+                bookingId: string | null
+                bookingGroupId: string | null
+                orderId: string | null
+                paymentSessionId: string | null
+                providerRef: string | null
+                supplierRef: string | null
+                componentCurrency: string | null
+                componentSubtotalAmountCents: number | null
+                componentTaxAmountCents: number | null
+                componentTotalAmountCents: number | null
+                pricingSnapshot?: unknown
+                taxLines: unknown[] | null
+                cancellationSnapshot?: unknown
+                holdToken: string | null
+                holdExpiresAt: string | null
+                priceExpiresAt: string | null
+                warningCodes: string[]
+                metadata: {
+                  [key: string]: unknown
+                }
+                createdAt: string
+                updatedAt: string
+              }[]
+            } & {
+              [key: string]: unknown
+            }
+          }
+        }
+      }
+      /** @description invalid_request — body failed validation */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Trip envelope not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Envelope cannot start checkout in its current state */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Trips checkout dependencies are not configured */
+      501: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  postPublicTripsByEnvelopeIdCancellationPreview: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        envelopeId: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          componentIds?: string[]
+          reason?: string
+          /** Format: date-time */
+          requestedAt?: string
+          /** @default {} */
+          request?: {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+    responses: {
+      /** @description A composed cancellation preview for the envelope / selected components */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              envelope: {
+                id: string
+                /** @enum {string} */
+                status:
+                  | "draft"
+                  | "priced"
+                  | "reserve_in_progress"
+                  | "reserved"
+                  | "checkout_started"
+                  | "booked"
+                  | "failed"
+                  | "cancelled"
+                title: string | null
+                description: string | null
+                travelerParty: {
+                  [key: string]: unknown
+                }
+                constraints: {
+                  [key: string]: unknown
+                }
+                aggregateCurrency: string | null
+                aggregateSubtotalAmountCents: number | null
+                aggregateTaxAmountCents: number | null
+                aggregateTotalAmountCents: number | null
+                aggregatePricingSnapshot?: unknown
+                currentPriceExpiresAt: string | null
+                bookingGroupId: string | null
+                orderId: string | null
+                paymentSessionId: string | null
+                reserveIdempotencyKey: string | null
+                reserveStartedAt: string | null
+                reservedAt: string | null
+                checkoutIdempotencyKey: string | null
+                checkoutStartedAt: string | null
+                createdBy: string | null
+                updatedBy: string | null
+                createdAt: string
+                updatedAt: string
+              }
+              components: {
+                id: string
+                envelopeId: string
+                sequence: number
+                /** @enum {string} */
+                kind:
+                  | "catalog_booking"
+                  | "manual_placeholder"
+                  | "flight_placeholder"
+                  | "flight_order"
+                  | "external_order"
+                /** @enum {string} */
+                status:
+                  | "draft"
+                  | "priced"
+                  | "unavailable"
+                  | "held"
+                  | "booked"
+                  | "checkout_started"
+                  | "failed"
+                  | "cancelled"
+                  | "removed"
+                title: string | null
+                description: string | null
+                entityModule: string | null
+                entityId: string | null
+                sourceKind: string | null
+                sourceConnectionId: string | null
+                sourceRef: string | null
+                bookingDraftId: string | null
+                catalogQuoteId: string | null
+                bookingId: string | null
+                bookingGroupId: string | null
+                orderId: string | null
+                paymentSessionId: string | null
+                providerRef: string | null
+                supplierRef: string | null
+                componentCurrency: string | null
+                componentSubtotalAmountCents: number | null
+                componentTaxAmountCents: number | null
+                componentTotalAmountCents: number | null
+                pricingSnapshot?: unknown
+                taxLines: unknown[] | null
+                cancellationSnapshot?: unknown
+                holdToken: string | null
+                holdExpiresAt: string | null
+                priceExpiresAt: string | null
+                warningCodes: string[]
+                metadata: {
+                  [key: string]: unknown
+                }
+                createdAt: string
+                updatedAt: string
+              }[]
+            } & {
+              [key: string]: unknown
+            }
+          }
+        }
+      }
+      /** @description invalid_request — body failed validation */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Admin-only operation invoked on the public surface */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Trip envelope not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Cancellation cannot be previewed in the envelope's current state */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  postPublicTripsByEnvelopeIdCancelComponents: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        envelopeId: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          componentIds?: string[]
+          reason?: string
+          /** Format: date-time */
+          requestedAt?: string
+          /** @default {} */
+          request?: {
+            [key: string]: unknown
+          }
+          idempotencyKey?: string
+        }
+      }
+    }
+    responses: {
+      /** @description A composed cancellation result for the envelope / selected components */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              envelope: {
+                id: string
+                /** @enum {string} */
+                status:
+                  | "draft"
+                  | "priced"
+                  | "reserve_in_progress"
+                  | "reserved"
+                  | "checkout_started"
+                  | "booked"
+                  | "failed"
+                  | "cancelled"
+                title: string | null
+                description: string | null
+                travelerParty: {
+                  [key: string]: unknown
+                }
+                constraints: {
+                  [key: string]: unknown
+                }
+                aggregateCurrency: string | null
+                aggregateSubtotalAmountCents: number | null
+                aggregateTaxAmountCents: number | null
+                aggregateTotalAmountCents: number | null
+                aggregatePricingSnapshot?: unknown
+                currentPriceExpiresAt: string | null
+                bookingGroupId: string | null
+                orderId: string | null
+                paymentSessionId: string | null
+                reserveIdempotencyKey: string | null
+                reserveStartedAt: string | null
+                reservedAt: string | null
+                checkoutIdempotencyKey: string | null
+                checkoutStartedAt: string | null
+                createdBy: string | null
+                updatedBy: string | null
+                createdAt: string
+                updatedAt: string
+              }
+              components: {
+                id: string
+                envelopeId: string
+                sequence: number
+                /** @enum {string} */
+                kind:
+                  | "catalog_booking"
+                  | "manual_placeholder"
+                  | "flight_placeholder"
+                  | "flight_order"
+                  | "external_order"
+                /** @enum {string} */
+                status:
+                  | "draft"
+                  | "priced"
+                  | "unavailable"
+                  | "held"
+                  | "booked"
+                  | "checkout_started"
+                  | "failed"
+                  | "cancelled"
+                  | "removed"
+                title: string | null
+                description: string | null
+                entityModule: string | null
+                entityId: string | null
+                sourceKind: string | null
+                sourceConnectionId: string | null
+                sourceRef: string | null
+                bookingDraftId: string | null
+                catalogQuoteId: string | null
+                bookingId: string | null
+                bookingGroupId: string | null
+                orderId: string | null
+                paymentSessionId: string | null
+                providerRef: string | null
+                supplierRef: string | null
+                componentCurrency: string | null
+                componentSubtotalAmountCents: number | null
+                componentTaxAmountCents: number | null
+                componentTotalAmountCents: number | null
+                pricingSnapshot?: unknown
+                taxLines: unknown[] | null
+                cancellationSnapshot?: unknown
+                holdToken: string | null
+                holdExpiresAt: string | null
+                priceExpiresAt: string | null
+                warningCodes: string[]
+                metadata: {
+                  [key: string]: unknown
+                }
+                createdAt: string
+                updatedAt: string
+              }[]
+            } & {
+              [key: string]: unknown
+            }
+          }
+        }
+      }
+      /** @description invalid_request — body failed validation */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Admin-only operation invoked on the public surface */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Trip envelope not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+      /** @description Components cannot be cancelled in their current state */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          } & {
+            [key: string]: unknown
+          }
+        }
+      }
+    }
+  }
+  postPublicTripsTripSelections: {
     parameters: {
       query?: never
       header?: never
@@ -2052,7 +22683,7 @@ export interface operations {
       }
     }
   }
-  patchPublicShoppingTripSelections: {
+  patchPublicTripsTripSelections: {
     parameters: {
       query?: never
       header?: never
@@ -2184,7 +22815,7 @@ export interface operations {
       }
     }
   }
-  postPublicShoppingTripSelectionsBook: {
+  postPublicTripsTripSelectionsBook: {
     parameters: {
       query?: never
       header?: never

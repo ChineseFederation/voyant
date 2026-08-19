@@ -1657,22 +1657,6 @@
               }
             }
           },
-          "403": {
-            "description": "Missing or mismatched active storefront channel context",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["error"]
-                }
-              }
-            }
-          },
           "404": {
             "description": "Payment session not found",
             "content": {

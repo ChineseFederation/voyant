@@ -1,3 +1,4 @@
+// agent-quality: file-size exception -- owner: bookings-react; manual booking draft, validation, pricing, sourced-engine, and document-generation cases share one fixture-light contract suite.
 import { describe, expect, it, vi } from "vitest"
 
 import {
@@ -11,6 +12,8 @@ import {
   resolveManualBookingPricing,
   resolveSourcedOptionUnits,
   resolveSourcedProductOptions,
+  resolveTravelerDerivedPersonFareOptionIds,
+  resolveTravelerManagedPersonOptionIds,
   toManualBookingFormError,
   validateManualBookingDraft,
 } from "../../src/components/manual-booking-create-form.js"
@@ -131,6 +134,65 @@ describe("manual booking validation", () => {
     expect(resolveSourcedOptionUnits(options, "family", 7)).toMatchObject([
       { optionUnitId: "double", unitType: "room", remaining: 3 },
       { optionUnitId: "adult", unitType: "person", remaining: 7 },
+    ])
+  })
+
+  it("derives person fares only for unambiguously supplement-priced owned options", () => {
+    const rules = [
+      { optionId: "supplement", occupancyPriceBasis: "supplement" as const },
+      { optionId: "all-in", occupancyPriceBasis: "all_in" as const },
+      { optionId: "mixed", occupancyPriceBasis: "supplement" as const },
+      { optionId: "mixed", occupancyPriceBasis: "all_in" as const },
+      { optionId: "undeclared", occupancyPriceBasis: null },
+    ]
+
+    expect([...resolveTravelerDerivedPersonFareOptionIds(rules, false)]).toEqual(["supplement"])
+    expect([...resolveTravelerDerivedPersonFareOptionIds(rules, true)]).toEqual([])
+    expect([...resolveTravelerManagedPersonOptionIds(rules, false)]).toEqual([
+      "supplement",
+      "all-in",
+    ])
+    expect([...resolveTravelerManagedPersonOptionIds(rules, true)]).toEqual([])
+  })
+
+  it("preserves both supplier room and person selections in offer preview drafts", () => {
+    const draft = buildManualBookingQuoteDraft({
+      productId: "supplier_product",
+      sourceKind: "voyant-connect",
+      optionId: "family",
+      slotId: "departure_1",
+      quantities: { double: 1, adult: 2 },
+      units: [
+        {
+          optionId: "family",
+          optionUnitId: "double",
+          unitName: "Double room",
+          unitType: "room",
+          occupancyMax: 2,
+          initial: 1,
+          reserved: 0,
+          remaining: 1,
+        },
+        {
+          optionId: "family",
+          optionUnitId: "adult",
+          unitName: "Adult",
+          unitType: "person",
+          occupancyMax: null,
+          initial: 2,
+          reserved: 0,
+          remaining: 2,
+        },
+      ],
+      travelers: valid.travelers,
+      contact: null,
+      promotionCode: "",
+      paymentSchedule: { mode: "full", installments: [] },
+    })
+
+    expect(draft?.configure.optionSelections).toEqual([
+      expect.objectContaining({ optionUnitId: "double", quantity: 1 }),
+      expect.objectContaining({ optionUnitId: "adult", quantity: 2 }),
     ])
   })
 

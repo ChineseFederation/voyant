@@ -22,7 +22,12 @@ export type Actor = "staff" | "customer" | "partner" | "supplier"
  * before authentication is what lets one middleware decide, for every route,
  * whether a browser-resident credential may reach it at all.
  */
-export type VoyantPublicApiKeyKind = "publishable" | "secret"
+// Defined in `public-api-contracts` so the generated clients can reach it
+// without the kernel (voyant#4626); imported as well as re-exported because
+// this file uses it.
+import type { VoyantPublicApiKeyKind } from "@voyant-travel/graph-contracts"
+
+export type { VoyantPublicApiKeyKind }
 
 /** Immutable host context carried by an online token minted for an app extension. */
 export interface VoyantAppContextConstraint {

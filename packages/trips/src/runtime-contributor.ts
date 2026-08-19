@@ -24,8 +24,11 @@ import {
 import { type FlightsRuntime, flightsRuntimePort } from "@voyant-travel/flights"
 import { type PaymentAdapter, paymentAdapterRuntimePort } from "@voyant-travel/payments"
 import {
+  type PublicApiRequestedScope,
+  type PublicApiShoppingContext,
+  type PublicApiShoppingRuntime,
   publicApiOpaqueReferenceIssuerPort,
-  publicApiTripSelectionsRuntimePort,
+  publicApiShoppingRuntimePort,
 } from "@voyant-travel/public-api/shopping"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { createTripBookingSessionCompositeHandler } from "./booking-session-composite-handler.js"
@@ -81,23 +84,6 @@ export function createTripsRuntimePortContribution(
     services.registerCompositeBookingSessionHandler?.(compositeBookingSessionHandler)
     return services
   })
-  const tripsRoutes = Promise.resolve()
-    .then(() =>
-      Promise.all([
-        catalog,
-        host.getRuntimePort<CatalogCheckoutApiRuntime>(catalogCheckoutApiRuntimePort),
-        flights,
-        Promise.resolve(cardPayment),
-      ]),
-    )
-    .then(([catalog, checkout, flights, resolvedCardPayment]) =>
-      createTripsRoutesRuntime(host.primitives, {
-        catalog,
-        checkout,
-        cardPayment: resolvedCardPayment,
-        flights,
-      }),
-    )
   const tripsDatabase: TripsDatabaseRuntime = {
     resolveDb: (bindings) => host.primitives.database.resolve(bindings),
     withDb: (bindings, operation) =>
@@ -109,6 +95,68 @@ export function createTripsRuntimePortContribution(
         operation(database as AnyDrizzleDb),
       ),
   })
+
+  /**
+   * The Trip-selection runtime behind this package's own public routes.
+   *
+   * It used to be published on `publicApiTripSelectionsRuntimePort` for
+   * `public-api` to consume. With the routes here (voyant#4627) both sides are
+   * this module, so the port is gone and the runtime is handed straight to the
+   * routes it serves.
+   */
+  const tripSelectionsRuntime = createPublicApiTripSelectionsRuntime({
+    withTransaction: (operation) =>
+      host.primitives.database.transaction(undefined, (database) =>
+        operation(database as AnyDrizzleDb),
+      ),
+    offerResolver: shoppingReferences.offerResolver,
+    compositeBookingSessions: host.getRuntimePort<CatalogCompositeBookingSessionRuntime>(
+      catalogCompositeBookingSessionRuntimePort,
+    ),
+  })
+
+  const tripsRoutes = Promise.resolve()
+    .then(() =>
+      Promise.all([
+        catalog,
+        host.getRuntimePort<CatalogCheckoutApiRuntime>(catalogCheckoutApiRuntimePort),
+        flights,
+        Promise.resolve(cardPayment),
+      ]),
+    )
+    .then(([catalog, checkout, flights, resolvedCardPayment]) => {
+      // A PROVIDER, not an options object: `tripsRoutesRuntimePort` requires a
+      // function and its `test()` rejects anything else. Spreading the provider
+      // into an object literal to attach `tripSelections` silently turned it
+      // into a plain object, which the port caught.
+      const provider = createTripsRoutesRuntime(host.primitives, {
+        catalog,
+        checkout,
+        cardPayment: resolvedCardPayment,
+        flights,
+      })
+      return async () => ({
+        ...(await provider()),
+        tripSelections: {
+          // Read at CALL time, not while contributions are assembled.
+          // `public-api` requires the opaque-reference issuer this module
+          // provides and this module needs `public-api`'s shopping runtime, so
+          // neither contributor can be ordered first; reading the port during
+          // assembly throws "read before its static contributor provided it"
+          // and killed the production image on boot (voyant#4627).
+          resolveScope: async (
+            context: PublicApiShoppingContext,
+            requested: PublicApiRequestedScope,
+          ) => {
+            const shopping = await host.getRuntimePort<PublicApiShoppingRuntime>(
+              publicApiShoppingRuntimePort,
+            )
+            return shopping.resolveScope(context, requested)
+          },
+          selections: tripSelectionsRuntime,
+        },
+      })
+    })
   const contribution: Record<string, unknown> = {
     [financePaymentLinkRuntimePort.id]: createStandardPaymentLinkRouteOptions(paymentAdapter),
     [financePaymentReconciliationJobRuntimePort.id]: {
@@ -122,16 +170,6 @@ export function createTripsRuntimePortContribution(
     [tripsDatabaseRuntimePort.id]: tripsDatabase,
     [publicApiOpaqueReferenceIssuerPort.id]: shoppingReferences.issuer,
     [publicApiTripOfferResolverPort.id]: shoppingReferences.offerResolver,
-    [publicApiTripSelectionsRuntimePort.id]: createPublicApiTripSelectionsRuntime({
-      withTransaction: (operation) =>
-        host.primitives.database.transaction(undefined, (database) =>
-          operation(database as AnyDrizzleDb),
-        ),
-      offerResolver: shoppingReferences.offerResolver,
-      compositeBookingSessions: host.getRuntimePort<CatalogCompositeBookingSessionRuntime>(
-        catalogCompositeBookingSessionRuntimePort,
-      ),
-    }),
     [tripsSourcingJobRuntimePort.id]: {
       resolveDb: (bindings: unknown) =>
         host.primitives.database.resolve<PostgresJsDatabase>(bindings),

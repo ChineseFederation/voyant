@@ -5,11 +5,24 @@
     "version": "1.0.0"
   },
   "paths": {
+    "/v1/admin/mcp/manifest": {
+      "get": {
+        "operationId": "getMcpManifest",
+        "x-voyant-api-id": "@voyant-travel/mcp#api.admin",
+        "responses": {
+          "200": {
+            "description": "The contract-versioned tools visible to the caller."
+          }
+        },
+        "summary": "Get the authorized MCP tool manifest",
+        "tags": ["MCP"],
+        "x-voyant-module": "mcp",
+        "x-voyant-surface": "admin"
+      }
+    },
     "/v1/admin/mcp": {
       "post": {
         "operationId": "callMcp",
-        "summary": "Send an MCP JSON-RPC request",
-        "tags": ["MCP"],
         "x-voyant-api-id": "@voyant-travel/mcp#api.admin",
         "requestBody": {
           "required": true,
@@ -17,35 +30,49 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["jsonrpc", "method"],
                 "properties": {
-                  "jsonrpc": { "type": "string", "const": "2.0" },
-                  "id": { "type": ["string", "number", "null"] },
-                  "method": { "type": "string" },
-                  "params": { "type": "object", "additionalProperties": true }
-                }
+                  "jsonrpc": {
+                    "type": "string",
+                    "enum": ["2.0"]
+                  },
+                  "id": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "method": {
+                    "type": "string"
+                  },
+                  "params": {
+                    "type": "object",
+                    "additionalProperties": {}
+                  }
+                },
+                "required": ["jsonrpc", "method"]
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "The MCP JSON-RPC response."
+            "description": "The MCP JSON-RPC response"
+          },
+          "204": {
+            "description": "The MCP notification was accepted"
           }
-        }
-      }
-    },
-    "/v1/admin/mcp/manifest": {
-      "get": {
-        "operationId": "getMcpManifest",
-        "summary": "Get the authorized MCP tool manifest",
+        },
+        "summary": "Send an MCP JSON-RPC request",
         "tags": ["MCP"],
-        "x-voyant-api-id": "@voyant-travel/mcp#api.admin",
-        "responses": {
-          "200": {
-            "description": "The contract-versioned tools visible to the caller."
-          }
-        }
+        "x-voyant-module": "mcp",
+        "x-voyant-surface": "admin"
       }
     }
   }

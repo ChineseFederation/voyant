@@ -8,10 +8,7 @@ import {
   type PaymentAdapter,
   paymentAdapterRuntimePort,
 } from "@voyant-travel/payments"
-import {
-  publicApiOpaqueReferenceIssuerPort,
-  publicApiTripSelectionsRuntimePort,
-} from "@voyant-travel/public-api/shopping"
+import { publicApiOpaqueReferenceIssuerPort } from "@voyant-travel/public-api/shopping"
 import { describe, expect, it, vi } from "vitest"
 
 import {
@@ -39,7 +36,6 @@ describe("trips deployment manifest", () => {
           { id: "finance.payment-reconciliation-job.runtime" },
           { id: "public-api.shopping.opaque-reference-issuer" },
           { id: "trips.public-offer-resolver.runtime" },
-          { id: "public-api.trip-selections.runtime" },
           { id: "trips.routes-runtime" },
           { id: "trips.database-runtime" },
           { id: "trips.sourcing-job-runtime" },
@@ -51,6 +47,7 @@ describe("trips deployment manifest", () => {
         { id: "trips.database-runtime" },
         { id: "trips.sourcing-job-runtime" },
         { id: "trips.durable-action-runtime", optional: true },
+        { id: "public-api.shopping.runtime", optional: true },
         { id: "payments.adapter.runtime", optional: true },
         { id: "catalog.runtime-services" },
         { id: "catalog.composite-booking-session.runtime" },
@@ -149,7 +146,30 @@ describe("trips deployment manifest", () => {
     expect(withAdapter).toHaveProperty(commerceCardPaymentRuntimePort.id)
   })
 
-  it("publishes the durable shopping issuer, resolver, and Trip selection runtime", () => {
+  /**
+   * `public-api` requires the opaque-reference issuer this module provides, and
+   * this module needs `public-api`'s shopping runtime — so neither contributor
+   * can be ordered first. Reading that port while contributions are being
+   * assembled throws "read before its static contributor provided it", which
+   * crashed the production image on boot after migrations had already run
+   * (voyant#4627).
+   *
+   * The stub refuses `public-api.shopping.runtime` exactly as the real host does
+   * before contributors have run. An earlier version of this test ANSWERED it,
+   * which made the suite pass over the crash.
+   */
+  it("does not read the shopping runtime while contributions are assembled", async () => {
+    const contribution = createTripsRuntimePortContribution({
+      primitives: { database: { transaction: vi.fn() } } as never,
+      hasRuntimePort: () => false,
+      getRuntimePort: stubRequiredRuntimePortResolver(),
+    })
+
+    // The routes payload is a promise; resolving it must not reach for the port.
+    await expect(contribution[tripsRoutesRuntimePort.id] as Promise<unknown>).resolves.toBeDefined()
+  })
+
+  it("publishes the durable shopping issuer and offer resolver", () => {
     const contribution = createTripsRuntimePortContribution({
       primitives: { database: { transaction: vi.fn() } } as never,
       hasRuntimePort: () => false,
@@ -158,7 +178,10 @@ describe("trips deployment manifest", () => {
 
     expect(contribution).toHaveProperty(publicApiOpaqueReferenceIssuerPort.id)
     expect(contribution).toHaveProperty(publicApiTripOfferResolverPort.id)
-    expect(contribution).toHaveProperty(publicApiTripSelectionsRuntimePort.id)
+    // The Trip-selection runtime is no longer published on a port: this package
+    // owns both the routes and the runtime behind them (voyant#4627), so it is
+    // handed straight to the routes through `trips.routes`.
+    expect(contribution).not.toHaveProperty("public-api.trip-selections.runtime")
     expect(() => publicApiTripOfferResolverPort.test({} as never)).toThrow(/resolve/)
   })
 

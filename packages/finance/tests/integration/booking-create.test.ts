@@ -19,7 +19,7 @@ import {
   type ToolHandlerActionPolicyContext,
   withServerResolvedIdempotencyKey,
 } from "@voyant-travel/tools"
-import { and, asc, eq, sql } from "drizzle-orm"
+import { and, asc, eq, inArray, sql } from "drizzle-orm"
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
 import { z } from "zod"
 import {
@@ -31,6 +31,11 @@ import {
   lockBookingStatusConsequenceState,
 } from "../../../bookings/src/mcp-runtime.js"
 import { publicPricingService } from "../../../commerce/src/pricing/service-public.js"
+import {
+  optionPriceRules,
+  optionUnitPriceRules,
+  priceCatalogs,
+} from "../../../commerce/src/schema.js"
 import { resolve as resolveSellability } from "../../../commerce/src/sellability/service-resolve.js"
 import {
   executeFinanceBookProductCommand,
@@ -336,8 +341,20 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
 
   async function seedSingleFirstAccommodationProduct({
     singleRoomOccupancyMax = 1,
+    occupancyPriceBasis = "supplement",
+    inventoryUnitType = "room",
+    baseSellAmountCents,
+    unitPrices,
   }: {
     singleRoomOccupancyMax?: number | null
+    occupancyPriceBasis?: "supplement" | "all_in"
+    inventoryUnitType?: "room" | "vehicle"
+    baseSellAmountCents?: number | null
+    unitPrices?: {
+      adult: number
+      singleRoom: number
+      doubleRoom: number
+    }
   } = {}) {
     productSeq += 1
     const productId = `prod_bc_accom_sgl_${productSeq}`
@@ -379,8 +396,8 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
         sort_order
       )
       VALUES
-        (${singleRoomUnitId}, ${optionId}, 'SGL room', 'sgl_room', 'room', null, 1, ${singleRoomOccupancyMax}, true, 1, 0),
-        (${doubleRoomUnitId}, ${optionId}, 'DBL room', 'dbl_room', 'room', null, 1, 2, false, 0, 1),
+        (${singleRoomUnitId}, ${optionId}, 'SGL room', 'sgl_room', ${inventoryUnitType}, null, 1, ${singleRoomOccupancyMax}, true, 1, 0),
+        (${doubleRoomUnitId}, ${optionId}, 'DBL room', 'dbl_room', ${inventoryUnitType}, null, 1, 2, false, 0, 1),
         (${adultUnitId}, ${optionId}, 'Adult', 'adult', 'person', 18, null, null, true, 1, 2)
     `)
     await db.execute(sql`
@@ -391,6 +408,63 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
       INSERT INTO product_ticket_settings (id, product_id, fulfillment_mode, default_delivery_format, ticket_per_unit)
       VALUES (${`ptix_bc_accom_sgl_${productSeq}`}, ${productId}, 'per_item', 'qr_code', false)
     `)
+
+    if (unitPrices) {
+      const [catalog] = await db
+        .insert(priceCatalogs)
+        .values({
+          code: `BC-PUBLIC-EUR-${productSeq}`,
+          name: `Booking create public EUR ${productSeq}`,
+          currencyCode: "EUR",
+          catalogType: "public",
+          isDefault: true,
+          active: true,
+        })
+        .returning()
+      const [rule] = await db
+        .insert(optionPriceRules)
+        .values({
+          productId,
+          optionId,
+          priceCatalogId: catalog!.id,
+          name: "Default",
+          pricingMode: "per_person",
+          occupancyPriceBasis,
+          baseSellAmountCents,
+          isDefault: true,
+          active: true,
+        })
+        .returning()
+      await db.insert(optionUnitPriceRules).values([
+        {
+          optionPriceRuleId: rule!.id,
+          optionId,
+          unitId: adultUnitId,
+          pricingMode: "per_person",
+          sellAmountCents: unitPrices.adult,
+          active: true,
+          sortOrder: 0,
+        },
+        {
+          optionPriceRuleId: rule!.id,
+          optionId,
+          unitId: singleRoomUnitId,
+          pricingMode: "per_person",
+          sellAmountCents: unitPrices.singleRoom,
+          active: true,
+          sortOrder: 1,
+        },
+        {
+          optionPriceRuleId: rule!.id,
+          optionId,
+          unitId: doubleRoomUnitId,
+          pricingMode: "per_person",
+          sellAmountCents: unitPrices.doubleRoom,
+          active: true,
+          sortOrder: 2,
+        },
+      ])
+    }
 
     return { productId, optionId, singleRoomUnitId, doubleRoomUnitId, adultUnitId }
   }
@@ -2147,6 +2221,372 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
       optionUnitId: roomUnitId,
       quantity: 1,
       totalSellAmountCents: bundledTotalAmountCents,
+    })
+
+    const links = await db
+      .select()
+      .from(bookingItemTravelers)
+      .where(eq(bookingItemTravelers.bookingItemId, itemRows[0]!.id))
+    expect(links).toHaveLength(2)
+  })
+
+  it("preserves a person fare when room supplements are selected explicitly", async () => {
+    const { productId, optionId, singleRoomUnitId, doubleRoomUnitId, adultUnitId } =
+      await seedSingleFirstAccommodationProduct({
+        unitPrices: { adult: 16_500, singleRoom: 10_000, doubleRoom: 0 },
+      })
+    const travelers = [
+      {
+        clientTravelerKey: "trav:lead",
+        firstName: "Alice",
+        lastName: "Lead",
+        email: "alice@example.com",
+        participantType: "traveler" as const,
+        travelerCategory: "adult" as const,
+        isPrimary: true,
+      },
+      {
+        clientTravelerKey: "trav:second",
+        firstName: "Bob",
+        lastName: "Second",
+        participantType: "traveler" as const,
+        travelerCategory: "adult" as const,
+      },
+      {
+        clientTravelerKey: "trav:third",
+        firstName: "Carol",
+        lastName: "Third",
+        participantType: "traveler" as const,
+        travelerCategory: "adult" as const,
+      },
+    ]
+    const outcome = await createBooking(db, {
+      productId,
+      optionId,
+      bookingNumber: nextBookingNumber(),
+      ...bookingParty(),
+      catalogSellAmountCents: 59_500,
+      confirmedSellAmountCents: 59_500,
+      travelers,
+      itemLines: [
+        {
+          clientLineKey: `unit:${adultUnitId}`,
+          optionId,
+          optionUnitId: adultUnitId,
+          quantity: 3,
+          title: "Adult",
+          unitSellAmountCents: 16_500,
+          totalSellAmountCents: 49_500,
+          travelerKeys: travelers.map((traveler) => traveler.clientTravelerKey),
+        },
+        {
+          clientLineKey: `unit:${singleRoomUnitId}`,
+          optionId,
+          optionUnitId: singleRoomUnitId,
+          quantity: 1,
+          title: "SGL",
+          unitSellAmountCents: 10_000,
+          totalSellAmountCents: 10_000,
+          travelerKeys: ["trav:lead"],
+        },
+        {
+          clientLineKey: `unit:${doubleRoomUnitId}`,
+          optionId,
+          optionUnitId: doubleRoomUnitId,
+          quantity: 1,
+          title: "DBL",
+          unitSellAmountCents: 0,
+          totalSellAmountCents: 0,
+          travelerKeys: ["trav:second", "trav:third"],
+        },
+      ],
+    })
+
+    expect(outcome.status).toBe("ok")
+    if (outcome.status !== "ok") return
+
+    const itemRows = await db
+      .select({
+        id: bookingItems.id,
+        optionUnitId: bookingItems.optionUnitId,
+        quantity: bookingItems.quantity,
+        totalSellAmountCents: bookingItems.totalSellAmountCents,
+      })
+      .from(bookingItems)
+      .where(eq(bookingItems.bookingId, outcome.result.booking.id))
+    expect(
+      itemRows
+        .map(({ optionUnitId, quantity, totalSellAmountCents }) => ({
+          optionUnitId,
+          quantity,
+          totalSellAmountCents,
+        }))
+        .sort((left, right) => (left.optionUnitId ?? "").localeCompare(right.optionUnitId ?? "")),
+    ).toEqual(
+      [
+        { optionUnitId: adultUnitId, quantity: 3, totalSellAmountCents: 49_500 },
+        { optionUnitId: singleRoomUnitId, quantity: 1, totalSellAmountCents: 10_000 },
+        { optionUnitId: doubleRoomUnitId, quantity: 1, totalSellAmountCents: 0 },
+      ].sort((left, right) => left.optionUnitId.localeCompare(right.optionUnitId)),
+    )
+
+    const links = await db
+      .select({ itemId: bookingItemTravelers.bookingItemId })
+      .from(bookingItemTravelers)
+      .where(
+        inArray(
+          bookingItemTravelers.bookingItemId,
+          itemRows.map((row) => row.id),
+        ),
+      )
+    const linkCountByUnitId = Object.fromEntries(
+      itemRows.map((item) => [
+        item.optionUnitId,
+        links.filter((link) => link.itemId === item.id).length,
+      ]),
+    )
+    expect(linkCountByUnitId).toEqual({
+      [adultUnitId]: 3,
+      [singleRoomUnitId]: 1,
+      [doubleRoomUnitId]: 2,
+    })
+  })
+
+  it("drops a redundant person fare when an all-in room is selected explicitly", async () => {
+    const { productId, optionId, singleRoomUnitId, doubleRoomUnitId, adultUnitId } =
+      await seedSingleFirstAccommodationProduct({
+        occupancyPriceBasis: "all_in",
+        unitPrices: { adult: 16_500, singleRoom: 16_500, doubleRoom: 33_000 },
+      })
+    const travelers = [
+      {
+        clientTravelerKey: "trav:lead",
+        firstName: "Alice",
+        lastName: "Lead",
+        email: "alice@example.com",
+        participantType: "traveler" as const,
+        travelerCategory: "adult" as const,
+        isPrimary: true,
+      },
+      {
+        clientTravelerKey: "trav:second",
+        firstName: "Bob",
+        lastName: "Second",
+        participantType: "traveler" as const,
+        travelerCategory: "adult" as const,
+      },
+      {
+        clientTravelerKey: "trav:third",
+        firstName: "Carol",
+        lastName: "Third",
+        participantType: "traveler" as const,
+        travelerCategory: "adult" as const,
+      },
+    ]
+    const travelerKeys = travelers.map((traveler) => traveler.clientTravelerKey)
+    const outcome = await createBooking(db, {
+      productId,
+      optionId,
+      bookingNumber: nextBookingNumber(),
+      ...bookingParty(),
+      catalogSellAmountCents: 49_500,
+      confirmedSellAmountCents: 49_500,
+      travelers,
+      itemLines: [
+        {
+          clientLineKey: `unit:${adultUnitId}`,
+          optionId,
+          optionUnitId: adultUnitId,
+          quantity: 3,
+          title: "Adult",
+          unitSellAmountCents: 16_500,
+          totalSellAmountCents: 49_500,
+          travelerKeys,
+        },
+        {
+          clientLineKey: `unit:${singleRoomUnitId}`,
+          optionId,
+          optionUnitId: singleRoomUnitId,
+          quantity: 1,
+          title: "SGL",
+          unitSellAmountCents: 16_500,
+          totalSellAmountCents: 16_500,
+          travelerKeys: ["trav:lead"],
+        },
+        {
+          clientLineKey: `unit:${doubleRoomUnitId}`,
+          optionId,
+          optionUnitId: doubleRoomUnitId,
+          quantity: 1,
+          title: "DBL",
+          unitSellAmountCents: 33_000,
+          totalSellAmountCents: 33_000,
+          travelerKeys: ["trav:second", "trav:third"],
+        },
+      ],
+    })
+
+    expect(outcome.status).toBe("ok")
+    if (outcome.status !== "ok") return
+
+    const itemRows = await db
+      .select({
+        id: bookingItems.id,
+        optionUnitId: bookingItems.optionUnitId,
+        quantity: bookingItems.quantity,
+        totalSellAmountCents: bookingItems.totalSellAmountCents,
+      })
+      .from(bookingItems)
+      .where(eq(bookingItems.bookingId, outcome.result.booking.id))
+    expect(
+      itemRows
+        .map(({ optionUnitId, quantity, totalSellAmountCents }) => ({
+          optionUnitId,
+          quantity,
+          totalSellAmountCents,
+        }))
+        .sort((left, right) => (left.optionUnitId ?? "").localeCompare(right.optionUnitId ?? "")),
+    ).toEqual(
+      [
+        { optionUnitId: singleRoomUnitId, quantity: 1, totalSellAmountCents: 16_500 },
+        { optionUnitId: doubleRoomUnitId, quantity: 1, totalSellAmountCents: 33_000 },
+      ].sort((left, right) => left.optionUnitId.localeCompare(right.optionUnitId)),
+    )
+
+    const links = await db
+      .select()
+      .from(bookingItemTravelers)
+      .where(
+        inArray(
+          bookingItemTravelers.bookingItemId,
+          itemRows.map((row) => row.id),
+        ),
+      )
+    expect(links).toHaveLength(3)
+  })
+
+  it("does not add the traveler base again for an all-in vehicle", async () => {
+    const {
+      productId,
+      optionId,
+      singleRoomUnitId: vehicleUnitId,
+      adultUnitId,
+    } = await seedSingleFirstAccommodationProduct({
+      occupancyPriceBasis: "all_in",
+      inventoryUnitType: "vehicle",
+      baseSellAmountCents: 16_500,
+      unitPrices: { adult: 16_500, singleRoom: 16_500, doubleRoom: 33_000 },
+    })
+    const travelers = [
+      {
+        clientTravelerKey: "trav:lead",
+        firstName: "Alice",
+        lastName: "Lead",
+        email: "alice@example.com",
+        participantType: "traveler" as const,
+        travelerCategory: "adult" as const,
+        isPrimary: true,
+      },
+    ]
+    const outcome = await createBooking(db, {
+      productId,
+      optionId,
+      bookingNumber: nextBookingNumber(),
+      ...bookingParty(),
+      catalogSellAmountCents: 16_500,
+      confirmedSellAmountCents: 16_500,
+      travelers,
+      itemLines: [
+        {
+          clientLineKey: `unit:${adultUnitId}`,
+          optionId,
+          optionUnitId: adultUnitId,
+          quantity: 1,
+          title: "Adult",
+          unitSellAmountCents: 16_500,
+          totalSellAmountCents: 16_500,
+          travelerKeys: ["trav:lead"],
+        },
+        {
+          clientLineKey: `unit:${vehicleUnitId}`,
+          optionId,
+          optionUnitId: vehicleUnitId,
+          quantity: 1,
+          title: "Vehicle",
+          unitSellAmountCents: 16_500,
+          totalSellAmountCents: 16_500,
+          travelerKeys: ["trav:lead"],
+        },
+      ],
+    })
+
+    expect(outcome.status).toBe("ok")
+    if (outcome.status !== "ok") return
+
+    const itemRows = await db
+      .select({
+        optionUnitId: bookingItems.optionUnitId,
+        totalSellAmountCents: bookingItems.totalSellAmountCents,
+      })
+      .from(bookingItems)
+      .where(eq(bookingItems.bookingId, outcome.result.booking.id))
+    expect(itemRows).toEqual([{ optionUnitId: vehicleUnitId, totalSellAmountCents: 16_500 }])
+    expect(outcome.result.booking.sellAmountCents).toBe(16_500)
+  })
+
+  it("keeps normalizing legacy adult-keyed accommodation lines to the primary room", async () => {
+    const { productId, optionId, roomUnitId, adultUnitId } = await seedAccommodationProduct()
+    const outcome = await createBooking(db, {
+      productId,
+      optionId,
+      bookingNumber: nextBookingNumber(),
+      ...bookingParty(),
+      catalogSellAmountCents: 50_000,
+      confirmedSellAmountCents: 50_000,
+      travelers: [
+        {
+          clientTravelerKey: "trav:lead",
+          firstName: "Alice",
+          lastName: "Lead",
+          email: "alice@example.com",
+          participantType: "traveler",
+          travelerCategory: "adult",
+          isPrimary: true,
+        },
+        {
+          clientTravelerKey: "trav:companion",
+          firstName: "Bob",
+          lastName: "Companion",
+          participantType: "traveler",
+          travelerCategory: "adult",
+        },
+      ],
+      itemLines: [
+        {
+          clientLineKey: `unit:${adultUnitId}`,
+          optionId,
+          optionUnitId: adultUnitId,
+          quantity: 1,
+          title: "Adult",
+          unitSellAmountCents: 50_000,
+          totalSellAmountCents: 50_000,
+          travelerKeys: ["trav:lead", "trav:companion"],
+        },
+      ],
+    })
+
+    expect(outcome.status).toBe("ok")
+    if (outcome.status !== "ok") return
+
+    const itemRows = await db
+      .select()
+      .from(bookingItems)
+      .where(eq(bookingItems.bookingId, outcome.result.booking.id))
+    expect(itemRows).toHaveLength(1)
+    expect(itemRows[0]).toMatchObject({
+      optionUnitId: roomUnitId,
+      quantity: 1,
+      totalSellAmountCents: 50_000,
     })
 
     const links = await db

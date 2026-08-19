@@ -672,13 +672,25 @@ describe("production Booking Session ports", () => {
     // voyant#4615 end to end: the code reaches the evaluator at all, the quote
     // total drops, and the amount the booking is created at follows the quote
     // rather than the undiscounted catalogue price.
-    const evaluated: Record<string, unknown>[] = []
+    const evaluated: Array<{
+      productId: string
+      code: string | null | undefined
+      basePriceCents: number
+      baseCurrency: string
+      pax: number | undefined
+    }> = []
     const module = createCommittableProductionModule(
       { productId: "prod_1" },
       undefined,
       undefined,
       () => async (input) => {
-        evaluated.push(input as unknown as Record<string, unknown>)
+        evaluated.push({
+          productId: input.productId,
+          code: input.code,
+          basePriceCents: input.basePriceCents,
+          baseCurrency: input.baseCurrency,
+          pax: input.pax,
+        })
         return {
           applied: [
             {
@@ -985,6 +997,56 @@ describe("production Booking Session ports", () => {
       }),
       { source: "booking-session-v1", sourceRef: created.session.id },
     )
+  })
+
+  it("returns incomplete_draft when the optional Relationships runtime is absent", async () => {
+    const module = createCommittableProductionModule({}, undefined, null)
+    const access = {
+      actorKind: "anonymous" as const,
+      capability: TEST_CAPABILITY,
+      ...PUBLIC_API_ACCESS,
+    }
+    const created = await module.createSession(
+      {
+        idempotencyKey: "create_without_relationships",
+        target: PRODUCT_TARGET,
+        selection: {
+          configure: { pax: { adult: 1 }, departureSlotId: "slot_1" },
+          billing: {
+            buyerType: "B2C",
+            contact: { firstName: "Valid", lastName: "Buyer", email: "buyer@example.test" },
+          },
+        },
+      },
+      access,
+    )
+    if (created.kind !== "session_created") throw new Error("session not created")
+    const prepared = await quoteAndHoldForCommit(
+      module,
+      created.session.id,
+      created.session.revision,
+      access,
+      "without_relationships",
+    )
+
+    const committed = await module.commitSession(
+      created.session.id,
+      {
+        expectedRevision: created.session.revision,
+        ...prepared,
+        idempotencyKey: "commit_without_relationships",
+      },
+      access,
+    )
+
+    expect(committed).toEqual({
+      kind: "rejected",
+      error: {
+        kind: "commit_rejected",
+        reason: "incomplete_draft",
+        nextAction: "update_selection",
+      },
+    })
   })
 
   it.each([
@@ -1529,9 +1591,9 @@ describe("production Booking Session ports", () => {
 function createCommittableProductionModule(
   command: Record<string, unknown> = {},
   upstreamPayload?: Record<string, unknown>,
-  upsertPersonFromContact: NonNullable<
-    ProductionBookingSessionModuleDeps["relationships"]
-  >["upsertPersonFromContact"] = async () => ({ id: "per_buyer" }) as never,
+  upsertPersonFromContact:
+    | NonNullable<ProductionBookingSessionModuleDeps["relationships"]>["upsertPersonFromContact"]
+    | null = async () => ({ id: "per_buyer" }) as never,
   resolvePromotionEvaluator?: ProductionBookingSessionModuleDeps["resolvePromotionEvaluator"],
 ) {
   const repository = createInMemoryBookingSessionRepository()
@@ -1573,9 +1635,7 @@ function createCommittableProductionModule(
     repository,
     resolveOwnedHandlers: () => handlers,
     resolveSourceRegistry: () => createSourceAdapterRegistry(),
-    relationships: {
-      upsertPersonFromContact,
-    } as never,
+    ...(upsertPersonFromContact ? { relationships: { upsertPersonFromContact } as never } : {}),
     ...(resolvePromotionEvaluator ? { resolvePromotionEvaluator } : {}),
   })
 }

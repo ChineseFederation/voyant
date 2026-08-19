@@ -13,10 +13,10 @@
  *   - "Person-priced options" are options that only have pricing tiers
  *     (no inventory). Excursions. For these, line-item quantities
  *     **derive from the traveler list** (1 adult + 1 child + 1 infant).
- *   - "Accommodation options" have inventory units (and usually a
- *     paired person unit for per-pax fees). For these, line-item
- *     quantities **stay as the operator picked them** (1 DBL room is
- *     still 1 line, not 2).
+ *   - "Accommodation options" have inventory units (and may have paired
+ *     person units for per-pax fares). Inventory quantities stay as the
+ *     operator picked them (1 DBL room is still 1 line), while modern callers
+ *     can derive the paired person-fare quantities from their traveler list.
  *
  * The `pricingUnitSource` and `inventoryUnitSource` enums on the
  * traveler track operator intent so the resolver knows when to

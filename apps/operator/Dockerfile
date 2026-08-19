@@ -24,12 +24,14 @@ WORKDIR /repo
 FROM base AS build
 ARG IMAGE_REVISION="unknown"
 ARG IMAGE_VERSION="development"
+ARG BUILD_CONCURRENCY=4
+ARG BUILD_NODE_MAX_OLD_SPACE_SIZE=8192
 ENV VOYANT_IMAGE_REVISION=$IMAGE_REVISION \
     VOYANT_IMAGE_VERSION=$IMAGE_VERSION
 # tsc needs more than the default ~2GB V8 old-space for the larger packages;
 # CI sets the same flag on every job. Without it `@voyant-travel/identity-react`
 # dies with "Ineffective mark-compacts near heap limit".
-ENV NODE_OPTIONS=--max-old-space-size=8192
+ENV NODE_OPTIONS=--max-old-space-size=${BUILD_NODE_MAX_OLD_SPACE_SIZE}
 COPY . .
 RUN pnpm install --frozen-lockfile
 # The workspace packages are built and INSTALLED rather than inlined from
@@ -37,7 +39,7 @@ RUN pnpm install --frozen-lockfile
 # pruned production install then lacks every dependency reached only through an
 # inlined package — 36 of them, which is why the image never booted
 # (voyant#3994). Building them costs ~7 minutes and ~80MB, once per release.
-RUN pnpm build --concurrency=4
+RUN pnpm build --concurrency=${BUILD_CONCURRENCY}
 # Emits dist/client + dist/server/server.js, with installed runtime package
 # imports external so the deployed install supplies them.
 RUN pnpm --filter operator build
