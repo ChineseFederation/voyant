@@ -85,6 +85,20 @@
       "when": 1787050593159,
       "tag": "20260818135633_inquiry_activity_entity_and_target_tombstones",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1787054400000,
+      "tag": "20260818150000_inquiry_legacy_sources",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1787119200000,
+      "tag": "20260819090000_inquiry_legacy_cutover_cursor",
+      "breakpoints": true
     }
   ]
 }

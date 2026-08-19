@@ -4,6 +4,7 @@ Per-minor consolidated migration notes for Voyant. Each page collects every brea
 
 Unreleased caller migrations:
 
+- [Removed the Proposals checkout-inquiry runtime](./removed-proposals-checkout-inquiry.md) — submit through canonical Relationships Inquiry intake; the two Proposals Contracts exports and duplicate runtime provider are withdrawn.
 - [Removed the `bookings:cancel` legacy permission](./removed-bookings-cancel-legacy-action.md) — `bookings:cancel` is no longer a known or mintable permission; cancellation was always enforced under `bookings:write`.
 - [Removed callable Tool name aliases](./removed-tool-aliases.md) — 35 removed compatibility Tool names across Setup, Navigation preferences, Operations, Legal, Relationships, Inventory, and Finance, plus 3 deprecated Relationships add Tools dropped entirely.
 - [Created-target Tool commands](./created-target-tool-commands.md)

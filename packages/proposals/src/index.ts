@@ -53,7 +53,6 @@ export {
   bookingProposalExtensionService,
   proposalsBookingExtension,
 } from "./booking-extension.js"
-export { createCheckoutInquiryRuntime } from "./checkout-inquiry-runtime.js"
 export { createProposalInquiryConversionRuntime } from "./inquiry-conversion-runtime.js"
 export type { ProposalPaymentTerms } from "./payment-terms.js"
 export {

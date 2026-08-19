@@ -1,7 +1,16 @@
 import {
+  type BookingsCanonicalInquiryIntakeRuntime,
+  bookingsCanonicalInquiryIntakeRuntimePort,
+} from "@voyant-travel/bookings/inquiry-intake-runtime-port"
+import {
+  type LegacyBookingInquiryReadRuntime,
+  legacyBookingInquiryReadRuntimePort,
+} from "@voyant-travel/bookings/legacy-inquiry-read-runtime-port"
+import {
   type BookingsRelationshipsRuntime,
   bookingsRelationshipsRuntimePort,
 } from "@voyant-travel/bookings/runtime-port"
+import type { BookingInquiry } from "@voyant-travel/bookings/schema"
 import {
   type CatalogInquiryBookingSessionRuntime,
   catalogInquiryBookingSessionRuntimePort,
@@ -34,10 +43,18 @@ import {
   type InquiryTargetAuthorityRuntime,
   inquiryTargetAuthorityRuntimePort,
 } from "@voyant-travel/relationships-contracts/inquiry-target-authority/runtime-port"
-import { sql } from "drizzle-orm"
+import { and, desc, eq, or, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { relationshipsInquiryOverdueJobRuntimePort } from "./inquiry-overdue-job-runtime-port.js"
 import type { InquiryFirstResponseSlaConfiguration } from "./inquiry-sla-policy.js"
+import {
+  adoptLegacyBookingInquiry,
+  runLegacyInquiryCutoverBatch,
+} from "./legacy-inquiry-cutover.js"
+import {
+  type LegacyInquiryCutoverJobRuntime,
+  legacyInquiryCutoverJobRuntimePort,
+} from "./legacy-inquiry-cutover-job-runtime-port.js"
 import { createPublicApiIntakePersistence } from "./public-api-intake-runtime.js"
 import type { RelationshipsRouteRuntimeOptions } from "./route-runtime.js"
 import {
@@ -49,11 +66,137 @@ import {
   relationshipsPersonNotificationsRuntimePort,
   relationshipsRouteRuntimePort,
 } from "./runtime-port.js"
+import { inquiries, inquiryLegacySources } from "./schema.js"
 import { relationshipsService } from "./service/index.js"
 
 const publicApiIntakeRuntimePortReference = {
   id: "public-api.intake.runtime",
 } as const
+
+type BookingInquiryCompatibilitySnapshot = Omit<BookingInquiry, "id" | "createdAt" | "updatedAt">
+
+function bookingInquiryCompatibilitySnapshot(
+  value: unknown,
+): BookingInquiryCompatibilitySnapshot | null {
+  if (!value || typeof value !== "object") return null
+  const row = value as Partial<BookingInquiryCompatibilitySnapshot>
+  return typeof row.channelId === "string" &&
+    typeof row.productId === "string" &&
+    typeof row.idempotencyKey === "string" &&
+    typeof row.requestFingerprint === "string"
+    ? (row as BookingInquiryCompatibilitySnapshot)
+    : null
+}
+
+function materializeBookingInquiryCompatibility(
+  snapshot: BookingInquiryCompatibilitySnapshot,
+  canonical: typeof inquiries.$inferSelect,
+): BookingInquiry {
+  return {
+    ...snapshot,
+    id: canonical.id,
+    status: canonical.status === "closed" ? "closed" : "open",
+    createdAt: canonical.createdAt,
+    updatedAt: canonical.updatedAt,
+  }
+}
+
+function materializeLegacyBookingInquiryCompatibility(value: unknown): BookingInquiry | null {
+  if (!value || typeof value !== "object") return null
+  const row = value as Record<string, unknown>
+  if (
+    typeof row.id !== "string" ||
+    typeof row.idempotencyKey !== "string" ||
+    typeof row.requestFingerprint !== "string" ||
+    typeof row.channelId !== "string" ||
+    typeof row.productId !== "string" ||
+    typeof row.locale !== "string" ||
+    typeof row.message !== "string" ||
+    typeof row.createdAt !== "string" ||
+    typeof row.updatedAt !== "string"
+  ) {
+    return null
+  }
+  return {
+    id: row.id,
+    idempotencyKey: row.idempotencyKey,
+    requestFingerprint: row.requestFingerprint,
+    channelId: row.channelId,
+    productId: row.productId,
+    departureId: typeof row.departureId === "string" ? row.departureId : null,
+    contactFirstName: typeof row.contactFirstName === "string" ? row.contactFirstName : null,
+    contactLastName: typeof row.contactLastName === "string" ? row.contactLastName : null,
+    contactEmail: typeof row.contactEmail === "string" ? row.contactEmail : null,
+    contactPhone: typeof row.contactPhone === "string" ? row.contactPhone : null,
+    locale: row.locale,
+    message: row.message,
+    status: row.status === "closed" ? "closed" : "open",
+    createdAt: new Date(row.createdAt),
+    updatedAt: new Date(row.updatedAt),
+  }
+}
+
+async function listCanonicalBookingInquiryCompatibility(db: PostgresJsDatabase) {
+  const rows = await db
+    .select({ inquiry: inquiries, provenance: inquiryLegacySources })
+    .from(inquiries)
+    .leftJoin(inquiryLegacySources, eq(inquiryLegacySources.inquiryId, inquiries.id))
+    .where(
+      or(
+        sql`${inquiries.customFields} -> 'relationships' ? 'bookingInquiryCompatibility'`,
+        eq(inquiryLegacySources.sourceTable, "booking_inquiries"),
+      ),
+    )
+    .orderBy(desc(inquiries.createdAt), desc(inquiries.id))
+  return rows.flatMap(({ inquiry, provenance }) => {
+    const relationships = inquiry.customFields.relationships
+    const compatibility = bookingInquiryCompatibilitySnapshot(
+      relationships?.bookingInquiryCompatibility,
+    )
+    const receipt = compatibility
+      ? materializeBookingInquiryCompatibility(compatibility, inquiry)
+      : materializeLegacyBookingInquiryCompatibility(provenance?.sourceSnapshot)
+    return receipt ? [{ canonicalId: inquiry.id, receipt }] : []
+  })
+}
+
+async function bookingInquiryRequestFingerprint(input: {
+  channelId: string
+  productId: string
+  departureId: string | null
+  contact: {
+    firstName: string | null
+    lastName: string | null
+    email: string | null
+    phone: string | null
+  }
+  locale: string
+  message: string
+}) {
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(JSON.stringify(input)),
+  )
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("")
+}
+
+async function findAdoptedBookingInquiryByIdentity(
+  db: PostgresJsDatabase,
+  input: { channelId: string; idempotencyKey: string },
+) {
+  const [source] = await db
+    .select({ snapshot: inquiryLegacySources.sourceSnapshot })
+    .from(inquiryLegacySources)
+    .where(
+      and(
+        eq(inquiryLegacySources.sourceTable, "booking_inquiries"),
+        sql`${inquiryLegacySources.sourceSnapshot} ->> 'channelId' = ${input.channelId}`,
+        sql`${inquiryLegacySources.sourceSnapshot} ->> 'idempotencyKey' = ${input.idempotencyKey}`,
+      ),
+    )
+    .limit(1)
+  return materializeLegacyBookingInquiryCompatibility(source?.snapshot)
+}
 
 const relationshipCustomFieldTables = {
   person: "people",
@@ -213,6 +356,12 @@ export function createRelationshipsRuntimePortContribution(
   const inquiryTargetAuthorities = Promise.resolve(
     host.getRuntimePorts?.<InquiryTargetAuthorityRuntime>(inquiryTargetAuthorityRuntimePort) ?? [],
   )
+  const legacyBookingInquiryReader =
+    host.hasRuntimePort?.(legacyBookingInquiryReadRuntimePort) === true
+      ? Promise.resolve(
+          host.getRuntimePort<LegacyBookingInquiryReadRuntime>(legacyBookingInquiryReadRuntimePort),
+        )
+      : undefined
   const inquiryBookingSession =
     host.hasRuntimePort?.(catalogInquiryBookingSessionRuntimePort) === true
       ? Promise.resolve(
@@ -251,11 +400,23 @@ export function createRelationshipsRuntimePortContribution(
     },
   }
   return {
-    [publicApiIntakeRuntimePortReference.id]: createPublicApiIntakePersistence(),
+    [publicApiIntakeRuntimePortReference.id]: createPublicApiIntakePersistence(
+      () => inquiryTargetAuthorities,
+    ),
     [relationshipsInquiryOverdueJobRuntimePort.id]: {
       withDb: <T>(bindings: unknown, operation: (db: PostgresJsDatabase) => Promise<T>) =>
         operation(host.primitives.database.resolve<PostgresJsDatabase>(bindings)),
     },
+    [legacyInquiryCutoverJobRuntimePort.id]: {
+      async run(bindings) {
+        const reader = legacyBookingInquiryReader ? await legacyBookingInquiryReader : undefined
+        return runLegacyInquiryCutoverBatch({
+          db: host.primitives.database.resolve<PostgresJsDatabase>(bindings),
+          ...(reader ? { reader } : {}),
+          authorities: await inquiryTargetAuthorities,
+        })
+      },
+    } satisfies LegacyInquiryCutoverJobRuntime,
     [customFieldValueReaderRuntimePort.id]: customFields,
     [customFieldValueLifecycleRuntimePort.id]: relationshipCustomFieldValues,
     [customFieldValueOperationsRuntimePort.id]: relationshipCustomFieldValueOperations,
@@ -323,6 +484,144 @@ export function createRelationshipsRuntimePortContribution(
       getPersonById: (...args) => relationshipsService.getPersonById(...args),
       getOrganizationById: (...args) => relationshipsService.getOrganizationById(...args),
     } satisfies BookingsRelationshipsRuntime,
+    [bookingsCanonicalInquiryIntakeRuntimePort.id]: {
+      async submit(db, input) {
+        const requestFingerprint = await bookingInquiryRequestFingerprint({
+          channelId: input.channelId,
+          productId: input.productId,
+          departureId: input.departureId,
+          contact: input.contact,
+          locale: input.locale,
+          message: input.message,
+        })
+        const adoptedReceipt = await findAdoptedBookingInquiryByIdentity(db, input)
+        if (adoptedReceipt) {
+          return {
+            status:
+              adoptedReceipt.requestFingerprint === requestFingerprint ? "replayed" : "conflict",
+            inquiry: adoptedReceipt,
+          }
+        }
+        const authorities = await inquiryTargetAuthorities
+        const reader = legacyBookingInquiryReader ? await legacyBookingInquiryReader : undefined
+        const historical = await reader?.findByIdentity(db, input)
+        if (historical) {
+          await adoptLegacyBookingInquiry(db, authorities, historical)
+          return {
+            status: historical.requestFingerprint === requestFingerprint ? "replayed" : "conflict",
+            inquiry: historical,
+          }
+        }
+        const resolveSnapshot = async (kind: "product" | "option_unit", targetId: string) => {
+          const matching = authorities.filter((authority) => authority.kind === kind)
+          const authority = matching[0]
+          if (matching.length !== 1 || !authority?.resolveSnapshot) return null
+          return authority.resolveSnapshot(db, targetId)
+        }
+        const productSnapshot = await resolveSnapshot("product", input.productId)
+        if (!productSnapshot) throw new Error("Canonical Product inquiry target is unavailable")
+        const departureSnapshot = input.departureId
+          ? await resolveSnapshot("option_unit", input.departureId)
+          : null
+        if (input.departureId && !departureSnapshot) {
+          throw new Error("Canonical departure inquiry target is unavailable")
+        }
+        const name = [input.contact.firstName, input.contact.lastName].filter(Boolean).join(" ")
+        const result = await relationshipsService.createPublicInquiry(
+          db,
+          {
+            subject: productSnapshot.title,
+            kind: "product",
+            sourceRef: input.idempotencyKey,
+            contactSnapshot: {
+              ...(name ? { name } : {}),
+              ...(input.contact.email ? { email: input.contact.email } : {}),
+              ...(input.contact.phone ? { phone: input.contact.phone } : {}),
+            },
+            customerMessage: input.message,
+            locale: input.locale,
+            tags: [],
+            customFields: {
+              relationships: {
+                compatibilityRequestFingerprint: requestFingerprint,
+                bookingInquiryCompatibility: {
+                  idempotencyKey: input.idempotencyKey,
+                  requestFingerprint,
+                  channelId: input.channelId,
+                  productId: input.productId,
+                  departureId: input.departureId,
+                  contactFirstName: input.contact.firstName,
+                  contactLastName: input.contact.lastName,
+                  contactEmail: input.contact.email,
+                  contactPhone: input.contact.phone,
+                  locale: input.locale,
+                  message: input.message,
+                  status: "open",
+                } satisfies BookingInquiryCompatibilitySnapshot,
+              },
+            },
+            targets: [
+              { kind: "product", targetId: input.productId, snapshot: productSnapshot },
+              ...(input.departureId && departureSnapshot
+                ? [
+                    {
+                      kind: "option_unit" as const,
+                      targetId: input.departureId,
+                      snapshot: departureSnapshot,
+                    },
+                  ]
+                : []),
+            ],
+          },
+          {
+            actorId: `storefront:${input.channelId}`,
+            channelId: input.channelId,
+            targetValidation: {
+              async validateTarget(database, kind, targetId) {
+                const match = authorities.filter((authority) => authority.kind === kind)
+                const authority = match[0]
+                if (match.length !== 1 || !authority) return "unavailable"
+                return (await authority.targetExists(database, targetId)) ? "valid" : "not_found"
+              },
+            },
+          },
+        )
+        const storedFingerprint =
+          result.inquiry.customFields.relationships?.compatibilityRequestFingerprint
+        return {
+          status:
+            result.replayed && storedFingerprint !== requestFingerprint
+              ? "conflict"
+              : result.replayed
+                ? "replayed"
+                : "created",
+          inquiry: {
+            id: result.inquiry.id,
+            idempotencyKey: input.idempotencyKey,
+            requestFingerprint,
+            channelId: input.channelId,
+            productId: input.productId,
+            departureId: input.departureId,
+            contactFirstName: input.contact.firstName,
+            contactLastName: input.contact.lastName,
+            contactEmail: input.contact.email,
+            contactPhone: input.contact.phone,
+            locale: input.locale,
+            message: input.message,
+            status: "open",
+            createdAt: result.inquiry.createdAt,
+            updatedAt: result.inquiry.updatedAt,
+          },
+        }
+      },
+      async getById(db, id) {
+        const rows = await listCanonicalBookingInquiryCompatibility(db)
+        return rows.find((row) => row.canonicalId === id || row.receipt.id === id)?.receipt ?? null
+      },
+      async list(db) {
+        return (await listCanonicalBookingInquiryCompatibility(db)).map((row) => row.receipt)
+      },
+    } satisfies BookingsCanonicalInquiryIntakeRuntime,
     /**
      * Where an instrument a payment provider stored becomes a row on the
      * person who paid. Finance owns the payment and knows the instrument; it

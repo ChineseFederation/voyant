@@ -1,4 +1,7 @@
 // agent-quality: file-size exception -- owner: relationships; the import-cheap package manifest remains centralized until #3398 moves custom-field API and Settings facets to their generic owner.
+
+import { bookingsCanonicalInquiryIntakeRuntimePort } from "@voyant-travel/bookings/inquiry-intake-runtime-port"
+import { legacyBookingInquiryReadRuntimePort } from "@voyant-travel/bookings/legacy-inquiry-read-runtime-port"
 import {
   bookingsCrmSnapshotRuntimePort,
   bookingsRelationshipsRuntimePort,
@@ -15,6 +18,7 @@ import { financeStoredInstrumentRuntimePort } from "@voyant-travel/finance/runti
 import { proposalInquiryConversionRuntimePort } from "@voyant-travel/proposals-contracts/inquiry-conversion/runtime-port"
 import { inquiryTargetAuthorityRuntimePort } from "@voyant-travel/relationships-contracts/inquiry-target-authority/runtime-port"
 import { relationshipsInquiryOverdueJobRuntimePort } from "./inquiry-overdue-job-runtime-port.js"
+import { legacyInquiryCutoverJobRuntimePort } from "./legacy-inquiry-cutover-job-runtime-port.js"
 import { relationshipsReportingDeclaration } from "./reporting-definitions.js"
 import {
   relationshipsBookingEnrichmentDatabaseRuntimePort,
@@ -175,6 +179,7 @@ export const relationshipsVoyantModule = defineModule({
       publicApiIntakeRuntimePortReference,
       providePort(relationshipsMiceRuntimePort),
       providePort(bookingsRelationshipsRuntimePort),
+      providePort(bookingsCanonicalInquiryIntakeRuntimePort),
       providePort(financeStoredInstrumentRuntimePort),
       providePort(relationshipsRouteRuntimePort),
       providePort(customFieldValueReaderRuntimePort),
@@ -182,6 +187,7 @@ export const relationshipsVoyantModule = defineModule({
       providePort(customFieldValueOperationsRuntimePort),
       providePort(relationshipsBookingEnrichmentDatabaseRuntimePort),
       providePort(relationshipsInquiryOverdueJobRuntimePort),
+      providePort(legacyInquiryCutoverJobRuntimePort),
     ],
   },
   runtimePorts: [
@@ -189,6 +195,8 @@ export const relationshipsVoyantModule = defineModule({
     requirePort(relationshipsRouteRuntimePort),
     requirePort(relationshipsBookingEnrichmentDatabaseRuntimePort),
     requirePort(relationshipsInquiryOverdueJobRuntimePort),
+    requirePort(legacyInquiryCutoverJobRuntimePort),
+    requirePort(legacyBookingInquiryReadRuntimePort, { optional: true }),
     // Optional so Relationships remains deployable without Proposals. The
     // conversion endpoint stays mounted and answers 503 when no provider is selected.
     requirePort(proposalInquiryConversionRuntimePort, { optional: true }),
@@ -200,6 +208,22 @@ export const relationshipsVoyantModule = defineModule({
   ],
   reporting: relationshipsReportingDeclaration,
   jobs: [
+    {
+      id: "relationships.cutover-legacy-inquiries",
+      schedule: { cron: "*/5 * * * *", overlap: "skip" },
+      scheduling: {
+        required: true,
+        profiles: {
+          eager: { cron: "* * * * *", overlap: "skip" },
+          economical: { cron: "*/15 * * * *", overlap: "skip" },
+          "scale-to-zero": { cron: "*/15 * * * *", overlap: "skip" },
+        },
+      },
+      runtime: {
+        entry: "@voyant-travel/relationships/legacy-inquiry-cutover-job",
+        export: "runLegacyInquiryCutoverJob",
+      },
+    },
     {
       id: "relationships.scan-inquiry-first-response-overdue",
       schedule: { cron: "*/5 * * * *", overlap: "skip" },

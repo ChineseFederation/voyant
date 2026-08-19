@@ -9,8 +9,8 @@ import {
   inquiryTargetAuthorityRuntimePort,
 } from "@voyant-travel/relationships-contracts/inquiry-target-authority/runtime-port"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
-import { availabilityService } from "./availability/service.js"
 import { configureAvailabilityHoldExpiryWake } from "./availability/hold-expiry-wake.js"
+import { availabilityService } from "./availability/service.js"
 import { createBookingActionProjectionService } from "./booking-actions/service.js"
 import { catalogOperationsRuntimeExtension } from "./catalog-runtime-extension.js"
 import {
@@ -41,6 +41,16 @@ export function createOperationsRuntimePortContribution(
       kind: "option_unit",
       targetExists: async (db, targetId) =>
         (await availabilityService.getSlotById(db as PostgresJsDatabase, targetId)) != null,
+      resolveSnapshot: async (db, targetId) => {
+        const slot = await availabilityService.getSlotById(db as PostgresJsDatabase, targetId)
+        return slot
+          ? {
+              title: `Departure ${slot.dateLocal}`,
+              startDate: slot.dateLocal,
+              endDate: slot.endDateLocal,
+            }
+          : null
+      },
     } satisfies InquiryTargetAuthorityRuntime,
     [catalogOperationsRuntimeExtensionPort.id]: catalogOperationsRuntimeExtension,
     [operationsExpiredHoldsJobRuntimePort.id]: {

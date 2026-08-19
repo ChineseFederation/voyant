@@ -33,6 +33,8 @@
     "./status-dispatch": "./src/status-dispatch.ts",
     "./runtime-contributor": "./src/runtime-contributor.ts",
     "./runtime-port": "./src/runtime-port.ts",
+    "./inquiry-intake-runtime-port": "./src/inquiry-intake-runtime-port.ts",
+    "./legacy-inquiry-read-runtime-port": "./src/legacy-inquiry-read-runtime-port.ts",
     "./reporting": "./src/reporting.ts",
     "./tools": "./src/mcp-runtime.ts",
     "./voyant": "./src/voyant.ts",
@@ -227,6 +229,16 @@
         "types": "./dist/runtime-port.d.ts",
         "import": "./dist/runtime-port.js",
         "default": "./dist/runtime-port.js"
+      },
+      "./inquiry-intake-runtime-port": {
+        "types": "./dist/inquiry-intake-runtime-port.d.ts",
+        "import": "./dist/inquiry-intake-runtime-port.js",
+        "default": "./dist/inquiry-intake-runtime-port.js"
+      },
+      "./legacy-inquiry-read-runtime-port": {
+        "types": "./dist/legacy-inquiry-read-runtime-port.d.ts",
+        "import": "./dist/legacy-inquiry-read-runtime-port.js",
+        "default": "./dist/legacy-inquiry-read-runtime-port.js"
       },
       "./reporting": {
         "types": "./dist/reporting.d.ts",

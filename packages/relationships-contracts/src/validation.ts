@@ -44,6 +44,7 @@ export type {
   ResolveCustomerSignalInput,
 } from "./validation/customer-signals.js"
 export {
+  activeCustomerSignalKindSchema,
   customerSignalKindSchema,
   customerSignalListQuerySchema,
   customerSignalPrioritySchema,

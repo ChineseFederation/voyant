@@ -26,7 +26,7 @@ import {
 } from "@voyant-travel/inventory/schema"
 import { availabilitySlots, availabilityStartTimes } from "@voyant-travel/operations"
 import { relationshipsService } from "@voyant-travel/relationships"
-import { customerSignals } from "@voyant-travel/relationships/schema"
+import { customerSignals, inquiries } from "@voyant-travel/relationships/schema"
 import { and, eq } from "drizzle-orm"
 import { Hono } from "hono"
 import { beforeEach, describe, expect, it, vi } from "vitest"
@@ -70,6 +70,50 @@ function requireIntakeDb(context: PublicApiRequestContext) {
 }
 
 const relationshipsIntakePersistence: PublicApiIntakePersistence = {
+  async createInquiry({ context, data }) {
+    if (!context.channelId) throw new Error("channel required")
+    const targets = [
+      ...(data.productId
+        ? [{ kind: "product" as const, targetId: data.productId, snapshot: { title: "Product" } }]
+        : []),
+      ...(data.optionUnitId
+        ? [
+            {
+              kind: "option_unit" as const,
+              targetId: data.optionUnitId,
+              snapshot: { title: "Departure" },
+            },
+          ]
+        : []),
+    ]
+    const result = await relationshipsService.createPublicInquiry(
+      requireIntakeDb(context),
+      {
+        subject: "Compatibility inquiry",
+        kind: data.productId ? "product" : "general",
+        sourceRef: data.sourceRef,
+        contactSnapshot: data.contact,
+        customerMessage: data.message,
+        sourceUrl: data.sourceUrl,
+        locale: data.locale,
+        tags: data.tags,
+        customFields: { relationships: { compatibilityPayload: data.payload } },
+        consentSnapshot: data.consent,
+        targets,
+      },
+      {
+        actorId: `storefront:${context.channelId}`,
+        channelId: context.channelId,
+        targetValidation: { validateTarget: async () => "valid" },
+      },
+    )
+    return {
+      id: result.inquiry.id,
+      personId: result.inquiry.personId,
+      duplicate: result.replayed,
+      createdAt: result.inquiry.createdAt,
+    }
+  },
   async findSignal({ context, kind, sourceSubmissionId }) {
     const [row] = await requireIntakeDb(context)
       .select()
@@ -105,7 +149,7 @@ describe.skipIf(!DB_AVAILABLE)("Storefront public routes", () => {
     await cleanupTestDb(db)
   })
 
-  it("creates a CRM customer signal for public lead intake", async () => {
+  it("keeps the lead route as a canonical Inquiry compatibility adapter", async () => {
     const eventBus = createEventBus()
     const events: unknown[] = []
     eventBus.subscribe("customer.signal.created", (event) => {
@@ -164,35 +208,26 @@ describe.skipIf(!DB_AVAILABLE)("Storefront public routes", () => {
       duplicate: false,
     })
 
-    const [signal] = await db
+    const [inquiry] = await db
       .select()
-      .from(customerSignals)
-      .where(eq(customerSignals.id, body.data.id))
+      .from(inquiries)
+      .where(eq(inquiries.id, body.data.id))
       .limit(1)
 
-    expect(signal).toMatchObject({
-      personId: body.data.personId,
-      productId: "prod_public_intake",
-      optionUnitId: "ount_public_intake",
-      kind: "request_offer",
-      source: "form",
-      sourceSubmissionId: "lead_form_123",
+    expect(inquiry).toMatchObject({
+      kind: "product",
+      source: "storefront",
+      sourceRef: "chan_bound:lead_form_123",
     })
-    expect(signal.metadata).toMatchObject({
-      intake: { surface: "storefront", type: "lead" },
-      payload: { travelers: 4, month: "August" },
-      consent: { gdpr: true, marketing: true, scope: "lead-follow-up" },
+    expect(inquiry.customFields).toMatchObject({
+      relationships: { compatibilityPayload: { travelers: 4, month: "August" } },
     })
-    expect(events).toHaveLength(1)
-    expect(events[0]).toMatchObject({
-      name: "customer.signal.created",
-      data: {
-        id: body.data.id,
-        personId: body.data.personId,
-        intake: { surface: "storefront", type: "lead" },
-      },
-      metadata: { category: "domain", source: "route" },
-    })
+    const legacyLeadSignals = await db
+      .select()
+      .from(customerSignals)
+      .where(eq(customerSignals.sourceSubmissionId, "lead_form_123"))
+    expect(legacyLeadSignals).toHaveLength(0)
+    expect(events).toHaveLength(0)
   })
 
   it("deduplicates public lead intake without trusting a client submission id", async () => {
@@ -244,11 +279,11 @@ describe.skipIf(!DB_AVAILABLE)("Storefront public routes", () => {
 
     const rows = await db
       .select()
-      .from(customerSignals)
+      .from(inquiries)
       .where(
         eq(
-          customerSignals.sourceSubmissionId,
-          "lead:request_offer:form:prod_duplicate_intake:-:email:duplicate@example.com",
+          inquiries.sourceRef,
+          "chan_bound:lead:request_offer:form:prod_duplicate_intake:-:email:duplicate@example.com",
         ),
       )
 

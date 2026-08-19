@@ -10,7 +10,7 @@ import {
 } from "../../src/index.js"
 
 describe("storefront intake operations", () => {
-  it("posts lead intake through the public storefront route", async () => {
+  it("preserves the published lead SDK shape over the canonical Inquiry compatibility route", async () => {
     const calls: Array<{ url: string; init?: RequestInit }> = []
     const client = {
       baseUrl: "https://operator.example.com",
@@ -18,8 +18,8 @@ describe("storefront intake operations", () => {
         calls.push({ url, init })
         return Response.json({
           data: {
-            id: "sig_123",
-            personId: "person_123",
+            id: "inq_123",
+            personId: "",
             kind: "inquiry",
             source: "website",
             status: "new",
@@ -34,7 +34,14 @@ describe("storefront intake operations", () => {
       consent: { newsletter: false },
     })
 
-    expect(result.id).toBe("sig_123")
+    expect(result).toMatchObject({
+      id: "inq_123",
+      personId: "",
+      kind: "inquiry",
+      source: "website",
+      status: "new",
+      duplicate: false,
+    })
     expect(calls[0]?.url).toBe("https://operator.example.com/v1/public/leads")
     expect(calls[0]?.init?.method).toBe("POST")
     expect(JSON.parse(String(calls[0]?.init?.body))).toMatchObject({

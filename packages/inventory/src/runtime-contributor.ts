@@ -73,6 +73,12 @@ export function createInventoryRuntimePortContribution(
       kind: "product",
       targetExists: async (db, targetId) =>
         (await productsService.getProductById(db as PostgresJsDatabase, targetId)) != null,
+      resolveSnapshot: async (db, targetId) => {
+        const product = await productsService.getProductById(db as PostgresJsDatabase, targetId)
+        return product
+          ? { title: product.name, startDate: product.startDate, endDate: product.endDate }
+          : null
+      },
     } satisfies InquiryTargetAuthorityRuntime,
     [catalogInventoryRuntimeExtensionPort.id]: catalogInventoryRuntimeExtension,
     [commerceInventoryRuntimePort.id]: {

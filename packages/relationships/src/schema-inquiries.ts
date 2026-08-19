@@ -115,6 +115,47 @@ export const inquiries = pgTable(
 export type Inquiry = typeof inquiries.$inferSelect
 export type NewInquiry = typeof inquiries.$inferInsert
 
+/**
+ * Durable, replay-safe provenance for records adopted from retired inquiry
+ * stores. The legacy row remains in place; this ledger proves exactly which
+ * canonical Inquiry adopted it and retains the source snapshot used by the
+ * cutover.
+ */
+export const inquiryLegacySources = pgTable(
+  "inquiry_legacy_sources",
+  {
+    sourceTable: text("source_table").notNull(),
+    sourceId: text("source_id").notNull(),
+    inquiryId: typeIdRef("inquiry_id")
+      .notNull()
+      .references(() => inquiries.id, { onDelete: "restrict" }),
+    sourceSnapshot: jsonb("source_snapshot").$type<Record<string, unknown>>().notNull(),
+    reconciliationStatus: text("reconciliation_status")
+      .$type<"pending" | "complete">()
+      .notNull()
+      .default("pending"),
+    reconciliationIssues: jsonb("reconciliation_issues").$type<string[]>().notNull().default([]),
+    migratedAt: timestamp("migrated_at", { withTimezone: true }).notNull().defaultNow(),
+    reconciledAt: timestamp("reconciled_at", { withTimezone: true }),
+  },
+  (table) => [
+    primaryKey({ columns: [table.sourceTable, table.sourceId] }),
+    uniqueIndex("uq_inquiry_legacy_sources_inquiry").on(table.inquiryId),
+    index("idx_inquiry_legacy_sources_migrated").on(table.migratedAt),
+  ],
+)
+
+export type InquiryLegacySource = typeof inquiryLegacySources.$inferSelect
+
+/** Durable contiguous high-water state for scheduled legacy-source scans. */
+export const inquiryLegacyCutoverCursors = pgTable("inquiry_legacy_cutover_cursors", {
+  sourceTable: text("source_table").primaryKey(),
+  lastSourceId: text("last_source_id"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+})
+
+export type InquiryLegacyCutoverCursor = typeof inquiryLegacyCutoverCursors.$inferSelect
+
 export interface InquiryTargetSnapshotValue {
   title: string
   optionLabel?: string | null
@@ -180,6 +221,12 @@ export interface InquiryBookingSessionTargetSnapshot {
   commandFingerprint: string
 }
 
+export interface InquiryBookingTargetSnapshot {
+  kind: "booking"
+  legacySourceTable: "customer_signals"
+  legacySourceId: string
+}
+
 /** Durable provenance and replay boundary for every successful Inquiry handoff. */
 export const inquiryConversions = pgTable(
   "inquiry_conversions",
@@ -191,7 +238,11 @@ export const inquiryConversions = pgTable(
     kind: inquiryConversionKindEnum("kind").notNull(),
     targetId: text("target_id").notNull(),
     targetSnapshot: jsonb("target_snapshot")
-      .$type<InquiryProposalTargetSnapshot | InquiryBookingSessionTargetSnapshot>()
+      .$type<
+        | InquiryProposalTargetSnapshot
+        | InquiryBookingSessionTargetSnapshot
+        | InquiryBookingTargetSnapshot
+      >()
       .notNull(),
     idempotencyKey: text("idempotency_key").notNull(),
     mode: inquiryConversionModeEnum("mode").notNull(),

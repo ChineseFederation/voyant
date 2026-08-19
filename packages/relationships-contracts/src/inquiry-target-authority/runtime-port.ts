@@ -10,6 +10,15 @@ export type InquiryMaterializedTargetKind = "product" | "option_unit"
 export interface InquiryTargetAuthorityRuntime {
   kind: InquiryMaterializedTargetKind
   targetExists(db: unknown, targetId: string): Promise<boolean>
+  resolveSnapshot?(
+    db: unknown,
+    targetId: string,
+  ): Promise<{
+    title: string
+    optionLabel?: string | null
+    startDate?: string | null
+    endDate?: string | null
+  } | null>
 }
 
 export const inquiryTargetAuthorityRuntimePort = Object.freeze({

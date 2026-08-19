@@ -497,6 +497,18 @@
     {
       "path": "packages/public-api/src/booking-bootstrap-subscriber-runtime.ts",
       "retiredBy": ["public-api-subscriber-authority"]
+    },
+    {
+      "path": "packages/proposals-contracts/src/checkout-inquiry.ts",
+      "retiredBy": ["canonical-inquiry-cutover"]
+    },
+    {
+      "path": "packages/proposals/src/checkout-inquiry-runtime.ts",
+      "retiredBy": ["canonical-inquiry-cutover"]
+    },
+    {
+      "path": "packages/proposals/tests/unit/checkout-inquiry-runtime.test.ts",
+      "retiredBy": ["canonical-inquiry-cutover"]
     }
   ]
 }

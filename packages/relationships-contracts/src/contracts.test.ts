@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest"
 
 import {
   activityTypeSchema,
+  customerSignalKindSchema,
   entityTypeSchema,
+  insertCustomerSignalSchema,
   insertPersonRelationshipSchema,
   personRelationshipKindSchema,
   updatePersonRelationshipSchema,
@@ -37,5 +39,18 @@ describe("@voyant-travel/relationships-contracts validation", () => {
         endDate: "2026-07-01",
       }).success,
     ).toBe(false)
+  })
+
+  it("keeps legacy Inquiry signal kinds readable while rejecting new writes", () => {
+    expect(customerSignalKindSchema.safeParse("inquiry").success).toBe(true)
+    expect(customerSignalKindSchema.safeParse("request_offer").success).toBe(true)
+
+    const input = {
+      personId: "person_1",
+      kind: "inquiry",
+      source: "form",
+    }
+    expect(insertCustomerSignalSchema.safeParse(input).success).toBe(false)
+    expect(insertCustomerSignalSchema.safeParse({ ...input, kind: "notify" }).success).toBe(true)
   })
 })

@@ -30,6 +30,7 @@ describe("relationships deployment manifest", () => {
           { id: "public-api.intake.runtime" },
           { id: relationshipsMiceRuntimePort.id },
           { id: bookingsRelationshipsRuntimePort.id },
+          { id: "bookings.canonical-inquiry-intake.runtime" },
           { id: financeStoredInstrumentRuntimePort.id },
           { id: relationshipsRouteRuntimePort.id },
           { id: customFieldValueReaderRuntimePort.id },
@@ -37,6 +38,7 @@ describe("relationships deployment manifest", () => {
           { id: customFieldValueOperationsRuntimePort.id },
           { id: "relationships.booking-enrichment-database" },
           { id: "relationships.inquiry-overdue-job" },
+          { id: "relationships.legacy-inquiry-cutover-job" },
         ],
       },
       runtimePorts: [
@@ -44,6 +46,8 @@ describe("relationships deployment manifest", () => {
         { id: "relationships.route-runtime" },
         { id: "relationships.booking-enrichment-database" },
         { id: "relationships.inquiry-overdue-job" },
+        { id: "relationships.legacy-inquiry-cutover-job" },
+        { id: "bookings.legacy-inquiry-read.runtime", optional: true },
         { id: proposalInquiryConversionRuntimePort.id, optional: true },
         { id: inquiryTargetAuthorityRuntimePort.id, optional: true, cardinality: "many" },
         { id: catalogInquiryBookingSessionRuntimePort.id, optional: true },
@@ -77,6 +81,16 @@ describe("relationships deployment manifest", () => {
       ],
       schema: [{ id: "@voyant-travel/relationships#schema" }],
       migrations: [{ id: "@voyant-travel/relationships#migrations" }],
+      jobs: [
+        {
+          id: "relationships.cutover-legacy-inquiries",
+          runtime: {
+            entry: "@voyant-travel/relationships/legacy-inquiry-cutover-job",
+            export: "runLegacyInquiryCutoverJob",
+          },
+        },
+        { id: "relationships.scan-inquiry-first-response-overdue" },
+      ],
       links: [
         { id: "@voyant-travel/relationships#linkable.inquiry" },
         { id: "@voyant-travel/relationships#linkable.organization" },

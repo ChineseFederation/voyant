@@ -17,6 +17,8 @@
     "./runtime-port": "./src/runtime-port.ts",
     "./booking-enrichment-subscriber": "./src/booking-enrichment/subscriber-runtime.ts",
     "./inquiry-overdue-job": "./src/inquiry-overdue-job.ts",
+    "./legacy-inquiry-cutover": "./src/legacy-inquiry-cutover.ts",
+    "./legacy-inquiry-cutover-job": "./src/legacy-inquiry-cutover-job.ts",
     "./reporting": "./src/reporting.ts",
     "./voyant": "./src/voyant.ts",
     "./openapi/admin": "./openapi/admin/relationships.json",
@@ -133,6 +135,16 @@
         "types": "./dist/inquiry-overdue-job.d.ts",
         "import": "./dist/inquiry-overdue-job.js",
         "default": "./dist/inquiry-overdue-job.js"
+      },
+      "./legacy-inquiry-cutover": {
+        "types": "./dist/legacy-inquiry-cutover.d.ts",
+        "import": "./dist/legacy-inquiry-cutover.js",
+        "default": "./dist/legacy-inquiry-cutover.js"
+      },
+      "./legacy-inquiry-cutover-job": {
+        "types": "./dist/legacy-inquiry-cutover-job.d.ts",
+        "import": "./dist/legacy-inquiry-cutover-job.js",
+        "default": "./dist/legacy-inquiry-cutover-job.js"
       },
       "./reporting": {
         "types": "./dist/reporting.d.ts",

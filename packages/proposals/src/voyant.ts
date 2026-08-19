@@ -13,7 +13,6 @@ import {
 } from "@voyant-travel/core/runtime-port"
 import { financeProposalsPaymentPolicyRuntimePort } from "@voyant-travel/finance/runtime-port"
 import { proposalInquiryConversionRuntimePort } from "@voyant-travel/proposals-contracts/inquiry-conversion/runtime-port"
-import { checkoutInquiryRuntimePort } from "@voyant-travel/proposals-contracts/runtime-port"
 import {
   proposalsNotificationsRuntimePort,
   proposalsPresentationRuntimePort,
@@ -63,7 +62,6 @@ export const proposalsVoyantModule = defineModule({
   ],
   provides: {
     ports: [
-      providePort(checkoutInquiryRuntimePort),
       providePort(proposalInquiryConversionRuntimePort),
       providePort(proposalsRuntimePort),
       // Terms an accepted Proposal Version stated, for finance's payment-policy

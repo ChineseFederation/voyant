@@ -36,7 +36,7 @@ export const publicApiLeadContactSchema = z
   })
 
 export const publicApiLeadIntakeInputSchema = z.object({
-  kind: customerSignalKindSchema.default("inquiry"),
+  kind: z.enum(["inquiry", "request_offer"]).default("inquiry"),
   source: customerSignalSourceSchema.default("website"),
   contact: publicApiLeadContactSchema,
   productId: z.string().trim().min(1).max(160).nullable().optional(),

@@ -4,6 +4,7 @@ import { customFieldsRuntimePort } from "@voyant-travel/core/custom-fields"
 import { defineGraphRuntimeFactory } from "@voyant-travel/core/project"
 import type { ApiModule } from "@voyant-travel/hono/module"
 import { resolveBookingFinancialLifecycle } from "./financial-lifecycle.js"
+import { bookingsCanonicalInquiryIntakeRuntimePort } from "./inquiry-intake-runtime-port.js"
 import { bookingsLinkable } from "./linkables.js"
 import {
   BOOKING_ROUTE_RUNTIME_CONTAINER_KEY,
@@ -12,7 +13,7 @@ import {
 } from "./route-runtime.js"
 import { bookingRoutes } from "./routes.js"
 import { bookingAmendmentPublicRoutes } from "./routes-amendments.js"
-import { bookingInquiryPublicRoutes } from "./routes-inquiries.js"
+import { type BookingInquiryService, createBookingInquiryPublicRoutes } from "./routes-inquiries.js"
 import { publicBookingRoutes } from "./routes-public.js"
 import { createPublicBookingActionRoutes } from "./routes-public-booking-actions.js"
 import { createBookingsRuntime } from "./runtime.js"
@@ -26,6 +27,7 @@ import {
   bookingsRelationshipsRuntimePort,
   bookingsSupplierAmendmentRuntimePort,
 } from "./runtime-port.js"
+import { bookingInquiriesService } from "./service-inquiries.js"
 
 export {
   BOOKING_ACTION_LEDGER_CAPABILITIES,
@@ -159,6 +161,7 @@ export const bookingsModule: Module = {
 
 export interface BookingsApiModuleOptions extends BookingRouteRuntimeOptions {
   bookingActions?: BookingActionProjectionRuntime
+  bookingInquiryIntake?: BookingInquiryService
 }
 
 export function createBookingsApiModule(options: BookingsApiModuleOptions = {}): ApiModule {
@@ -190,7 +193,14 @@ export function createBookingsApiModule(options: BookingsApiModuleOptions = {}):
     module,
     adminRoutes: bookingRoutes,
     publicRoutes: new OpenAPIHono()
-      .route("/", bookingInquiryPublicRoutes)
+      .route(
+        "/",
+        createBookingInquiryPublicRoutes(
+          options.bookingInquiryIntake
+            ? { ...bookingInquiriesService, ...options.bookingInquiryIntake }
+            : undefined,
+        ),
+      )
       .route("/", publicBookingRoutes)
       .route("/", bookingAmendmentPublicRoutes)
       .route("/", createPublicBookingActionRoutes(options.bookingActions)),
@@ -204,17 +214,19 @@ export const bookingsApiModule: ApiModule = createBookingsApiModule()
 /** Package-owned adapter from graph ports to the complete Bookings runtime. */
 export const createBookingsVoyantRuntime = defineGraphRuntimeFactory(
   async ({ api, getPort, hasPort, hostOptions }) => {
-    const [accommodation, customFields, finance, relationships] = await Promise.all([
+    const [accommodation, customFields, finance, relationships, inquiryIntake] = await Promise.all([
       getPort(bookingsAccommodationRuntimePort),
       getPort(customFieldsRuntimePort),
       getPort(bookingsFinanceRuntimePort),
       getPort(bookingsRelationshipsRuntimePort),
+      getPort(bookingsCanonicalInquiryIntakeRuntimePort),
     ])
     const provider = createBookingsRuntime({
       accommodation,
       customFields,
       finance,
       relationships,
+      inquiryIntake,
     })
 
     const amendmentSupplier = hasPort(bookingsSupplierAmendmentRuntimePort)

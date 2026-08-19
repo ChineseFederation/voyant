@@ -2,6 +2,7 @@ import type { VoyantGraphRuntimeFactoryContext } from "@voyant-travel/core/proje
 import { describe, expect, it } from "vitest"
 
 import { createBookingsVoyantRuntime } from "../../src/index.js"
+import { bookingsCanonicalInquiryIntakeRuntimePort } from "../../src/inquiry-intake-runtime-port.js"
 import type { BookingRouteRuntime } from "../../src/route-runtime.js"
 import { BOOKING_ROUTE_RUNTIME_CONTAINER_KEY } from "../../src/route-runtime.js"
 import {
@@ -11,6 +12,13 @@ import {
 } from "../../src/runtime-port.js"
 
 const PORT_STUBS: Readonly<Record<string, unknown>> = {
+  [bookingsCanonicalInquiryIntakeRuntimePort.id]: {
+    submit: async () => {
+      throw new Error("not used")
+    },
+    getById: async () => null,
+    list: async () => [],
+  },
   [bookingsAccommodationRuntimePort.id]: { enrichOverviewItems: async () => new Map() },
   [bookingsFinanceRuntimePort.id]: {
     quoteBookingAmendment: async () => ({}),
