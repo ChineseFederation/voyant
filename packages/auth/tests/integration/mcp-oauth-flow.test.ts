@@ -17,7 +17,11 @@ import { drizzle } from "drizzle-orm/postgres-js"
 import { decodeJwt } from "jose"
 import postgres from "postgres"
 import { afterAll, describe, expect, it } from "vitest"
-import { parseOAuthScopeClaim, withPublicApiEndpoints } from "../../src/mcp-oauth.js"
+import {
+  parseOAuthClientIdClaim,
+  parseOAuthScopeClaim,
+  withPublicApiEndpoints,
+} from "../../src/mcp-oauth.js"
 import { createBetterAuth } from "../../src/server.js"
 
 const CONNECTION = process.env.MCP_OAUTH_TEST_DATABASE_URL ?? ""
@@ -272,6 +276,8 @@ describe("MCP connector OAuth handshake", () => {
       expect(claims.iss).toBe(`${BASE_URL}/auth/admin`)
       expect([claims.aud].flat()).toContain(RESOURCE)
       expect(claims.sub).toEqual(expect.any(String))
+      expect(claims.azp).toBe(client_id)
+      expect(parseOAuthClientIdClaim(claims)).toBe(client_id)
       expect(parseOAuthScopeClaim(claims.scope)).toEqual(
         expect.arrayContaining(["mcp:read", "mcp:write"]),
       )

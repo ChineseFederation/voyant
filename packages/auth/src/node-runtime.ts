@@ -76,6 +76,7 @@ import {
 import {
   mcpOAuthProviderConfig,
   mcpProtectedResourceMetadata,
+  parseOAuthClientIdClaim,
   parseOAuthScopeClaim,
   resolveMcpGrantScopes,
   withPublicApiEndpoints,
@@ -1111,7 +1112,7 @@ export function createOperatorAuthNodeRuntime<Env extends OperatorAuthNodeEnv>(
 
     const userId = typeof claims.sub === "string" ? claims.sub.trim() : ""
     if (!userId) return null
-    const clientId = typeof claims.client_id === "string" ? claims.client_id.trim() : ""
+    const clientId = parseOAuthClientIdClaim(claims)
     if (!clientId) return null
 
     // A signed JWT stays valid until it expires, so the signature alone cannot
