@@ -12,6 +12,7 @@ describe("createAuthBasePathFetcher", () => {
 
     await customerFetcher("https://storefront.example/api/auth/sign-in/email", { method: "POST" })
     await customerFetcher("https://storefront.example/api/auth/status")
+    await customerFetcher("https://storefront.example/api/auth/customer/oauth2/consent")
     await customerFetcher("https://storefront.example/api/v1/public/products")
     await customerFetcher("https://admin.example/api/auth/status")
 
@@ -27,10 +28,15 @@ describe("createAuthBasePathFetcher", () => {
     )
     expect(fetcher).toHaveBeenNthCalledWith(
       3,
+      "https://storefront.example/api/auth/customer/oauth2/consent",
+      undefined,
+    )
+    expect(fetcher).toHaveBeenNthCalledWith(
+      4,
       "https://storefront.example/api/v1/public/products",
       undefined,
     )
-    expect(fetcher).toHaveBeenNthCalledWith(4, "https://admin.example/api/auth/status", undefined)
+    expect(fetcher).toHaveBeenNthCalledWith(5, "https://admin.example/api/auth/status", undefined)
   })
 
   it("leaves shared deployment-owned auth paths on the default prefix", async () => {

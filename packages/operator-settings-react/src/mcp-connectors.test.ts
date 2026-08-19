@@ -38,6 +38,19 @@ describe("toMcpConnector", () => {
 })
 
 describe("listMcpConnectors", () => {
+  it("uses the admin realm with a raw managed-shell fetcher", async () => {
+    const fetcher = vi.fn(async (url: string) =>
+      url.includes("get-consents") ? Response.json([consent]) : Response.json({ name: "ChatGPT" }),
+    )
+
+    await listMcpConnectors("/api", fetcher)
+
+    expect(fetcher.mock.calls.map(([url]) => url)).toEqual([
+      "/api/auth/admin/oauth2/get-consents",
+      "/api/auth/admin/oauth2/get-client?client_id=client_abc",
+    ])
+  })
+
   it("resolves each consent to its registered client name", async () => {
     const fetcher = vi.fn(async (url: string) =>
       url.includes("get-consents")

@@ -43,6 +43,27 @@ describe("MCP consent requests through the admin shell fetcher", () => {
     }
   })
 
+  it("uses the admin realm when the managed route receives a raw fetcher", async () => {
+    const transport = vi.fn(async (url: string) =>
+      url.includes("public-client")
+        ? Response.json({ client_name: "ChatGPT" })
+        : Response.json({ redirectURI: "https://chatgpt.com/cb?code=1" }),
+    )
+
+    await fetchMcpConsentClient({ baseUrl: BASE_URL, fetcher: transport, clientId: "client_abc" })
+    await submitMcpConsentDecision({
+      baseUrl: BASE_URL,
+      fetcher: transport,
+      accept: true,
+      oauthQuery: "client_id=abc&sig=xyz",
+    })
+
+    expect(transport.mock.calls.map(([url]) => url)).toEqual([
+      "/api/auth/admin/oauth2/public-client?client_id=client_abc",
+      "/api/auth/admin/oauth2/consent",
+    ])
+  })
+
   it("preserves the signed OAuth query byte for byte", async () => {
     const oauthQuery =
       "client_id=abc&ba_param=client_id&ba_param=scope&scope=mcp%3Aread&sig=deadbeef"

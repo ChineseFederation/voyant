@@ -42,6 +42,15 @@ export function createAuthBasePathFetcher(
   const sharedPaths = (options.sharedPaths ?? []).map(normalizePath)
 
   return (url, init) => {
+    const isRealmAuthRequest =
+      url === realmAuthBaseUrl ||
+      url.startsWith(`${realmAuthBaseUrl}/`) ||
+      url.startsWith(`${realmAuthBaseUrl}?`)
+    // Realm-aware callers may already use the canonical realm URL. Keep the
+    // wrapper idempotent so composing it around those callers cannot produce
+    // paths such as `/auth/admin/admin/*`.
+    if (isRealmAuthRequest) return fetcher(url, init)
+
     const isDefaultAuthRequest =
       url === defaultAuthBaseUrl ||
       url.startsWith(`${defaultAuthBaseUrl}/`) ||
