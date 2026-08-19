@@ -1831,6 +1831,9 @@
       "@voyant-travel/public-api-client/generated": [
         "../public-api-client/dist/generated/index.d.ts"
       ],
+      "@voyant-travel/public-api-client/managed-fetch": [
+        "../public-api-client/dist/managed-fetch.d.ts"
+      ],
       "@voyant-travel/public-api-client/typed-client": [
         "../public-api-client/dist/typed-client.d.ts"
       ],

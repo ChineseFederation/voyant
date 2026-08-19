@@ -164,7 +164,7 @@
     "verify:proposal-vocabulary": "node --test scripts/tests/check-proposal-vocabulary.test.mjs && node scripts/check-proposal-vocabulary.mjs",
     "verify:operations-openapi": "pnpm -F @voyant-travel/operations verify:openapi",
     "generate:api-client": "node scripts/generate-api-client.mjs",
-    "verify:api-client-capability": "node scripts/check-api-client-capability.mjs",
+    "verify:api-client-capability": "node --test scripts/tests/public-api-operation-metadata.test.mjs && node scripts/check-api-client-capability.mjs",
     "verify:openapi-dialect": "node scripts/check-openapi-dialect.mjs",
     "verify:openapi-path-ownership": "node scripts/check-openapi-path-ownership.mjs",
     "verify:openapi-document-closure": "node --test scripts/tests/openapi-document-closure.test.mjs && node scripts/check-openapi-document-closure.mjs",

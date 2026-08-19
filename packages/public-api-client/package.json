@@ -13,6 +13,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./generated": "./src/generated/index.ts",
+    "./managed-fetch": "./src/managed-fetch.ts",
     "./typed-client": "./src/typed-client.ts"
   },
   "scripts": {
@@ -47,6 +48,11 @@
         "types": "./dist/generated/index.d.ts",
         "import": "./dist/generated/index.js",
         "default": "./dist/generated/index.js"
+      },
+      "./managed-fetch": {
+        "types": "./dist/managed-fetch.d.ts",
+        "import": "./dist/managed-fetch.js",
+        "default": "./dist/managed-fetch.js"
       },
       "./typed-client": {
         "types": "./dist/typed-client.d.ts",

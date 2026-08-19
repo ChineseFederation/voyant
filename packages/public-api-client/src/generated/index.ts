@@ -7,4 +7,11 @@
  */
 
 export type { PublishablePath, PublishablePaths, SecretPaths } from "./key-kind.js"
+export {
+  type PublicApiHttpMethod,
+  type PublicApiOperationId,
+  type PublicApiOperationKeyKind,
+  type PublicApiOperationMetadata,
+  publicApiOperations,
+} from "./operation-metadata.js"
 export type { components, operations, paths, webhooks } from "./paths.js"
