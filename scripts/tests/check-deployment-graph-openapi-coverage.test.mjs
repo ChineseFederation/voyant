@@ -254,6 +254,68 @@ describe("check-deployment-graph-openapi-coverage", () => {
     })
   })
 
+  it("names the exact document key it looked for, not a list of guessed names", async () => {
+    const root = await createFixture({
+      "graph.json": graph([
+        {
+          id: "@voyant-travel/proposals",
+          localId: "proposals",
+          packageName: "@voyant-travel/proposals",
+          api: [
+            {
+              id: "@voyant-travel/proposals#api",
+              surface: "admin",
+              mount: "@voyant-travel/proposals",
+              openapi: { document: "proposals" },
+            },
+          ],
+        },
+      ]),
+      "openapi/.keep": "",
+    })
+
+    await assert.rejects(runChecker(root), (error) => {
+      assert.match(error.stderr, /expects OpenAPI document admin:proposals, which is not present/)
+      assert.match(error.stderr, /No document of that name exists on any surface/)
+      // The lookup is an exact key. Offering candidate spellings described a
+      // search the checker never ran.
+      assert.doesNotMatch(error.stderr, /candidates:/)
+      return true
+    })
+  })
+
+  it("says where a document of that name does exist when the surface is wrong", async () => {
+    const root = await createFixture({
+      "graph.json": graph([
+        {
+          id: "@voyant-travel/proposals",
+          localId: "proposals",
+          packageName: "@voyant-travel/proposals",
+          api: [
+            {
+              id: "@voyant-travel/proposals#api.public",
+              surface: "public",
+              mount: "@voyant-travel/proposals",
+              openapi: { document: "proposals" },
+            },
+          ],
+        },
+      ]),
+      "openapi/admin/proposals.json": openapi({
+        "/v1/admin/proposals": { get: { responses: { 200: { description: "ok" } } } },
+      }),
+    })
+
+    await assert.rejects(runChecker(root), (error) => {
+      assert.match(
+        error.stderr,
+        /expects OpenAPI document public-api:proposals, which is not present/,
+      )
+      assert.match(error.stderr, /It exists on another surface: admin:proposals/)
+      return true
+    })
+  })
+
   it("reports an allowlisted missing bundle as a warning without failing", async () => {
     const root = await createFixture({
       "graph.json": graph([

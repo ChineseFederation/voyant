@@ -15,6 +15,7 @@ import path from "node:path"
 import {
   buildDeploymentGraphOpenApiCoverageReport,
   formatDeploymentGraphOpenApiCoverageFailure,
+  formatDeploymentGraphOpenApiCoverageGap,
 } from "./lib/deployment-graph-openapi-coverage-report.mjs"
 
 const DEFAULT_GRAPH = "apps/operator/.voyant/deployment-graph.generated.json"
@@ -22,8 +23,9 @@ const DEFAULT_OPENAPI_DIR = "packages"
 const CHECKED_SURFACES = new Set(["admin", "public-api"])
 // Ratchet only. The document names and owners remain authoritative in package
 // manifests; this prevents migrated bundles from silently falling back to the
-// Operator compatibility partition.
-const MIN_PACKAGE_OWNED_API_BUNDLES = 72
+// Operator compatibility partition. The value is data so that a second checker
+// can hold it without matching this file's source text — see the rule file.
+const RATCHET_FILE = "scripts/checks/openapi/graph-coverage-ratchet.json"
 const HTTP_METHODS = new Set([
   "connect",
   "delete",
@@ -48,11 +50,23 @@ for (const [id, reason] of readAllowlistFiles(options.allowlistFiles)) {
 const graphPath = path.resolve(repoRoot, options.graph)
 const openapiDir = path.resolve(repoRoot, options.openapiDir)
 
+/** A stale resolved graph, reported as an instruction rather than a stack trace. */
+class StaleGraphError extends Error {}
+
 const graph = readJson(graphPath)
-const openapiRoots = [
-  ...discoverOpenApiRoots(openapiDir),
-  ...discoverInstalledPackageOpenApiRoots(graph, graphPath),
-]
+let openapiRoots
+try {
+  openapiRoots = [
+    ...discoverOpenApiRoots(openapiDir),
+    ...discoverInstalledPackageOpenApiRoots(graph, graphPath),
+  ]
+} catch (error) {
+  if (!(error instanceof StaleGraphError)) throw error
+  console.error(
+    `check-deployment-graph-openapi-coverage: stale deployment graph.\n\n${error.message}`,
+  )
+  process.exit(1)
+}
 const docs = readOpenApiCoverage(uniqueDirectories(openapiRoots))
 const bundles = readApiBundles(graph)
 const bundlesById = new Map(bundles.map((bundle) => [bundle.apiId, bundle]))
@@ -66,13 +80,10 @@ const coveredBundles = []
 const allowlistedGaps = []
 
 if (options.useDefaultAllowlist) {
+  const minimum = readJson(path.resolve(repoRoot, RATCHET_FILE)).minimum
   const packageOwnedBundles = bundles.filter((bundle) => bundle.openapiDocument).length
-  if (packageOwnedBundles < MIN_PACKAGE_OWNED_API_BUNDLES) {
-    failures.push({
-      kind: "authority-regression",
-      actual: packageOwnedBundles,
-      minimum: MIN_PACKAGE_OWNED_API_BUNDLES,
-    })
+  if (packageOwnedBundles < minimum) {
+    failures.push({ kind: "authority-regression", actual: packageOwnedBundles, minimum })
   }
 }
 
@@ -97,7 +108,7 @@ for (const bundle of bundles) {
   if (reason) {
     allowlistedGaps.push({ bundle, reason })
   } else {
-    failures.push({ kind: "missing-docs", bundle })
+    failures.push({ kind: "missing-docs", bundle, nearby: nearbyDocuments(bundle, docs) })
   }
 }
 
@@ -156,7 +167,14 @@ if (options.json) {
 
 if (allowlistedGaps.length > 0) {
   console.warn("Deployment graph OpenAPI coverage warnings.")
-  for (const gap of allowlistedGaps) console.warn(formatGap(gap.bundle, gap.reason))
+  for (const gap of allowlistedGaps) {
+    console.warn(
+      formatDeploymentGraphOpenApiCoverageGap(gap.bundle, {
+        reason: gap.reason,
+        nearby: nearbyDocuments(gap.bundle, docs),
+      }),
+    )
+  }
 }
 
 if (failures.length > 0) {
@@ -197,7 +215,6 @@ function readApiBundles(resolvedGraph) {
         mount: stringOrEmpty(api.mount),
         openapiDocument:
           api.openapi && typeof api.openapi === "object" ? stringOrEmpty(api.openapi.document) : "",
-        candidateModules: candidateModules(unit, api),
       })
     }
   }
@@ -317,8 +334,18 @@ function discoverInstalledPackageOpenApiRoots(resolvedGraph, resolvedGraphPath) 
       )
     }
     if (record.version && packageJson.version !== record.version) {
-      throw new Error(
-        `${packageName} package record selects ${record.version}, but ${relativeToRepo(packageRoot)} contains ${stringOrEmpty(packageJson.version) || "an unknown version"}`,
+      // The graph is untracked build output, so it goes stale on any version
+      // bump — a release, a rebase, a branch switch. That is the common cause
+      // by a wide margin and the mismatch alone does not say so, which left the
+      // reader debugging an install that was fine.
+      throw new StaleGraphError(
+        `${packageName} package record selects ${record.version}, but ` +
+          `${relativeToRepo(packageRoot)} contains ${stringOrEmpty(packageJson.version) || "an unknown version"}.\n\n` +
+          `${relativeToRepo(resolvedGraphPath)} is generated, untracked, and older than the ` +
+          `installed packages. Regenerate it:\n\n` +
+          "  pnpm --filter operator prepare:verify\n\n" +
+          "If it persists after regenerating, the install is genuinely out of step: " +
+          "pnpm install --frozen-lockfile",
       )
     }
 
@@ -374,46 +401,25 @@ function documentedOperations(doc) {
   return operations
 }
 
-function candidateModules(unit, api) {
-  const candidates = new Set()
-  const unitId = stringOrEmpty(unit.id)
-  const localId = stringOrEmpty(unit.localId)
-  const packageName = stringOrEmpty(unit.packageName)
-  const mount = stringOrEmpty(api.mount)
-  const apiId = stringOrEmpty(api.id)
-
-  addSlugCandidates(candidates, localId)
-  addSlugCandidates(candidates, stripOperatorPrefix(localId))
-  addSlugCandidates(candidates, localId.split(".").at(-1))
-  addSlugCandidates(candidates, mount)
-  addSlugCandidates(candidates, unitId)
-
-  const packageSlug = packageName.replace(/^@voyant-travel\//, "")
-  const fragment = graphFragment(unitId)
-  const apiFragment = graphFragment(apiId)
-    .replace(/^api\.?/, "")
-    .replace(/\.?api(\.(admin|public|public-api))?$/, "")
-  addSlugCandidates(candidates, packageSlug)
-  addSlugCandidates(candidates, fragment)
-  addSlugCandidates(candidates, apiFragment)
-  if (packageSlug && fragment && fragment !== packageSlug) {
-    addSlugCandidates(candidates, `${packageSlug}-${fragment}`)
-    addSlugCandidates(candidates, `${singularFirstSegment(packageSlug)}-${fragment}`)
-  }
-  if (packageSlug && apiFragment && apiFragment !== packageSlug) {
-    addSlugCandidates(candidates, `${packageSlug}-${apiFragment}`)
-    addSlugCandidates(candidates, `${singularFirstSegment(packageSlug)}-${apiFragment}`)
-  }
-
-  return [...candidates].filter(Boolean)
-}
-
-function addSlugCandidates(candidates, value) {
-  const slug = slugify(value)
-  if (!slug) return
-  candidates.add(slug)
-  candidates.add(stripOperatorPrefix(slug))
-  candidates.add(singularFirstSegment(slug))
+/**
+ * What to suggest when a bundle's document is missing.
+ *
+ * A bundle names exactly one document and the lookup is an exact key, so the
+ * only useful thing to say is which key was wanted and what is nearby. This
+ * replaces ~80 lines that derived a dozen candidate slugs from the package
+ * name, mount, local id and graph fragment; every use of that list was a string
+ * in an error message, and it made a failed exact-key lookup read as a naming
+ * search — sending the reader after a document that was never being looked for.
+ *
+ * The two mistakes that actually happen are a document filed under the wrong
+ * surface, and a document that does not exist yet.
+ */
+function nearbyDocuments(bundle, docs) {
+  const wanted = stringOrEmpty(bundle.openapiDocument)
+  if (!wanted) return []
+  return [...docs.documents.keys()]
+    .filter((key) => key.slice(key.indexOf(":") + 1) === wanted)
+    .sort()
 }
 
 function normalizeSurface(surface) {
@@ -425,42 +431,6 @@ function normalizeSurface(surface) {
 
 function coverageKey(surface, module) {
   return `${surface}:${module}`
-}
-
-function graphFragment(id) {
-  const value = String(id ?? "")
-  const index = value.indexOf("#")
-  return index === -1 ? "" : value.slice(index + 1)
-}
-
-function slugify(value) {
-  return String(value ?? "")
-    .trim()
-    .replace(/^@voyant-travel\//, "")
-    .replace(/^operator[/.]/, "")
-    .replace(/[/#.]/g, "-")
-    .replace(/-api(?:-(?:admin|public|public-api))?$/, "")
-    .replace(/^api-?/, "")
-    .replace(/-(admin|public|public-api)$/, "")
-    .replace(/--+/g, "-")
-    .replace(/^-|-$/g, "")
-}
-
-function stripOperatorPrefix(value) {
-  return String(value ?? "").replace(/^operator[-./]/, "")
-}
-
-function singularFirstSegment(value) {
-  const parts = String(value ?? "").split("-")
-  if (parts.length <= 1) return value
-  if (parts[0].endsWith("s")) parts[0] = parts[0].slice(0, -1)
-  return parts.join("-")
-}
-
-function formatGap(bundle, allowlistReason) {
-  const code = allowlistReason ? "allowlisted-gap" : "missing-docs"
-  const suffix = allowlistReason ? ` Allowlist reason: ${allowlistReason}.` : ""
-  return `  - [deployment-graph-openapi-coverage:${code}] ${bundle.apiId} (${bundle.graphSurface} -> ${bundle.surface}, ${bundle.localId || bundle.moduleId}) has no documented OpenAPI paths for candidates: ${bundle.candidateModules.join(", ")}.${suffix}`
 }
 
 function readAllowlistFiles(files) {
