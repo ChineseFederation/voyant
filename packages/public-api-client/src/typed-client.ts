@@ -1,7 +1,8 @@
 /**
  * A typed client for the whole Public API, where the credential picks the type.
  *
- * `createPublicApiClient({ publishableKey })` is typed on `PublishablePaths`;
+ * `createPublicApiClient({ publishableKey })` and the platform-managed form
+ * `createPublicApiClient({ managed: true })` are typed on `PublishablePaths`;
  * `createPublicApiClient({ secretKey })` is typed on every operation. A
  * secret-only path is **absent** from the publishable type, so reaching for one
  * with a browser key does not compile — it is not a runtime 403 that a
@@ -12,9 +13,8 @@
  * that captures a person with nothing challenging the submitter stays behind a
  * secret key until the deployment configures an intake guard.
  *
- * This sits beside the hand-written `createVoyantPublicApiClient`, which covers
- * a couple of dozen operations with runtime validation. That one is still the
- * ergonomic path for those; this one reaches everything the surface serves.
+ * Request and response types come from the generated OpenAPI document. There
+ * is intentionally no second hand-written operation layer in this package.
  */
 import { classifyPublicApiKeyToken, PUBLIC_API_KEY_HEADER } from "@voyant-travel/graph-contracts"
 import createClient, { type ClientOptions } from "openapi-fetch"
@@ -37,12 +37,25 @@ export interface PublishableClientOptions extends BaseOptions {
   /** A publishable (`vpk_`) key. Safe to ship in a browser bundle. */
   publishableKey: string
   secretKey?: never
+  managed?: never
 }
 
 export interface SecretClientOptions extends BaseOptions {
   /** A secret (`vsk_`) key. Server-side only — never ship this to a browser. */
   secretKey: string
   publishableKey?: never
+  managed?: never
+}
+
+export interface ManagedClientOptions extends BaseOptions {
+  /**
+   * Use a Voyant-provided transport that supplies tenant authority outside an
+   * API key (for example, a managed Site proxy or connected dev capability).
+   * This mode is intentionally limited to the publishable operation surface.
+   */
+  managed: true
+  publishableKey?: never
+  secretKey?: never
 }
 
 export function createPublicApiClient(
@@ -52,27 +65,44 @@ export function createPublicApiClient(
   options: SecretClientOptions,
 ): ReturnType<typeof createClient<SecretPaths>>
 export function createPublicApiClient(
-  options: PublishableClientOptions | SecretClientOptions,
+  options: ManagedClientOptions,
+): ReturnType<typeof createClient<PublishablePaths>>
+export function createPublicApiClient(
+  options: PublishableClientOptions | SecretClientOptions | ManagedClientOptions,
 ): ReturnType<typeof createClient<SecretPaths>> {
   // Read through a plain shape rather than the intersection of the two overload
   // types: `secretKey?: never` and `secretKey: string` intersect to `never`,
   // which makes the whole object un-spreadable.
-  const { publishableKey, secretKey, headers, ...rest } = options as BaseOptions & {
+  const { publishableKey, secretKey, managed, headers, ...rest } = options as BaseOptions & {
     publishableKey?: string
     secretKey?: string
+    managed?: true
   }
   const token = publishableKey ?? secretKey
 
-  if (!token) {
+  if (!token && !managed) {
     throw new PublicApiClientCredentialError(
-      "createPublicApiClient requires either a publishableKey or a secretKey.",
+      "createPublicApiClient requires a publishableKey, a secretKey, or managed: true.",
     )
   }
-  if (publishableKey && secretKey) {
+  if ([Boolean(publishableKey), Boolean(secretKey), Boolean(managed)].filter(Boolean).length > 1) {
     throw new PublicApiClientCredentialError(
-      "createPublicApiClient takes one credential; both a publishableKey and a secretKey were given.",
+      "createPublicApiClient takes exactly one authority mode; publishableKey, secretKey, and managed cannot be combined.",
     )
   }
+
+  if (managed) {
+    const client = createClient<SecretPaths>({ ...rest, headers })
+    client.use({
+      onRequest({ request }) {
+        request.headers.delete(PUBLIC_API_KEY_HEADER)
+        return request
+      },
+    })
+    return client
+  }
+
+  if (!token) throw new PublicApiClientCredentialError("Public API authority is missing.")
 
   // Classified by the one prefix table in the repo rather than a
   // local rule, for the reason recorded next to it: two copies of that table

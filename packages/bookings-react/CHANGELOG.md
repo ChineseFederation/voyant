@@ -1,5 +1,22 @@
 # @voyant-travel/bookings-react
 
+## 0.312.0
+
+### Patch Changes
+
+- 2631474: Derive owned accommodation traveler fares from the booking roster, present room selections and supplement labels in the admin summary, and preserve pricing semantics across supplement, all-in, legacy, and sourced booking-engine flows.
+- 4aac60f: Count departure capacity once per booking instead of once per priced item, preserve that claim when items move or are deleted, and render item-addition prices from minor currency units correctly.
+  - @voyant-travel/public-api-react@0.314.0
+  - @voyant-travel/inventory-react@0.194.0
+  - @voyant-travel/distribution-react@0.302.0
+  - @voyant-travel/finance-react@0.312.0
+  - @voyant-travel/identity-react@0.312.0
+  - @voyant-travel/legal-react@0.312.0
+  - @voyant-travel/operations-react@0.193.0
+  - @voyant-travel/catalog-react@0.310.0
+  - @voyant-travel/commerce-react@0.194.0
+  - @voyant-travel/relationships-react@0.312.0
+
 ## 0.311.0
 
 ### Patch Changes

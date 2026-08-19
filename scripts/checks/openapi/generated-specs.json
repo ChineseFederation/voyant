@@ -297,6 +297,7 @@
         "packages/admin-api-client/src/generated/trips.ts",
         "packages/public-api-client/src/generated/paths.ts",
         "packages/public-api-client/src/generated/key-kind.ts",
+        "packages/public-api-client/src/generated/operation-metadata.ts",
         "packages/public-api-client/src/generated/index.ts"
       ],
       "reads": [

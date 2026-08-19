@@ -10,8 +10,10 @@ const { getPublishablePackages } = require("./release-utils.cjs")
 
 const RELEASE_WORKFLOW_PATH = ".github/workflows/release.yml"
 const BUILD_STEP = "Build pending publish workspaces"
+const VERIFY_STEP = "Verify before publish"
 const TARBALL_STEP = "Verify publish tarballs"
 const PUBLISH_STEP = "Publish pending packages"
+const RELEASE_VERIFY_COMMAND = "pnpm verify:release-ready"
 
 // Publish must consume the Turbo-built, tarball-verified `dist` immutably.
 // Several packages `clean` their dist in prepack, so a concurrent publish
@@ -38,15 +40,24 @@ function collectReleaseWorkflowProblems(cwd) {
 
   const indexOfStep = (name) => steps.findIndex((step) => step?.name === name)
   const buildIdx = indexOfStep(BUILD_STEP)
+  const verifyIdx = indexOfStep(VERIFY_STEP)
   const tarballIdx = indexOfStep(TARBALL_STEP)
   const publishIdx = indexOfStep(PUBLISH_STEP)
 
   for (const [label, idx] of [
     [BUILD_STEP, buildIdx],
+    [VERIFY_STEP, verifyIdx],
     [TARBALL_STEP, tarballIdx],
     [PUBLISH_STEP, publishIdx],
   ]) {
     if (idx === -1) problems.push(`${RELEASE_WORKFLOW_PATH}: missing "${label}" step`)
+  }
+
+  if (verifyIdx !== -1 && steps[verifyIdx]?.run !== RELEASE_VERIFY_COMMAND) {
+    problems.push(
+      `${RELEASE_WORKFLOW_PATH}: "${VERIFY_STEP}" must run ${RELEASE_VERIFY_COMMAND} ` +
+        "so version-only release commits do not repeat the unbounded affected test graph",
+    )
   }
 
   if (publishIdx !== -1) {

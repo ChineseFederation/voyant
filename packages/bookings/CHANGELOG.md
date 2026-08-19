@@ -1,5 +1,14 @@
 # @voyant-travel/bookings
 
+## 0.250.2
+
+### Patch Changes
+
+- 2631474: Derive owned accommodation traveler fares from the booking roster, present room selections and supplement labels in the admin summary, and preserve pricing semantics across supplement, all-in, legacy, and sourced booking-engine flows.
+- 4aac60f: Count departure capacity once per booking instead of once per priced item, preserve that claim when items move or are deleted, and render item-addition prices from minor currency units correctly.
+- Updated dependencies [0724ef7]
+  - @voyant-travel/core@0.144.2
+
 ## 0.250.1
 
 ### Patch Changes

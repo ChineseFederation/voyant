@@ -138,7 +138,13 @@ jobs:
 
       - name: Verify before publish
         if: steps.release_plan.outputs.publish_pending == 'true'
-        run: pnpm verify:fast
+        # Source changes already passed the full affected typecheck/test graph
+        # before reaching main, and the pending packages were rebuilt above.
+        # Re-running affected tests from a version-only Changesets commit fans
+        # out across most of the workspace and exceeds the hosted job ceiling.
+        # Keep the release-specific architecture and changed-file gates here;
+        # immutable tarball verification remains the next step.
+        run: pnpm verify:release-ready
 
       - name: Verify publish tarballs
         if: steps.release_plan.outputs.publish_pending == 'true'

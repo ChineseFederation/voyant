@@ -1,5 +1,11 @@
 # @voyant-travel/core
 
+## 0.144.2
+
+### Patch Changes
+
+- 0724ef7: Give booking-confirmed contract rendering a finite timeout budget longer than the renderer maximum, and identify labeled subscribers in timeout diagnostics.
+
 ## 0.144.1
 
 ### Patch Changes

@@ -106,6 +106,21 @@ export function parseOAuthScopeClaim(claim: unknown): string[] {
 }
 
 /**
+ * Read the OAuth client identifier from a verified access-token payload.
+ *
+ * JWT access tokens use the standard authorized-party (`azp`) claim. OAuth
+ * introspection responses expose the same value as `client_id`, so accept both
+ * shapes. When both are present they must agree; otherwise fail closed rather
+ * than checking consent for the wrong client.
+ */
+export function parseOAuthClientIdClaim(claims: Record<string, unknown>): string {
+  const clientId = typeof claims.client_id === "string" ? claims.client_id.trim() : ""
+  const authorizedParty = typeof claims.azp === "string" ? claims.azp.trim() : ""
+  if (clientId && authorizedParty && clientId !== authorizedParty) return ""
+  return clientId || authorizedParty
+}
+
+/**
  * RFC 9728 protected-resource metadata for the MCP endpoint.
  *
  * The authorization server publishes its own metadata, but the *resource*

@@ -1,5 +1,18 @@
 # @voyant-travel/operator-settings-react
 
+## 0.170.0
+
+### Patch Changes
+
+- 7a4b03d: Route managed MCP consent and connector-management requests through the
+  canonical admin OAuth realm while keeping realm-scoped fetchers idempotent.
+- 76d8e2f: Restore ChatGPT and Claude remote MCP connector interoperability. Scope-less
+  dynamic registrations now match authorization-server discovery, resource
+  metadata advertises only resource-enforced scopes, and admin-shell OAuth calls
+  are scoped into the admin realm exactly once.
+  - @voyant-travel/finance-react@0.312.0
+  - @voyant-travel/admin-app@0.205.0
+
 ## 0.169.0
 
 ### Patch Changes
