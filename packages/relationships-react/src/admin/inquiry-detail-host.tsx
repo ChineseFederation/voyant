@@ -8,9 +8,11 @@ import { useInquiryActivities } from "../hooks/use-inquiry-activities.js"
 import { useInquiryMutation } from "../hooks/use-inquiry-mutation.js"
 import { useCrmUiMessagesOrDefault } from "../i18n/index.js"
 import { proposalDestinationForConversion } from "../inquiry-proposal-conversion.js"
+import { useVoyantContext } from "../provider.js"
 
 export function InquiryDetailHost({ id }: { id: string }) {
   const navigate = useAdminNavigate()
+  const { baseUrl } = useVoyantContext()
   const navigateOptional = navigate as (destination: string, params: unknown) => void
   const query = useInquiry(id)
   const activities = useInquiryActivities(id)
@@ -22,6 +24,7 @@ export function InquiryDetailHost({ id }: { id: string }) {
   return (
     <InquiryWorkspace
       inquiry={query.data}
+      apiBaseUrl={baseUrl}
       activities={activities.data?.data ?? []}
       isSaving={mutations.update.isPending}
       onBack={() => navigate("inquiry.list", {})}

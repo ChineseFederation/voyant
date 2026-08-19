@@ -178,6 +178,47 @@ describe("Inquiry operator surfaces", () => {
     expect(html).toContain("Record activity")
   })
 
+  it("routes attachment downloads through the configured API base", () => {
+    const noOp = vi.fn().mockResolvedValue(undefined)
+    const withAttachment = inquiryRecordSchema.parse({
+      ...inquiry,
+      attachments: [
+        {
+          linkId: "link_attachment_01",
+          inquiryId: inquiry.id,
+          assetId: "mast_01",
+          name: "itinerary.pdf",
+          mimeType: "application/pdf",
+          caption: null,
+          attachedBy: "usr_sales",
+          createdAt: "2026-08-18T13:00:00.000Z",
+          updatedAt: "2026-08-18T13:00:00.000Z",
+          downloadPath:
+            "/v1/admin/relationships/inquiries/inq_01/attachments/link_attachment_01/download",
+        },
+      ],
+    })
+    const html = renderToStaticMarkup(
+      <InquiryWorkspace
+        inquiry={withAttachment}
+        apiBaseUrl="/api/"
+        onBack={noOp}
+        onUpdate={noOp}
+        onAssign={noOp}
+        onTransition={noOp}
+        onRecordFirstResponse={noOp}
+        onClose={noOp}
+        onReopen={noOp}
+        onConvertToProposal={refusedConversion}
+        onConvertToBookingSession={refusedBookingSession}
+      />,
+    )
+
+    expect(html).toContain(
+      'href="/api/v1/admin/relationships/inquiries/inq_01/attachments/link_attachment_01/download"',
+    )
+  })
+
   it("localizes the Proposal action and disables it for terminal inquiries", () => {
     const terminalInquiry = inquiryRecordSchema.parse({
       ...inquiry,

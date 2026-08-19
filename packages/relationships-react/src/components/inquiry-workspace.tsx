@@ -43,6 +43,7 @@ import { buildCloseInput, buildTransitionInput } from "../inquiry-ui-model.js"
 
 export interface InquiryWorkspaceProps {
   inquiry: InquiryRecord
+  apiBaseUrl?: string
   isSaving?: boolean
   onBack: () => void
   onUpdate: (input: {
@@ -268,7 +269,10 @@ export function InquiryWorkspace(props: InquiryWorkspaceProps) {
                   {inquiry.attachments.map((attachment) => (
                     <li key={attachment.linkId} className="rounded-md border p-3 text-sm">
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <a className="font-medium underline" href={attachment.downloadPath}>
+                        <a
+                          className="font-medium underline"
+                          href={`${props.apiBaseUrl?.replace(/\/$/, "") ?? ""}${attachment.downloadPath}`}
+                        >
                           {attachment.name}
                         </a>
                         <Button
@@ -307,7 +311,9 @@ export function InquiryWorkspace(props: InquiryWorkspaceProps) {
               />
               <Button
                 type="button"
-                disabled={!attachmentFile || !props.onUploadAttachment || props.isUploadingAttachment}
+                disabled={
+                  !attachmentFile || !props.onUploadAttachment || props.isUploadingAttachment
+                }
                 onClick={() => {
                   if (!attachmentFile || !props.onUploadAttachment) return
                   void props.onUploadAttachment(attachmentFile, attachmentCaption).then(() => {
