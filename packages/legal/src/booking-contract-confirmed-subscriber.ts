@@ -11,6 +11,9 @@ import {
   type LegalDocumentArtifactProvider,
   legalDocumentArtifactProviderPort,
 } from "./contracts/document-artifact-provider.js"
+import { LEGAL_BOOKING_CONFIRMED_SUBSCRIBER_TIMEOUT_MS } from "./document-timeouts.js"
+
+export { LEGAL_BOOKING_CONFIRMED_SUBSCRIBER_TIMEOUT_MS } from "./document-timeouts.js"
 
 export const LEGAL_BOOKING_CONTRACT_CONFIRMED_SUBSCRIBER_ID =
   "@voyant-travel/legal#subscriber.booking-contract-confirmed"
@@ -48,29 +51,36 @@ export function createLegalBookingContractConfirmedSubscriber(
     id: LEGAL_BOOKING_CONTRACT_CONFIRMED_SUBSCRIBER_ID,
     eventType: "booking.confirmed",
     register: ({ eventBus }) => {
-      eventBus.subscribe<LegalBookingConfirmedPayload>("booking.confirmed", async (event) => {
-        const db = await options.resolveDb()
-        if (options.generate) {
-          await options.generate({ db, event })
-          return
-        }
-        // voyant#4634: a deployment without a renderer used to `return` here.
-        // That is the state in which contract generation has never once run,
-        // and it looked identical to a deployment where it always works.
-        if (!options.provider) {
-          await recordUnfulfilledBookingContract(db, {
+      eventBus.subscribe<LegalBookingConfirmedPayload>(
+        "booking.confirmed",
+        async (event) => {
+          const db = await options.resolveDb()
+          if (options.generate) {
+            await options.generate({ db, event })
+            return
+          }
+          // voyant#4634: a deployment without a renderer used to `return` here.
+          // That is the state in which contract generation has never once run,
+          // and it looked identical to a deployment where it always works.
+          if (!options.provider) {
+            await recordUnfulfilledBookingContract(db, {
+              event,
+              reason: "document_renderer_unavailable",
+            })
+            return
+          }
+          await generateBookingContractOnConfirmation({
+            db,
             event,
-            reason: "document_renderer_unavailable",
+            provider: options.provider,
+            eventBus,
           })
-          return
-        }
-        await generateBookingContractOnConfirmation({
-          db,
-          event,
-          provider: options.provider,
-          eventBus,
-        })
-      })
+        },
+        {
+          label: LEGAL_BOOKING_CONTRACT_CONFIRMED_SUBSCRIBER_ID,
+          timeoutMs: LEGAL_BOOKING_CONFIRMED_SUBSCRIBER_TIMEOUT_MS,
+        },
+      )
     },
   }
 }

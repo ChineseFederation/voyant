@@ -465,6 +465,22 @@ describe("deliver — redelivery with failure reporting", () => {
 })
 
 describe("per-subscription handler timeout (voyant#4639)", () => {
+  it("names a labeled subscriber in timeout diagnostics", async () => {
+    const bus = createEventBus({ handlerTimeoutMs: 100 })
+    bus.subscribe("test.slow", () => new Promise(() => {}), {
+      label: "@acme/slow#subscriber.test",
+      timeoutMs: 10,
+    })
+
+    const result = await bus.deliver?.({
+      name: "test.slow",
+      data: {},
+      emittedAt: new Date().toISOString(),
+    })
+
+    expect(result?.errors[0]).toContain("@acme/slow#subscriber.test")
+  })
+
   it("gives a slow subscriber its own budget instead of the bus default", async () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {})
     const bus = createEventBus({ handlerTimeoutMs: 10 })
