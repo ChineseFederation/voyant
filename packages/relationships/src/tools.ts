@@ -913,6 +913,7 @@ export const eraseInquiryPrivacyTool = defineTool<
     confirmationRequired: true,
     sideEffects: ["data-write"],
   },
+  actionPolicyEnforcement: "handler",
   async handler(input, ctx) {
     return parseJsonResult(inquiryRecordSchema, await crm(ctx).eraseInquiryPrivacy(input))
   },

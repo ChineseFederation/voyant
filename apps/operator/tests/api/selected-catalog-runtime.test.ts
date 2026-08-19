@@ -49,7 +49,7 @@ describe("selected Operator Catalog subscriber composition", () => {
       catalog?.references
         .filter((reference) => reference.facet === "subscribers.runtime")
         .map((reference) => reference.entityId),
-    ).toHaveLength(10)
+    ).toHaveLength(11)
     expect(catalogRuntimeIndex).toBeGreaterThanOrEqual(0)
     expect(commerceRuntimeIndex).toBeGreaterThan(catalogRuntimeIndex)
     expect(container.has(CATALOG_PROJECTION_RUNTIME_CONTAINER_KEY)).toBe(true)
