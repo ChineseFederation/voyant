@@ -41,6 +41,50 @@ export const MCP_OAUTH_SCOPES = [
 /** Scopes enforced by the MCP resource server itself (RFC 9728 metadata). */
 export const MCP_RESOURCE_SCOPES = [MCP_OAUTH_SCOPE_READ, MCP_OAUTH_SCOPE_WRITE] as const
 
+const MCP_OAUTH_TOKEN_PATH_SUFFIX = "/auth/admin/oauth2/token"
+const MCP_OAUTH_RESOURCE_DEFAULT_GRANTS = new Set(["authorization_code", "refresh_token"])
+
+/**
+ * Bind tokens to this deployment's sole MCP resource when a hosted client omits
+ * RFC 8707's optional `resource` token parameter.
+ *
+ * Better Auth deliberately issues an opaque access token when `resource` is
+ * absent. Voyant's resource server verifies signed JWTs against its JWKS, and
+ * both ChatGPT and Claude currently omit the parameter even after discovering
+ * a single protected resource. Because this authorization server has exactly
+ * one valid audience, defaulting an omitted value is unambiguous. An explicit
+ * value is left untouched for Better Auth to validate and reject when invalid.
+ */
+export async function withDefaultMcpOAuthResource(
+  request: Request,
+  resource: string,
+): Promise<Request> {
+  const url = new URL(request.url)
+  if (
+    request.method !== "POST" ||
+    !url.pathname.endsWith(MCP_OAUTH_TOKEN_PATH_SUFFIX) ||
+    !request.headers
+      .get("content-type")
+      ?.toLowerCase()
+      .startsWith("application/x-www-form-urlencoded")
+  ) {
+    return request
+  }
+
+  const body = new URLSearchParams(await request.clone().text())
+  if (
+    body.has("resource") ||
+    !MCP_OAUTH_RESOURCE_DEFAULT_GRANTS.has(body.get("grant_type") ?? "")
+  ) {
+    return request
+  }
+
+  body.set("resource", resource)
+  const headers = new Headers(request.headers)
+  headers.delete("content-length")
+  return new Request(request, { body: body.toString(), headers })
+}
+
 /**
  * The one action name treated as non-mutating. The access catalog convention is
  * `read` / `write` / `delete`, so anything that is not exactly `read` is
