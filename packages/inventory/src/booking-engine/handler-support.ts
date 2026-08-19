@@ -44,7 +44,7 @@ export function sumPax(pax: Partial<Record<string, number>> | undefined): number
 }
 
 export interface PricedLine {
-  kind: "base" | "addon"
+  kind: "base" | "addon" | "supplement"
   label: string
   quantity: number
   unitAmount: number
@@ -127,6 +127,16 @@ export async function priceOptionSelections(input: {
   let totalCents = 0
   const optionsById = new Map(input.productOptions.map((option) => [option.id, option]))
   const hasExplicitTravelerAssignments = Object.keys(input.travelerAssignments ?? {}).length > 0
+  const optionsWithExplicitInventorySelections = new Set(
+    input.selections.flatMap((selection) => {
+      const unit = findProductOptionUnit(
+        input.productOptions,
+        selection.optionId,
+        selection.optionUnitId,
+      )
+      return unit?.unitType === "room" || unit?.unitType === "vehicle" ? [selection.optionId] : []
+    }),
+  )
   // Per-traveler-category room prices (a Double room whose price is set per
   // "Adult"/"Child" via the product editor's Rooms & prices matrix) price
   // per-person by band — `pax[band] × price` — NOT per room, so they're
@@ -181,6 +191,21 @@ export async function priceOptionSelections(input: {
     const categoryUnitRows = unitRows.filter((unit) => unit.travelerCategory)
     const defaultUnitPrice = unitRows.find((unit) => !unit.travelerCategory) ?? null
     const unitPrice = defaultUnitPrice?.sellAmountCents ?? null
+    const selectedUnit = findProductOptionUnit(
+      input.productOptions,
+      selection.optionId,
+      selection.optionUnitId,
+    )
+    // An all-in room replaces the traveler fare. Keep accepting a legacy
+    // person-only selection, but when the same payload explicitly selects
+    // inventory the room is the authoritative priced line.
+    if (
+      resolvedPrice?.occupancyPriceBasis === "all_in" &&
+      selectedUnit?.unitType === "person" &&
+      optionsWithExplicitInventorySelections.has(selection.optionId)
+    ) {
+      continue
+    }
     const assignedTravelerKeys = selection.optionUnitId
       ? Object.entries(input.travelerAssignments ?? {}).flatMap(([travelerKey, assignedUnitId]) =>
           assignedUnitId === selection.optionUnitId ? [travelerKey] : [],
@@ -193,19 +218,24 @@ export async function priceOptionSelections(input: {
     }
     if (unitPrice == null && categoryUnitRows.length > 0) {
       const unitLabel =
-        findProductOptionUnit(input.productOptions, selection.optionId, selection.optionUnitId)
-          ?.name ??
+        selectedUnit?.name ??
         selection.optionUnitName ??
         optionsById.get(selection.optionId)?.name ??
         input.product.name
+      // Room assignments scope room/vehicle category prices to their
+      // occupants. They must not suppress an explicitly selected person fare:
+      // person units describe who is being priced, while assignments describe
+      // where those same travelers stay (voyant#4869).
+      const scopeCategoryToAssignments =
+        hasExplicitTravelerAssignments && selectedUnit?.unitType !== "person"
       for (const row of categoryUnitRows) {
         const band = row.travelerCategory
         const count = band
-          ? hasExplicitTravelerAssignments
+          ? scopeCategoryToAssignments
             ? (assignedTravelerBandCounts.get(band) ?? 0)
             : (input.pax?.[band] ?? 0)
           : 0
-        const optionBandKey = hasExplicitTravelerAssignments
+        const optionBandKey = scopeCategoryToAssignments
           ? `${selection.optionId}\u0000${selection.optionUnitId ?? ""}\u0000${band ?? ""}`
           : `${selection.optionId}\u0000${band ?? ""}`
         if (
@@ -230,11 +260,13 @@ export async function priceOptionSelections(input: {
     const assignedTravelerCount = assignedTravelerKeys.length
     const pricingQuantity =
       defaultUnitPrice?.pricingMode === "per_person"
-        ? hasExplicitTravelerAssignments
-          ? assignedTravelerCount
-          : input.selections.length === 1
-            ? input.effectivePax
-            : selection.quantity
+        ? selectedUnit?.unitType === "person"
+          ? selection.quantity
+          : hasExplicitTravelerAssignments
+            ? assignedTravelerCount
+            : input.selections.length === 1
+              ? input.effectivePax
+              : selection.quantity
         : defaultUnitPrice?.pricingMode === "per_booking"
           ? 1
           : selection.quantity
@@ -272,18 +304,23 @@ export async function priceOptionSelections(input: {
     if (unitAmount <= 0 || pricingQuantity <= 0) continue
     const totalAmount = unitAmount * pricingQuantity
     totalCents += totalAmount
+    const isOccupancySupplement =
+      resolvedPrice?.occupancyPriceBasis === "supplement" &&
+      selectedUnit != null &&
+      selectedUnit.unitType !== "person"
+    const unitLabel =
+      (selection.optionUnitId
+        ? findProductOptionUnit(input.productOptions, selection.optionId, selection.optionUnitId)
+            ?.name
+        : null) ??
+      selection.optionUnitName ??
+      optionsById.get(selection.optionId)?.name ??
+      input.product.name
     lines.push({
-      kind: "base",
+      kind: isOccupancySupplement ? "supplement" : "base",
       // Prefer the specific room/unit name ("Standard - Single"); fall back to
       // the option name, then the product name.
-      label:
-        (selection.optionUnitId
-          ? findProductOptionUnit(input.productOptions, selection.optionId, selection.optionUnitId)
-              ?.name
-          : null) ??
-        selection.optionUnitName ??
-        optionsById.get(selection.optionId)?.name ??
-        input.product.name,
+      label: unitLabel,
       quantity: pricingQuantity,
       unitAmount,
       totalAmount,

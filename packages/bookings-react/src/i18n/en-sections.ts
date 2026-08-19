@@ -314,6 +314,7 @@ export const bookingsUiEnSections = {
       perPerson: "per traveler",
       perUnit: "per room",
       perBooking: "per booking",
+      supplement: "supplement",
     },
   },
   bookingDocumentDialog: {

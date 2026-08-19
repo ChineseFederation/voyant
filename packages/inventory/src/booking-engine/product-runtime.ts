@@ -1,3 +1,4 @@
+// agent-quality: file-size exception -- owner: inventory; owned product runtime loading and pricing projection stay co-located so booking-engine facts cannot drift across separate loaders.
 import { bookingRequirementsService } from "@voyant-travel/bookings/requirements"
 import type {
   AddonOfferV1,
@@ -553,7 +554,10 @@ export function registerProductBookingHandler(
 
         const [ruleRow, unitPriceRows, unitRows] = await Promise.all([
           db
-            .select({ baseSellAmountCents: optionPriceRules.baseSellAmountCents })
+            .select({
+              occupancyPriceBasis: optionPriceRules.occupancyPriceBasis,
+              baseSellAmountCents: optionPriceRules.baseSellAmountCents,
+            })
             .from(optionPriceRules)
             .where(eq(optionPriceRules.id, rule.id))
             .limit(1),
@@ -633,6 +637,7 @@ export function registerProductBookingHandler(
         })
 
         return {
+          occupancyPriceBasis: ruleRow[0]?.occupancyPriceBasis ?? null,
           baseSellAmountCents: ruleRow[0]?.baseSellAmountCents ?? null,
           unitPrices,
         }

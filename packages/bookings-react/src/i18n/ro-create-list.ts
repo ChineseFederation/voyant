@@ -262,6 +262,7 @@ export const bookingsUiRoCreateList = {
       previewProduct: "Produs",
       previewDeparture: "Plecare",
       previewOptions: "Optiuni",
+      previewRooms: "Camere",
       previewTravelers: "Calatori",
       previewTotal: "Total",
       previewLoading: "Se incarca…",

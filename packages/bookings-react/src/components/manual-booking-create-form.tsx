@@ -404,6 +404,48 @@ export function buildManualBookingQuoteDraft(input: {
   })
 }
 
+export function resolveTravelerDerivedPersonFareOptionIds(
+  rules: ReadonlyArray<{
+    optionId: string
+    occupancyPriceBasis: "supplement" | "all_in" | null
+  }>,
+  isSourcedProduct: boolean,
+): Set<string> {
+  if (isSourcedProduct) return new Set()
+  const basesByOptionId = new Map<string, Set<"supplement" | "all_in" | null>>()
+  for (const rule of rules) {
+    const bases = basesByOptionId.get(rule.optionId) ?? new Set()
+    bases.add(rule.occupancyPriceBasis)
+    basesByOptionId.set(rule.optionId, bases)
+  }
+  return new Set(
+    Array.from(basesByOptionId.entries()).flatMap(([optionId, bases]) =>
+      bases.size === 1 && bases.has("supplement") ? [optionId] : [],
+    ),
+  )
+}
+
+export function resolveTravelerManagedPersonOptionIds(
+  rules: ReadonlyArray<{
+    optionId: string
+    occupancyPriceBasis: "supplement" | "all_in" | null
+  }>,
+  isSourcedProduct: boolean,
+): Set<string> {
+  if (isSourcedProduct) return new Set()
+  const basesByOptionId = new Map<string, Set<"supplement" | "all_in" | null>>()
+  for (const rule of rules) {
+    const bases = basesByOptionId.get(rule.optionId) ?? new Set()
+    bases.add(rule.occupancyPriceBasis)
+    basesByOptionId.set(rule.optionId, bases)
+  }
+  return new Set(
+    Array.from(basesByOptionId.entries()).flatMap(([optionId, bases]) =>
+      bases.size === 1 && !bases.has(null) ? [optionId] : [],
+    ),
+  )
+}
+
 /**
  * Whether a typed promotion code lets the booking be created.
  *
@@ -1709,14 +1751,27 @@ export function ManualBookingCreateForm({
       ),
     [travelerPricingCategories],
   )
+  const derivedPersonFareOptionIds = React.useMemo(() => {
+    return resolveTravelerDerivedPersonFareOptionIds(
+      pricingPreview.data?.data.rules ?? [],
+      isSourcedProduct,
+    )
+  }, [isSourcedProduct, pricingPreview.data?.data.rules])
+  const travelerManagedPersonOptionIds = React.useMemo(() => {
+    return resolveTravelerManagedPersonOptionIds(
+      pricingPreview.data?.data.rules ?? [],
+      isSourcedProduct,
+    )
+  }, [isSourcedProduct, pricingPreview.data?.data.rules])
   const displayDraft = React.useMemo(
     () =>
       resolveBookingDraft({
         quantities: rooms.quantities,
         travelers: travelers.travelers,
         units: bookingUnits as PricingAssignmentUnit[],
+        derivePersonQuantitiesForOptionIds: derivedPersonFareOptionIds,
       }),
-    [rooms.quantities, travelers.travelers, bookingUnits],
+    [rooms.quantities, travelers.travelers, bookingUnits, derivedPersonFareOptionIds],
   )
   const travelerPricingCategoryQuantities = React.useMemo(() => {
     const quantities: Record<string, Record<string, number>> = {}
@@ -1747,6 +1802,23 @@ export function ManualBookingCreateForm({
   const roomUnitLabels = React.useMemo(
     () => Object.fromEntries(bookingUnits.map((unit) => [unit.optionUnitId, unit.unitName])),
     [bookingUnits],
+  )
+  const previewRoomSelections = React.useMemo(
+    () =>
+      bookingUnits.flatMap((unit) => {
+        if (!isBookingInventoryUnit(unit)) return []
+        const quantity = rooms.quantities[unit.optionUnitId] ?? 0
+        return quantity > 0
+          ? [
+              {
+                unitId: unit.optionUnitId,
+                label: stripOptionPrefix(unit.unitName),
+                quantity,
+              },
+            ]
+          : []
+      }),
+    [bookingUnits, rooms.quantities],
   )
   const quoteContact = React.useMemo(
     () =>
@@ -2025,6 +2097,7 @@ export function ManualBookingCreateForm({
       quantities: rooms.quantities,
       travelers: travelers.travelers,
       units: submitUnits as PricingAssignmentUnit[],
+      derivePersonQuantitiesForOptionIds: derivedPersonFareOptionIds,
     })
     const travelerKeysByUnitId = Object.fromEntries(
       Object.entries(redistributed.travelerIndexesByUnitId).map(([unitId, indexes]) => [
@@ -2332,6 +2405,7 @@ export function ManualBookingCreateForm({
               productId={product.productId}
               slotId={slotId ?? undefined}
               optionId={product.optionId}
+              travelerManagedPersonOptionIds={travelerManagedPersonOptionIds}
               onUnitsChange={handleRoomUnitsChange}
               slotHasFiniteCapacity={
                 Boolean(selectedSlot) &&
@@ -2666,6 +2740,7 @@ export function ManualBookingCreateForm({
           slotLabel={selectedSlot ? formatSlotLabel(selectedSlot) : null}
           unitQuantities={displayDraft.quantities}
           unitLabels={roomUnitLabels}
+          roomSelections={previewRoomSelections}
           pricingCategoryQuantities={travelerPricingCategoryQuantities}
           pricingCategoryLabels={travelerPricingCategoryLabels}
           extraLines={displayExtraLines}

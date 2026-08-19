@@ -223,8 +223,8 @@ export function getTravelerAssignableStepperUnits<
   // "Inventory" units (rooms, vehicles) are containers a traveler is
   // placed into. When an option configures one, person-typed
   // pricing-tier units on the same option are hidden from the
-  // stepper since their pricing folds into the container's per-pax
-  // accounting at submit time.
+  // stepper because their quantities derive from the traveler roster;
+  // they remain distinct person-fare lines at quote and submit time.
   const isInventoryType = (unit: TUnit) => unit.unitType === "room" || unit.unitType === "vehicle"
   const hasInventoryByOption = new Map<string, boolean>()
 

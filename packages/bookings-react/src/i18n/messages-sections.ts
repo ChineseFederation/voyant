@@ -313,6 +313,7 @@ export type BookingsUiSectionsMessages = {
       perPerson: string
       perUnit: string
       perBooking: string
+      supplement: string
     }
   }
   bookingDocumentDialog: {

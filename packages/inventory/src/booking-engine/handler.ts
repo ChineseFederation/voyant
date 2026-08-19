@@ -223,6 +223,8 @@ export interface ResolvedUnitPrice {
  *  pax band; otherwise falls back to `baseSellAmountCents × paxCount`
  *  for per-booking rules; otherwise back to `product.sellAmountCents`. */
 export interface ResolvedOptionPrice {
+  /** Whether room/occupancy prices replace the base fare or supplement it. */
+  occupancyPriceBasis?: "supplement" | "all_in" | null
   baseSellAmountCents: number | null
   unitPrices: ReadonlyArray<ResolvedUnitPrice>
 }

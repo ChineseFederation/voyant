@@ -27,6 +27,7 @@ export function BookingPreviewCard({
   slotLabel,
   unitQuantities,
   unitLabels,
+  roomSelections,
   pricingCategoryQuantities,
   pricingCategoryLabels,
   extraLines,
@@ -54,6 +55,11 @@ export function BookingPreviewCard({
   slotLabel: string | null
   unitQuantities: Record<string, number>
   unitLabels: Record<string, string>
+  roomSelections: ReadonlyArray<{
+    unitId: string
+    label: string
+    quantity: number
+  }>
   pricingCategoryQuantities: Record<string, Record<string, number>>
   pricingCategoryLabels: Record<string, string>
   extraLines: BookingCreateExtraLineInput[]
@@ -134,6 +140,7 @@ export function BookingPreviewCard({
     empty: labels.previewEmpty,
     product: labels.previewProduct,
     departure: labels.previewDeparture,
+    rooms: labels.previewRooms,
     travelers: labels.previewTravelers,
     loading: labels.previewLoading,
     travelerUnnamed: labels.previewTravelerUnnamed,
@@ -185,6 +192,19 @@ export function BookingPreviewCard({
               {previewMessages.departure}
             </span>
             <span className="text-sm">{slotLabel}</span>
+          </div>
+        ) : null}
+
+        {roomSelections.length > 0 ? (
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+              {previewMessages.rooms}
+            </span>
+            <span className="text-sm">
+              {roomSelections
+                .map((room) => `${formatNumber(room.quantity)}× ${room.label}`)
+                .join(" · ")}
+            </span>
           </div>
         ) : null}
 

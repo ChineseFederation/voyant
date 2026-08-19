@@ -1,3 +1,4 @@
+// agent-quality: file-size exception -- owner: bookings-react; pricing preview rows, manual-total handling, and the booking summary remain one presentation contract until a dedicated split preserves their shared state.
 "use client"
 
 import { useProduct } from "@voyant-travel/inventory-react"
@@ -10,6 +11,7 @@ import { usePricingPreview } from "../index.js"
 
 export interface PriceBreakdownLine {
   unitId: string
+  kind?: string
   pricingCategoryId?: string | null
   label: string
   quantity: number
@@ -82,6 +84,7 @@ export interface PriceBreakdownSectionProps {
     perPerson?: string
     perUnit?: string
     perBooking?: string
+    supplement?: string
   }
   onChange?: (value: PriceBreakdownValue) => void
   /**
@@ -229,6 +232,7 @@ export function PriceBreakdownSection({
         providedLines.length > 0
           ? providedLines.map((line, index) => ({
               unitId: `quote:${line.kind}:${index}`,
+              kind: line.kind,
               label: line.label,
               quantity: line.quantity ?? 1,
               unitAmountCents: line.unitAmount,
@@ -601,11 +605,13 @@ export function PriceBreakdownSection({
               {line.pricingBasis ? (
                 <span className="text-xs text-muted-foreground">
                   ·{" "}
-                  {line.pricingBasis === "per_person"
-                    ? merged.perPerson
-                    : line.pricingBasis === "per_booking"
-                      ? merged.perBooking
-                      : merged.perUnit}
+                  {line.kind === "supplement"
+                    ? merged.supplement
+                    : line.pricingBasis === "per_person"
+                      ? merged.perPerson
+                      : line.pricingBasis === "per_booking"
+                        ? merged.perBooking
+                        : merged.perUnit}
                 </span>
               ) : null}
             </div>

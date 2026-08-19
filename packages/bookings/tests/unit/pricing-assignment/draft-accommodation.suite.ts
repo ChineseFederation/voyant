@@ -54,6 +54,59 @@ describe("resolveBookingDraft — accommodation (Moldova DBL shape)", () => {
     expect(result.travelerIndexesByUnitId).toEqual({ u_dbl_room: [0, 1] })
   })
 
+  it("derives person fares from travelers alongside selected room supplements", () => {
+    const units: PricingAssignmentUnit[] = [
+      unit({
+        optionId: "opto_tour",
+        optionUnitId: "u_adult",
+        unitName: "Adult",
+        unitType: "person",
+      }),
+      unit({
+        optionId: "opto_tour",
+        optionUnitId: "u_single",
+        unitName: "SGL",
+        unitType: "room",
+        occupancyMax: 1,
+      }),
+      unit({
+        optionId: "opto_tour",
+        optionUnitId: "u_double",
+        unitName: "DBL",
+        unitType: "room",
+        occupancyMax: 2,
+      }),
+    ]
+    const result = resolveBookingDraft({
+      now: NOW,
+      quantities: { u_single: 1, u_double: 1 },
+      travelers: [
+        traveler({ role: "lead" }),
+        traveler({ role: "adult" }),
+        traveler({ role: "adult" }),
+      ],
+      units,
+      derivePersonQuantitiesForOptionIds: new Set(["opto_tour"]),
+    })
+
+    expect(result.quantities).toEqual({ u_adult: 3, u_single: 1, u_double: 1 })
+    expect(result.travelers.map((entry) => entry.inventoryUnitId)).toEqual([
+      "u_single",
+      "u_double",
+      "u_double",
+    ])
+    expect(result.travelers.map((entry) => entry.pricingUnitId)).toEqual([
+      "u_adult",
+      "u_adult",
+      "u_adult",
+    ])
+    expect(result.travelerIndexesByUnitId).toEqual({
+      u_adult: [0, 1, 2],
+      u_single: [0],
+      u_double: [1, 2],
+    })
+  })
+
   it("preserves valid manual inventory assignments on resolver re-run", () => {
     const result = resolveBookingDraft({
       now: NOW,

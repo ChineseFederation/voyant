@@ -264,6 +264,7 @@ export const bookingsUiEnCreateList = {
       previewProduct: "Product",
       previewDeparture: "Departure",
       previewOptions: "Options",
+      previewRooms: "Rooms",
       previewTravelers: "Travelers",
       previewTotal: "Total",
       previewLoading: "Loading…",

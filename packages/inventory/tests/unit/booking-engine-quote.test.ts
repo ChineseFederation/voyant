@@ -2,6 +2,7 @@ import type {
   ComputeQuoteRequest,
   OwnedHandlerContext,
 } from "@voyant-travel/catalog/booking-engine"
+// agent-quality: file-size exception -- owner: inventory; booking-engine quote modes share one fixture and assertion vocabulary across legacy, supplement, all-in, tiers, and dependency behavior.
 import { describe, expect, it, vi } from "vitest"
 
 import {
@@ -535,6 +536,164 @@ describe("createProductsBookingHandler.computeQuote", () => {
         unitAmount: 198_000,
         totalAmount: 198_000,
         pricingBasis: "per_person",
+      }),
+    ])
+  })
+
+  it("quotes an explicit person fare together with room supplements", async () => {
+    const handler = createProductsBookingHandler({
+      loadSlotDate: async () => "2026-11-09",
+      loadProductOptions: async () => [
+        {
+          id: "opt_standard",
+          name: "Standard",
+          units: [
+            { id: "unit_adult", name: "Adult", unitType: "person" },
+            { id: "unit_single", name: "SGL", unitType: "room" },
+            { id: "unit_double", name: "DBL", unitType: "room" },
+          ],
+        },
+      ],
+      loadResolvedOptionPrice: async () => ({
+        occupancyPriceBasis: "supplement",
+        baseSellAmountCents: 0,
+        unitPrices: [
+          {
+            unitId: "unit_adult",
+            unitType: "person",
+            travelerCategory: null,
+            pricingMode: "per_person",
+            sellAmountCents: 16_500,
+          },
+          {
+            unitId: "unit_single",
+            unitType: "room",
+            travelerCategory: null,
+            pricingMode: "per_person",
+            sellAmountCents: 10_000,
+          },
+          {
+            unitId: "unit_double",
+            unitType: "room",
+            travelerCategory: null,
+            pricingMode: "per_person",
+            sellAmountCents: 0,
+          },
+        ],
+      }),
+    })
+
+    const result = await handler.computeQuote(
+      makeCtx([product]),
+      baseRequest({
+        configure: {
+          departureSlotId: "slot_1",
+          pax: { adult: 3 },
+          optionSelections: [
+            { optionId: "opt_standard", optionUnitId: "unit_adult", quantity: 3 },
+            { optionId: "opt_standard", optionUnitId: "unit_single", quantity: 1 },
+            { optionId: "opt_standard", optionUnitId: "unit_double", quantity: 1 },
+          ],
+        },
+        travelers: [
+          { rowId: "traveler_a", firstName: "A", lastName: "Adult", band: "adult" },
+          { rowId: "traveler_b", firstName: "B", lastName: "Adult", band: "adult" },
+          { rowId: "traveler_c", firstName: "C", lastName: "Adult", band: "adult" },
+        ],
+        accommodation: {
+          travelerAssignments: {
+            traveler_a: "unit_single",
+            traveler_b: "unit_double",
+            traveler_c: "unit_double",
+          },
+        },
+      }),
+    )
+
+    expect(result.available).toBe(true)
+    const breakdown = result.pricing?.breakdown as Record<string, unknown>
+    expect(breakdown?.total).toBe(59_500)
+    expect(breakdown?.lines).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "base",
+          optionUnitId: "unit_adult",
+          label: "Adult",
+          quantity: 3,
+          unitAmount: 16_500,
+          totalAmount: 49_500,
+        }),
+        expect.objectContaining({
+          kind: "supplement",
+          optionUnitId: "unit_single",
+          label: "SGL",
+          quantity: 1,
+          unitAmount: 10_000,
+          totalAmount: 10_000,
+        }),
+      ]),
+    )
+    expect(breakdown?.lines).toHaveLength(2)
+  })
+
+  it("does not add a person fare to an explicitly selected all-in room", async () => {
+    const handler = createProductsBookingHandler({
+      loadSlotDate: async () => "2026-11-09",
+      loadProductOptions: async () => [
+        {
+          id: "opt_standard",
+          name: "Standard",
+          units: [
+            { id: "unit_adult", name: "Adult", unitType: "person" },
+            { id: "unit_double", name: "DBL", unitType: "room" },
+          ],
+        },
+      ],
+      loadResolvedOptionPrice: async () => ({
+        occupancyPriceBasis: "all_in",
+        baseSellAmountCents: 0,
+        unitPrices: [
+          {
+            unitId: "unit_adult",
+            unitType: "person",
+            travelerCategory: null,
+            pricingMode: "per_person",
+            sellAmountCents: 16_500,
+          },
+          {
+            unitId: "unit_double",
+            unitType: "room",
+            travelerCategory: null,
+            pricingMode: "per_unit",
+            sellAmountCents: 49_500,
+          },
+        ],
+      }),
+    })
+
+    const result = await handler.computeQuote(
+      makeCtx([product]),
+      baseRequest({
+        configure: {
+          departureSlotId: "slot_1",
+          pax: { adult: 3 },
+          optionSelections: [
+            { optionId: "opt_standard", optionUnitId: "unit_adult", quantity: 3 },
+            { optionId: "opt_standard", optionUnitId: "unit_double", quantity: 1 },
+          ],
+        },
+      }),
+    )
+
+    expect(result.available).toBe(true)
+    const breakdown = result.pricing?.breakdown as Record<string, unknown>
+    expect(breakdown?.total).toBe(49_500)
+    expect(breakdown?.lines).toEqual([
+      expect.objectContaining({
+        kind: "base",
+        optionUnitId: "unit_double",
+        quantity: 1,
+        totalAmount: 49_500,
       }),
     ])
   })

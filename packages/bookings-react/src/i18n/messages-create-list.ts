@@ -234,6 +234,7 @@ export type BookingsUiCreateListMessages = {
       previewProduct: string
       previewDeparture: string
       previewOptions: string
+      previewRooms: string
       previewTravelers: string
       previewTotal: string
       previewLoading: string
