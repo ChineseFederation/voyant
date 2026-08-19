@@ -1,10 +1,45 @@
 import assert from "node:assert/strict"
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { createRequire } from "node:module"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
 import test from "node:test"
 
 const require = createRequire(import.meta.url)
 const { getReleaseMode } = require("../release-plan.cjs")
-const { collectWorkspaceRangeProblems } = require("../verify-release-config.cjs")
+const {
+  collectReleaseWorkflowProblems,
+  collectWorkspaceRangeProblems,
+} = require("../verify-release-config.cjs")
+
+test("release verification uses the bounded release-specific gate", () => {
+  const cwd = mkdtempSync(join(tmpdir(), "voyant-release-workflow-"))
+  try {
+    const workflowDirectory = join(cwd, ".github/workflows")
+    mkdirSync(workflowDirectory, { recursive: true })
+    writeFileSync(
+      join(workflowDirectory, "release.yml"),
+      `jobs:
+  release:
+    steps:
+      - name: Build pending publish workspaces
+      - name: Verify before publish
+        run: pnpm verify:fast
+      - name: Verify publish tarballs
+      - name: Publish pending packages
+        env:
+          npm_config_ignore_scripts: "true"
+`,
+    )
+
+    assert.match(
+      collectReleaseWorkflowProblems(cwd).join("\n"),
+      /must run pnpm verify:release-ready/,
+    )
+  } finally {
+    rmSync(cwd, { recursive: true, force: true })
+  }
+})
 
 test("release PR creation takes priority over pending publication", () => {
   assert.equal(getReleaseMode(true, true), "version")

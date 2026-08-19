@@ -117,6 +117,7 @@
     "verify:tool-schema-portability": "node --test scripts/tests/check-tool-schema-portability.test.mjs && tsx scripts/check-tool-schema-portability.ts",
     "verify:first-party-tool-output-schemas": "node --test scripts/tests/check-first-party-tool-output-schemas.test.mjs && node scripts/check-first-party-tool-output-schemas.mjs",
     "verify:fast": "pnpm lint:changed && pnpm verify:agent-quality:changed && pnpm verify:operator-product-ui-authority && pnpm verify:date-picker-single-source && pnpm verify:ui-components-barrel && pnpm verify:ui-orientation-selectors && pnpm verify:native-date-inputs && pnpm verify:raw-minor-unit-labels && pnpm typecheck:affected && pnpm test:affected && pnpm verify:architecture",
+    "verify:release-ready": "pnpm lint:changed && pnpm verify:agent-quality:changed && pnpm verify:architecture",
     "verify:full": "pnpm lint && pnpm verify:agent-quality && pnpm verify:operator-product-ui-authority && pnpm verify:date-picker-single-source && pnpm verify:ui-components-barrel && pnpm verify:ui-orientation-selectors && pnpm verify:native-date-inputs && pnpm verify:raw-minor-unit-labels && pnpm typecheck && pnpm test && pnpm verify:architecture && pnpm verify:release-config && pnpm build && pnpm verify:package-exports && pnpm verify:publish-tarballs && pnpm i18n:check",
     "prepare": "husky",
     "regen:routes": "tsx scripts/regen-route-tree.ts",
