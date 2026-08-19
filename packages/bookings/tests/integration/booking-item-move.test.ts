@@ -1,3 +1,4 @@
+// agent-quality: file-size exception -- owner: bookings; one focused live-database suite proves move capacity conservation, rollback, supplier, and replay invariants together.
 /**
  * `item_move` Amendments: carrying a Booking Item to a different departure.
  *
@@ -319,6 +320,169 @@ describe.skipIf(!DB_AVAILABLE)("Booking item move Amendments", () => {
       .from(bookingAllocations)
       .where(eq(bookingAllocations.id, seeded.allocation.id))
     expect(allocation?.availabilitySlotId).toBe(seeded.to.id)
+  })
+
+  it("moves a shared-departure line without releasing the booking's source claim", async () => {
+    const seeded = await seed({ quantity: 2 })
+    await db.update(bookings).set({ pax: 2 }).where(eq(bookings.id, seeded.booking.id))
+    const [sharedItem] = await db
+      .insert(bookingItems)
+      .values({
+        bookingId: seeded.booking.id,
+        title: "Second priced line",
+        status: "confirmed",
+        quantity: 2,
+        sellCurrency: "EUR",
+        unitSellAmountCents: 10_000,
+        totalSellAmountCents: 20_000,
+        productId: seeded.product.id,
+        optionId: seeded.option.id,
+        availabilitySlotId: seeded.from.id,
+      })
+      .returning()
+    const [sharedAllocation] = await db
+      .insert(bookingAllocations)
+      .values({
+        bookingId: seeded.booking.id,
+        bookingItemId: sharedItem!.id,
+        productId: seeded.product.id,
+        availabilitySlotId: seeded.from.id,
+        quantity: 0,
+        status: "confirmed",
+      })
+      .returning()
+
+    const preview = await previewMove({
+      ...seeded,
+      booking: { ...seeded.booking, pax: 2 },
+      item: sharedItem!,
+      allocation: sharedAllocation!,
+    })
+    if (preview.status !== "ok") throw new Error(`Expected preview, received ${preview.status}`)
+    await expect(applyMove(preview.amendment, "move-shared-line")).resolves.toMatchObject({
+      status: "ok",
+    })
+
+    const [from, to] = await Promise.all(
+      [seeded.from.id, seeded.to.id].map(async (id) => {
+        const [slot] = await db
+          .select()
+          .from(availabilitySlotsRef)
+          .where(eq(availabilitySlotsRef.id, id))
+        return slot!
+      }),
+    )
+    expect(from.remainingPax).toBe(0)
+    expect(to.remainingPax).toBe(6)
+
+    const allocations = await db
+      .select()
+      .from(bookingAllocations)
+      .where(eq(bookingAllocations.bookingId, seeded.booking.id))
+    expect(
+      allocations
+        .map((allocation) => [allocation.availabilitySlotId, allocation.quantity])
+        .sort(([left], [right]) => String(left).localeCompare(String(right))),
+    ).toEqual(
+      [
+        [seeded.from.id, 2],
+        [seeded.to.id, 2],
+      ].sort(([left], [right]) => String(left).localeCompare(String(right))),
+    )
+  })
+
+  it("releases a legacy duplicate source claim while moving one shared line", async () => {
+    const seeded = await seed({ quantity: 2 })
+    await db.update(bookings).set({ pax: 2 }).where(eq(bookings.id, seeded.booking.id))
+    const [peerItem] = await db
+      .insert(bookingItems)
+      .values({
+        bookingId: seeded.booking.id,
+        title: "Legacy duplicate line",
+        status: "confirmed",
+        quantity: 2,
+        sellCurrency: "EUR",
+        unitSellAmountCents: 10_000,
+        totalSellAmountCents: 20_000,
+        productId: seeded.product.id,
+        optionId: seeded.option.id,
+        availabilitySlotId: seeded.from.id,
+      })
+      .returning()
+    await db.insert(bookingAllocations).values({
+      bookingId: seeded.booking.id,
+      bookingItemId: peerItem!.id,
+      productId: seeded.product.id,
+      availabilitySlotId: seeded.from.id,
+      quantity: 2,
+      status: "confirmed",
+    })
+
+    const preview = await previewMove({
+      ...seeded,
+      booking: { ...seeded.booking, pax: 2 },
+    })
+    if (preview.status !== "ok") throw new Error(`Expected preview, received ${preview.status}`)
+    await expect(applyMove(preview.amendment, "move-legacy-duplicate")).resolves.toMatchObject({
+      status: "ok",
+    })
+
+    expect((await readSlot(seeded.from.id))?.remainingPax).toBe(2)
+    expect((await readSlot(seeded.to.id))?.remainingPax).toBe(6)
+    const allocations = await db
+      .select()
+      .from(bookingAllocations)
+      .where(eq(bookingAllocations.bookingId, seeded.booking.id))
+    expect(allocations.reduce((sum, allocation) => sum + allocation.quantity, 0)).toBe(4)
+  })
+
+  it("revalidates a closed target even when the booking already claims its capacity", async () => {
+    const seeded = await seed({ quantity: 2 })
+    await db.update(bookings).set({ pax: 2 }).where(eq(bookings.id, seeded.booking.id))
+    const [targetItem] = await db
+      .insert(bookingItems)
+      .values({
+        bookingId: seeded.booking.id,
+        title: "Existing target service",
+        status: "confirmed",
+        quantity: 2,
+        sellCurrency: "EUR",
+        unitSellAmountCents: 10_000,
+        totalSellAmountCents: 20_000,
+        productId: seeded.product.id,
+        optionId: seeded.option.id,
+        availabilitySlotId: seeded.to.id,
+      })
+      .returning()
+    await db.insert(bookingAllocations).values({
+      bookingId: seeded.booking.id,
+      bookingItemId: targetItem!.id,
+      productId: seeded.product.id,
+      availabilitySlotId: seeded.to.id,
+      quantity: 2,
+      status: "confirmed",
+    })
+    await db
+      .update(availabilitySlotsRef)
+      .set({ remainingPax: 6 })
+      .where(eq(availabilitySlotsRef.id, seeded.to.id))
+
+    const preview = await previewMove({
+      ...seeded,
+      booking: { ...seeded.booking, pax: 2 },
+    })
+    if (preview.status !== "ok") throw new Error(`Expected preview, received ${preview.status}`)
+    await db
+      .update(availabilitySlotsRef)
+      .set({ status: "closed" })
+      .where(eq(availabilitySlotsRef.id, seeded.to.id))
+
+    await expect(
+      applyMove(preview.amendment, "move-closed-preclaimed-target"),
+    ).resolves.toMatchObject({ status: "availability_changed" })
+    const [item] = await db.select().from(bookingItems).where(eq(bookingItems.id, seeded.item.id))
+    expect(item?.availabilitySlotId).toBe(seeded.from.id)
+    expect((await readSlot(seeded.from.id))?.remainingPax).toBe(0)
   })
 
   it("refuses a departure that cannot seat the booking", async () => {

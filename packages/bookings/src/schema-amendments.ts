@@ -122,6 +122,12 @@ export interface BookingAmendmentItemAddPlan {
   optionId: string | null
   optionUnitId: string | null
   availabilitySlotId: string | null
+  /**
+   * Passenger-denominated claim this Booking should hold on the departure.
+   * Commercial line quantity is not capacity: several priced lines can
+   * describe the same travelers on the same departure.
+   */
+  capacityClaimQuantity: number
   quantity: number
   title: string
   sellCurrency: string
@@ -155,6 +161,12 @@ export interface BookingAmendmentItemMovePlan {
    */
   allocationId: string
   quantity: number
+  /** Passenger capacity released from the old departure by this move. */
+  fromCapacityQuantity: number
+  /** Passenger capacity claimed on the target departure by this move. */
+  toCapacityQuantity: number
+  /** Existing source allocation that carries the claim when this line leaves. */
+  sourceClaimCarrierAllocationId: string | null
   productId: string | null
   /** Departure the item is leaving. Null when it was never scheduled. */
   fromAvailabilitySlotId: string | null
