@@ -1,6 +1,6 @@
 import type { VoyantRuntimeHostPrimitives } from "@voyant-travel/core"
-import { beforeEach, describe, expect, it, vi } from "vitest"
 import { inquiryDetailPathTemplate } from "@voyant-travel/relationships-contracts"
+import { beforeEach, describe, expect, it, vi } from "vitest"
 
 const resolveInvoicePayUrlTemplate = vi.fn<() => Promise<string | null>>()
 vi.mock("@voyant-travel/operator-settings/service", () => ({

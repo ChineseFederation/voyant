@@ -1,10 +1,10 @@
-import { generateLinkTableSql } from "@voyant-travel/core"
 import { appendActionLedgerMutation } from "@voyant-travel/action-ledger"
 import { actionLedgerEntries } from "@voyant-travel/action-ledger/schema"
+import { generateLinkTableSql } from "@voyant-travel/core"
 import { createLinkService } from "@voyant-travel/db/links"
 import { eventOutboxTable } from "@voyant-travel/db/schema"
-import { inquiryListQuerySchema } from "@voyant-travel/relationships-contracts"
 import { mediaAsset } from "@voyant-travel/media/schema"
+import { inquiryListQuerySchema } from "@voyant-travel/relationships-contracts"
 import { eq, sql } from "drizzle-orm"
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -419,9 +419,7 @@ describe.skipIf(!DB_AVAILABLE)("inquiriesService", () => {
       },
     )
 
-    expect(
-      await db.select().from(activities).where(eq(activities.id, activity.id)),
-    ).toEqual([
+    expect(await db.select().from(activities).where(eq(activities.id, activity.id))).toEqual([
       expect.objectContaining({
         subject: "Person-owned consultation",
         description: "Text that belongs to the Person timeline",

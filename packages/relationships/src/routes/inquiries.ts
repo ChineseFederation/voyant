@@ -15,17 +15,15 @@ import {
 } from "@voyant-travel/hono"
 import {
   addInquiryTargetSchema,
-  inquiryActivityListQuerySchema,
-  inquiryActivityListResponseSchema,
   attachInquiryAssetSchema,
   eraseInquiryPrivacySchema,
-  type InquiryBookingConversionResult,
-  type InquiryProposalConversionResult,
+  inquiryActivityListQuerySchema,
+  inquiryActivityListResponseSchema,
+  inquiryAttachmentResponseSchema,
+  inquiryAttachmentsResponseSchema,
   inquiryBookingConversionRefusalSchema,
   inquiryBookingConversionResultSchema,
   inquiryCreateResponseSchema,
-  inquiryAttachmentResponseSchema,
-  inquiryAttachmentsResponseSchema,
   inquiryListResponseSchema,
   inquiryPrivacyExportResponseSchema,
   inquiryProposalConversionRefusalSchema,
@@ -39,8 +37,8 @@ import {
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { Context } from "hono"
 import {
-  INQUIRY_PRIVATE_DATA_READ_CAPABILITY,
   INQUIRY_PRIVACY_ERASURE_CAPABILITY,
+  INQUIRY_PRIVATE_DATA_READ_CAPABILITY,
 } from "../action-ledger-capabilities.js"
 import {
   RELATIONSHIPS_ROUTE_RUNTIME_CONTAINER_KEY,
@@ -105,9 +103,7 @@ function actionLedgerContext(c: Context<Env>): ActionLedgerRequestContextValues 
 function inquiryPrivateAccess(c: Context<Env>, action: "read" | "delete") {
   return evaluateActionLedgerCapabilityAccess({
     definition:
-      action === "read"
-        ? INQUIRY_PRIVATE_DATA_READ_CAPABILITY
-        : INQUIRY_PRIVACY_ERASURE_CAPABILITY,
+      action === "read" ? INQUIRY_PRIVATE_DATA_READ_CAPABILITY : INQUIRY_PRIVACY_ERASURE_CAPABILITY,
     actor: c.get("actor") ?? null,
     callerType: c.get("callerType") ?? null,
     scopes: c.get("scopes") ?? null,
@@ -298,7 +294,10 @@ const attachAssetRoute = createRoute({
     201: { description: "Attached Media asset", ...jsonContent(inquiryAttachmentResponseSchema) },
     404: { description: "Inquiry or Media asset not found", ...jsonContent(errorResponseSchema) },
     409: { description: "Attachment conflict", ...jsonContent(errorResponseSchema) },
-    503: { description: "Media attachment authority unavailable", ...jsonContent(errorResponseSchema) },
+    503: {
+      description: "Media attachment authority unavailable",
+      ...jsonContent(errorResponseSchema),
+    },
   },
 })
 const updateAttachmentRoute = createRoute({
@@ -309,7 +308,10 @@ const updateAttachmentRoute = createRoute({
     ...requiredJsonBody(updateInquiryAttachmentSchema),
   },
   responses: {
-    200: { description: "Updated attachment caption", ...jsonContent(inquiryAttachmentResponseSchema) },
+    200: {
+      description: "Updated attachment caption",
+      ...jsonContent(inquiryAttachmentResponseSchema),
+    },
     404: { description: "Inquiry attachment not found", ...jsonContent(errorResponseSchema) },
     409: { description: "Attachment conflict", ...jsonContent(errorResponseSchema) },
     503: { description: "Inquiry service unavailable", ...jsonContent(errorResponseSchema) },
@@ -332,7 +334,10 @@ const downloadAttachmentRoute = createRoute({
     200: { description: "Authenticated private Inquiry attachment bytes" },
     403: { description: "Relationship PII grant required", ...jsonContent(errorResponseSchema) },
     404: { description: "Inquiry attachment not found", ...jsonContent(errorResponseSchema) },
-    503: { description: "Media attachment authority unavailable", ...jsonContent(errorResponseSchema) },
+    503: {
+      description: "Media attachment authority unavailable",
+      ...jsonContent(errorResponseSchema),
+    },
   },
 })
 const privacyExportRoute = createRoute({
@@ -340,7 +345,10 @@ const privacyExportRoute = createRoute({
   path: "/inquiries/{id}/privacy-export",
   request: { params: idParamSchema },
   responses: {
-    200: { description: "Inquiry privacy export", ...jsonContent(inquiryPrivacyExportResponseSchema) },
+    200: {
+      description: "Inquiry privacy export",
+      ...jsonContent(inquiryPrivacyExportResponseSchema),
+    },
     403: { description: "Relationship PII grant required", ...jsonContent(errorResponseSchema) },
     404: { description: "Inquiry not found", ...jsonContent(errorResponseSchema) },
     409: { description: "Inquiry export conflict", ...jsonContent(errorResponseSchema) },
@@ -353,10 +361,16 @@ const privacyErasureRoute = createRoute({
   request: { params: idParamSchema, ...requiredJsonBody(eraseInquiryPrivacySchema) },
   responses: {
     200: { description: "Privacy-erased inquiry", ...inquiryResponse },
-    403: { description: "Relationship PII erase grant required", ...jsonContent(errorResponseSchema) },
+    403: {
+      description: "Relationship PII erase grant required",
+      ...jsonContent(errorResponseSchema),
+    },
     404: { description: "Inquiry not found", ...jsonContent(errorResponseSchema) },
     409: { description: "Inquiry conflict", ...jsonContent(errorResponseSchema) },
-    503: { description: "Media attachment authority unavailable", ...jsonContent(errorResponseSchema) },
+    503: {
+      description: "Media attachment authority unavailable",
+      ...jsonContent(errorResponseSchema),
+    },
   },
 })
 
@@ -499,7 +513,11 @@ inquiryRoutes.openapi(listRoute, async (c) => {
         result.data.map(async (inquiry) => ({
           ...inquiry,
           targets: targets.get(inquiry.id) ?? [],
-          attachments: await relationshipsService.listInquiryAttachments(db, requireLink(c), inquiry.id),
+          attachments: await relationshipsService.listInquiryAttachments(
+            db,
+            requireLink(c),
+            inquiry.id,
+          ),
         })),
       ),
     },
@@ -660,7 +678,10 @@ inquiryRoutes.openapi(listAttachmentsRoute, async (c) => {
   const { id } = c.req.valid("param")
   const inquiry = await relationshipsService.getInquiry(c.get("db"), id)
   if (!inquiry) return c.json({ error: "Inquiry not found" }, 404)
-  return c.json({ data: await relationshipsService.listInquiryAttachments(c.get("db"), requireLink(c), id) }, 200)
+  return c.json(
+    { data: await relationshipsService.listInquiryAttachments(c.get("db"), requireLink(c), id) },
+    200,
+  )
 })
 inquiryRoutes.openapi(attachAssetRoute, async (c) => {
   try {

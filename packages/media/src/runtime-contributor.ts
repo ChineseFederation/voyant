@@ -2,15 +2,14 @@ import type { VoyantRuntimeHostPrimitives } from "@voyant-travel/core"
 import type { StorageProvider } from "@voyant-travel/storage"
 import { and, eq, inArray, lte, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
-
-import { mediaAsset, mediaPrivateDocumentDeletion } from "./schema.js"
-import { countAssetUsage, recordAssetUsage, removeAssetUsage } from "./service.js"
-import { computeChecksum, mediaStorageKey, toBytes } from "./storage-key.js"
 import {
   mediaInquiryAttachmentRuntimePort,
   mediaPreparedAttachmentCleanupRuntimePort,
   type PreparedInquiryAttachment,
 } from "./runtime-port.js"
+import { mediaAsset, mediaPrivateDocumentDeletion } from "./schema.js"
+import { countAssetUsage, recordAssetUsage, removeAssetUsage } from "./service.js"
+import { computeChecksum, mediaStorageKey, toBytes } from "./storage-key.js"
 
 const INQUIRY_USAGE_TYPE = "inquiry_attachment"
 const SUPPORTED_PRIVATE_DOCUMENT_MIME_TYPES = new Set([
@@ -42,7 +41,9 @@ function ownedOperationToken(marker: AttachmentMarker | undefined, operationKey:
   return typeof token === "string" ? token : undefined
 }
 
-function attachmentMarker(providerMeta: Record<string, unknown> | null): AttachmentMarker | undefined {
+function attachmentMarker(
+  providerMeta: Record<string, unknown> | null,
+): AttachmentMarker | undefined {
   return providerMeta?.inquiryAttachment as AttachmentMarker | undefined
 }
 
@@ -360,7 +361,10 @@ export function createMediaRuntimePortContribution(host: {
         .from(mediaAsset)
         .where(eq(mediaAsset.id, assetId))
         .limit(1)
-      const storage = host.primitives.storage.resolve(bindings, "documents") as StorageProvider | null
+      const storage = host.primitives.storage.resolve(
+        bindings,
+        "documents",
+      ) as StorageProvider | null
       const body = stored ? await storage?.get(stored.storageKey) : null
       return body ? { ...asset, body } : null
     },
@@ -420,7 +424,10 @@ export function createMediaRuntimePortContribution(host: {
           .from(mediaPrivateDocumentDeletion)
           .where(lte(mediaPrivateDocumentDeletion.nextAttemptAt, new Date()))
           .limit(100)
-        const storage = host.primitives.storage.resolve(bindings, "documents") as StorageProvider | null
+        const storage = host.primitives.storage.resolve(
+          bindings,
+          "documents",
+        ) as StorageProvider | null
         for (const deletion of deletions) {
           const ready = await db.transaction(async (tx) => {
             const [asset] = await tx

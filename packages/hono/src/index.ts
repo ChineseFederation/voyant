@@ -1,10 +1,5 @@
 export type { VoyantPermission } from "@voyant-travel/core"
 export {
-  requireAdditionalPermission,
-  type RequestPermissionAuthorizer,
-  type RequestPermissionDecision,
-} from "./middleware/request-permission.js"
-export {
   assembleAnonymousPaths,
   assembleGuardedIntakePaths,
   assembleOptionalCustomerAuthPaths,
@@ -93,6 +88,11 @@ export {
   requireKeyCapability,
   requirePermission,
 } from "./middleware/index.js"
+export {
+  type RequestPermissionAuthorizer,
+  type RequestPermissionDecision,
+  requireAdditionalPermission,
+} from "./middleware/request-permission.js"
 export type { ApiExtension, ApiModule } from "./module.js"
 export type { ErrorEvent, Reporter } from "./observability/index.js"
 export {

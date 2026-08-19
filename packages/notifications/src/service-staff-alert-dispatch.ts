@@ -24,8 +24,8 @@ import {
 import { getStaffAlertSetting, listStaffAlertOptOutUserIds } from "./service-staff-alerts.js"
 import {
   getStaffAlertDefinition,
-  type StaffAlertContextMap,
   type StaffAlertAdminDestinationResolver,
+  type StaffAlertContextMap,
   type StaffAlertContextResolverRegistry,
   type StaffAlertEventKey,
 } from "./staff-alert-registry.js"

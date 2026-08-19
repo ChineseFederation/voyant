@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest"
 import { inquiryTargetAuthorityRuntimePort } from "@voyant-travel/relationships-contracts/inquiry-target-authority/runtime-port"
+import { describe, expect, it } from "vitest"
 import { operationsDashboardVoyantModule, operationsVoyantModule } from "../../src/voyant.js"
 
 describe("operations deployment manifest", () => {

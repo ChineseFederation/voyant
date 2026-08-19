@@ -5,21 +5,21 @@ import { insertOutboxEvents } from "@voyant-travel/db/outbox"
 import type { MediaInquiryAttachmentRuntime } from "@voyant-travel/media/runtime-port"
 import type {
   AddInquiryTargetInput,
-  AttachInquiryAssetInput,
   AssignInquiryInput,
+  AttachInquiryAssetInput,
   CloseInquiryInput,
   CreateInquiryInput,
   CreatePublicInquiryInput,
   EraseInquiryPrivacyInput,
-  InquiryListQueryInput,
   InquiryAttachmentRecord,
+  InquiryListQueryInput,
   InquiryStatus,
   InquiryTargetRecord,
   RecordInquiryActivityInput,
   ReopenInquiryInput,
   TransitionInquiryInput,
-  UpdateInquiryInput,
   UpdateInquiryAttachmentInput,
+  UpdateInquiryInput,
 } from "@voyant-travel/relationships-contracts"
 import type { InquiryMaterializedTargetKind } from "@voyant-travel/relationships-contracts/inquiry-target-authority/runtime-port"
 import {
@@ -452,7 +452,9 @@ export const inquiriesService = {
       .where(eq(inquiryAttachmentSnapshots.inquiryId, inquiryId))
       .orderBy(asc(inquiryAttachmentSnapshots.createdAt), asc(inquiryAttachmentSnapshots.linkId))
     const active = new Set(
-      (await link.list(inquiryMediaAssetLink.tableName, { leftId: inquiryId })).map((row) => row.id),
+      (await link.list(inquiryMediaAssetLink.tableName, { leftId: inquiryId })).map(
+        (row) => row.id,
+      ),
     )
     return rows.filter((row) => active.has(row.linkId)).map(serializeAttachment)
   },
@@ -693,7 +695,9 @@ export const inquiriesService = {
       await transactionLink.delete(inquiryMediaAssetLink.tableName, inquiryId, row.assetId)
       await authority.releasePrivateDocument(tx, row.assetId, row.linkId)
       await authority.requestPrivateDocumentPurge(tx, row.assetId)
-      await tx.delete(inquiryAttachmentSnapshots).where(eq(inquiryAttachmentSnapshots.linkId, linkId))
+      await tx
+        .delete(inquiryAttachmentSnapshots)
+        .where(eq(inquiryAttachmentSnapshots.linkId, linkId))
       await writeInquiryEvent(tx, INQUIRY_UPDATED_EVENT, {
         id: inquiryId,
         actorId,

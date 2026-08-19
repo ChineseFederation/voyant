@@ -9,7 +9,6 @@ import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { createMediaRuntimePortContribution } from "./runtime-contributor.js"
-import { createMediaAsset } from "./service.js"
 import {
   type MediaInquiryAttachmentRuntime,
   type MediaPreparedAttachmentCleanupRuntime,
@@ -17,6 +16,7 @@ import {
   mediaPreparedAttachmentCleanupRuntimePort,
 } from "./runtime-port.js"
 import * as schema from "./schema.js"
+import { createMediaAsset } from "./service.js"
 
 const migrationsDir = fileURLToPath(new URL("../migrations/", import.meta.url))
 const migrations = () =>
@@ -66,13 +66,16 @@ describe("Media Inquiry attachment owner runtime", () => {
   afterEach(async () => client.close())
 
   it("hides and removes an unclaimed preparation after its bounded TTL", async () => {
-    const prepared = await attachments.preparePrivateDocument({}, {
-      operationKey: "test_cleanup_operation",
-      name: "brief.pdf",
-      mimeType: "application/pdf",
-      body: new TextEncoder().encode("cleanup").buffer,
-      createdBy: "user_1",
-    })
+    const prepared = await attachments.preparePrivateDocument(
+      {},
+      {
+        operationKey: "test_cleanup_operation",
+        name: "brief.pdf",
+        mimeType: "application/pdf",
+        body: new TextEncoder().encode("cleanup").buffer,
+        createdBy: "user_1",
+      },
+    )
     expect(await attachments.resolvePrivateDocument(db, prepared.id)).toBeNull()
     expect(await cleanup.cleanup({}, new Date(Date.now() + 1_000))).toBeGreaterThan(0)
     expect(await attachments.resolvePrivateDocument(db, prepared.id)).toBeNull()
@@ -101,9 +104,7 @@ describe("Media Inquiry attachment owner runtime", () => {
     await expect(attachments.finalizePrivateDocument({}, foreign)).rejects.toThrow(
       "another operation",
     )
-    await expect(attachments.abortPrivateDocument({}, foreign)).rejects.toThrow(
-      "another operation",
-    )
+    await expect(attachments.abortPrivateDocument({}, foreign)).rejects.toThrow("another operation")
     expect(await attachments.resolvePrivateDocument(db, prepared.id)).toMatchObject({
       id: prepared.id,
       name: "Private Inquiry document",
@@ -114,13 +115,16 @@ describe("Media Inquiry attachment owner runtime", () => {
   })
 
   it("reconciles a committed Media usage claim when finalize was lost", async () => {
-    const prepared = await attachments.preparePrivateDocument({}, {
-      operationKey: "test_linked_operation",
-      name: "linked-brief.pdf",
-      mimeType: "application/pdf",
-      body: new TextEncoder().encode("linked-cleanup").buffer,
-      createdBy: "user_1",
-    })
+    const prepared = await attachments.preparePrivateDocument(
+      {},
+      {
+        operationKey: "test_linked_operation",
+        name: "linked-brief.pdf",
+        mimeType: "application/pdf",
+        body: new TextEncoder().encode("linked-cleanup").buffer,
+        createdBy: "user_1",
+      },
+    )
     await attachments.claimPrivateDocument(db, prepared, "test_committed_link")
 
     expect(await cleanup.cleanup({}, new Date(Date.now() + 1_000))).toBe(1)
@@ -148,13 +152,16 @@ describe("Media Inquiry attachment owner runtime", () => {
       },
       body,
     )
-    const prepared = await attachments.preparePrivateDocument({}, {
-      operationKey: "test_dedup_operation",
-      name: "library.pdf",
-      mimeType: "application/pdf",
-      body,
-      createdBy: "user_1",
-    })
+    const prepared = await attachments.preparePrivateDocument(
+      {},
+      {
+        operationKey: "test_dedup_operation",
+        name: "library.pdf",
+        mimeType: "application/pdf",
+        body,
+        createdBy: "user_1",
+      },
+    )
     expect(prepared.id).not.toBe(direct.asset.id)
     expect(prepared.created).toBe(true)
     const rows = await db
@@ -166,45 +173,57 @@ describe("Media Inquiry attachment owner runtime", () => {
         { id: prepared.id, dedupScope: "inquiry-private" },
       ]),
     )
-    const retry = await attachments.preparePrivateDocument({}, {
-      operationKey: "test_dedup_operation",
-      name: "library.pdf",
-      mimeType: "application/pdf",
-      body,
-      createdBy: "user_1",
-    })
+    const retry = await attachments.preparePrivateDocument(
+      {},
+      {
+        operationKey: "test_dedup_operation",
+        name: "library.pdf",
+        mimeType: "application/pdf",
+        body,
+        createdBy: "user_1",
+      },
+    )
     expect(retry).toMatchObject({ id: prepared.id, created: false })
     await attachments.claimPrivateDocument(db, retry, "test_dedup_usage")
     await attachments.finalizePrivateDocument({}, retry)
     expect(await attachments.resolvePrivateDocument(db, retry.id)).not.toBeNull()
 
-    const pending = await attachments.preparePrivateDocument({}, {
-      operationKey: "test_owner_operation",
-      name: "pending.pdf",
-      mimeType: "application/pdf",
-      body: new TextEncoder().encode("pending-document").buffer,
-      createdBy: "user_1",
-    })
-    await expect(
-      attachments.preparePrivateDocument({}, {
-        operationKey: "test_foreign_operation",
+    const pending = await attachments.preparePrivateDocument(
+      {},
+      {
+        operationKey: "test_owner_operation",
         name: "pending.pdf",
         mimeType: "application/pdf",
         body: new TextEncoder().encode("pending-document").buffer,
-        createdBy: "user_2",
-      }),
+        createdBy: "user_1",
+      },
+    )
+    await expect(
+      attachments.preparePrivateDocument(
+        {},
+        {
+          operationKey: "test_foreign_operation",
+          name: "pending.pdf",
+          mimeType: "application/pdf",
+          body: new TextEncoder().encode("pending-document").buffer,
+          createdBy: "user_2",
+        },
+      ),
     ).rejects.toThrow("another operation")
     await attachments.abortPrivateDocument({}, pending)
   })
 
   it("durably purges released documents and never age-deletes claimed documents", async () => {
-    const unreferenced = await attachments.preparePrivateDocument({}, {
-      operationKey: "test_purge_operation",
-      name: "free.pdf",
-      mimeType: "application/pdf",
-      body: new TextEncoder().encode("free").buffer,
-      createdBy: "user_1",
-    })
+    const unreferenced = await attachments.preparePrivateDocument(
+      {},
+      {
+        operationKey: "test_purge_operation",
+        name: "free.pdf",
+        mimeType: "application/pdf",
+        body: new TextEncoder().encode("free").buffer,
+        createdBy: "user_1",
+      },
+    )
     await attachments.claimPrivateDocument(db, unreferenced, "test_purge_usage")
     await attachments.finalizePrivateDocument({}, unreferenced)
     await attachments.releasePrivateDocument(db, unreferenced.id, "test_purge_usage")
@@ -212,13 +231,16 @@ describe("Media Inquiry attachment owner runtime", () => {
     expect(await cleanup.cleanup({}, new Date(Date.now() + 1_000))).toBeGreaterThan(0)
     expect(await attachments.resolvePrivateDocument(db, unreferenced.id)).toBeNull()
 
-    const linked = await attachments.preparePrivateDocument({}, {
-      operationKey: "test_retained_operation",
-      name: "retained.pdf",
-      mimeType: "application/pdf",
-      body: new TextEncoder().encode("retained").buffer,
-      createdBy: "user_1",
-    })
+    const linked = await attachments.preparePrivateDocument(
+      {},
+      {
+        operationKey: "test_retained_operation",
+        name: "retained.pdf",
+        mimeType: "application/pdf",
+        body: new TextEncoder().encode("retained").buffer,
+        createdBy: "user_1",
+      },
+    )
     await attachments.claimPrivateDocument(db, linked, "test_retained_usage")
     await attachments.finalizePrivateDocument({}, linked)
     expect(await cleanup.cleanup({}, new Date(Date.now() + 365 * 24 * 60 * 60 * 1_000))).toBe(0)
@@ -226,13 +248,16 @@ describe("Media Inquiry attachment owner runtime", () => {
   })
 
   it("cancels a queued purge when a new usage is claimed before deletion starts", async () => {
-    const prepared = await attachments.preparePrivateDocument({}, {
-      operationKey: "test_reclaim_operation",
-      name: "reclaimed.pdf",
-      mimeType: "application/pdf",
-      body: new TextEncoder().encode("reclaimed").buffer,
-      createdBy: "user_1",
-    })
+    const prepared = await attachments.preparePrivateDocument(
+      {},
+      {
+        operationKey: "test_reclaim_operation",
+        name: "reclaimed.pdf",
+        mimeType: "application/pdf",
+        body: new TextEncoder().encode("reclaimed").buffer,
+        createdBy: "user_1",
+      },
+    )
     await attachments.claimPrivateDocument(db, prepared, "test_old_usage")
     await attachments.finalizePrivateDocument({}, prepared)
     await attachments.releasePrivateDocument(db, prepared.id, "test_old_usage")
@@ -250,13 +275,16 @@ describe("Media Inquiry attachment owner runtime", () => {
   })
 
   it("retries durable deletion after object storage fails", async () => {
-    const prepared = await attachments.preparePrivateDocument({}, {
-      operationKey: "test_storage_retry",
-      name: "retry.pdf",
-      mimeType: "application/pdf",
-      body: new TextEncoder().encode("retry-delete").buffer,
-      createdBy: "user_1",
-    })
+    const prepared = await attachments.preparePrivateDocument(
+      {},
+      {
+        operationKey: "test_storage_retry",
+        name: "retry.pdf",
+        mimeType: "application/pdf",
+        body: new TextEncoder().encode("retry-delete").buffer,
+        createdBy: "user_1",
+      },
+    )
     await attachments.claimPrivateDocument(db, prepared, "test_storage_usage")
     await attachments.finalizePrivateDocument({}, prepared)
     await attachments.releasePrivateDocument(db, prepared.id, "test_storage_usage")

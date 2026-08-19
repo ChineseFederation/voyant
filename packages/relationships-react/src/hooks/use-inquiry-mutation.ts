@@ -3,9 +3,9 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import {
   type AssignInquiryInput,
-  inquiryAttachmentResponseSchema,
   type CloseInquiryInput,
   type CreateInquiryInput,
+  inquiryAttachmentResponseSchema,
   inquiryBookingConversionResultSchema,
   inquiryCreateResponseSchema,
   inquiryProposalConversionResultSchema,
@@ -135,8 +135,8 @@ export function useInquiryMutation() {
       const uploaded = await client.fetcher(
         `${base}${basePath}/${encodeURIComponent(id)}/attachments/upload`,
         {
-        method: "POST",
-        body: form,
+          method: "POST",
+          body: form,
         },
       )
       if (!uploaded.ok) throw new Error("Private document upload failed")
@@ -148,7 +148,15 @@ export function useInquiryMutation() {
     },
   })
   const updateAttachment = useMutation({
-    mutationFn: async ({ id, linkId, caption }: { id: string; linkId: string; caption: string | null }) => {
+    mutationFn: async ({
+      id,
+      linkId,
+      caption,
+    }: {
+      id: string
+      linkId: string
+      caption: string | null
+    }) => {
       const { data } = await fetchWithValidation(
         `${basePath}/${encodeURIComponent(id)}/attachments/${encodeURIComponent(linkId)}`,
         inquiryAttachmentResponseSchema,

@@ -5,9 +5,8 @@ import {
 import type { CreateInquiryInput } from "@voyant-travel/relationships-contracts"
 import type { ToolHandlerActionPolicyContext } from "@voyant-travel/tools"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
-import type { InquiryFirstResponseSlaPolicy } from "./inquiry-sla-policy.js"
-
 import { RELATIONSHIPS_INQUIRY_CREATED_TARGET_POLICY as POLICY } from "./created-target-policy.js"
+import type { InquiryFirstResponseSlaPolicy } from "./inquiry-sla-policy.js"
 import { relationshipsService } from "./service/index.js"
 
 export interface InquiryCreateCommandInput {

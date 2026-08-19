@@ -49,8 +49,8 @@ import {
   rateLimit,
   resolveRateLimitStore,
 } from "./middleware/rate-limit.js"
-import { requireActor } from "./middleware/require-actor.js"
 import { installRequestPermissionAuthorizer } from "./middleware/request-permission.js"
+import { requireActor } from "./middleware/require-actor.js"
 import { securityHeaders } from "./middleware/security-headers.js"
 import { resolveSurfaceMountPath } from "./mount-paths.js"
 import { noopReporter, safeCaptureException } from "./observability/reporter.js"
