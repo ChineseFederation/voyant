@@ -6,18 +6,27 @@ import { departureLinkable } from "@voyant-travel/operations/linkables"
 import { inquiryLinkable } from "./linkables.js"
 
 /** Materialized target kinds currently backed by package-owned linkables. */
-export const inquiryProductLink = defineLink(inquiryLinkable, {
-  linkable: inventoryProductLinkable,
-  isList: true,
-})
+export const inquiryProductLink = defineLink(
+  { linkable: inquiryLinkable, isList: true },
+  {
+    linkable: inventoryProductLinkable,
+    isList: true,
+  },
+)
 
-export const inquiryOptionUnitLink = defineLink(inquiryLinkable, {
-  linkable: departureLinkable,
-  isList: true,
-})
+export const inquiryOptionUnitLink = defineLink(
+  { linkable: inquiryLinkable, isList: true },
+  {
+    linkable: departureLinkable,
+    isList: true,
+  },
+)
 
 /** Inquiry attachments remain Media-owned assets; this pivot only records association. */
-export const inquiryMediaAssetLink = defineLink(inquiryLinkable, {
-  linkable: mediaAssetLinkable,
-  isList: true,
-})
+export const inquiryMediaAssetLink = defineLink(
+  { linkable: inquiryLinkable, isList: true },
+  {
+    linkable: mediaAssetLinkable,
+    isList: true,
+  },
+)

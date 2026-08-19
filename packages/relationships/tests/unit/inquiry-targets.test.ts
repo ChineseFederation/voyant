@@ -1,9 +1,19 @@
 import { describe, expect, it, vi } from "vitest"
 
 import { type InquiryServiceError, inquiriesService } from "../../src/service/inquiries.js"
-import { inquiryProductLink } from "../../src/standard-links.js"
+import {
+  inquiryMediaAssetLink,
+  inquiryOptionUnitLink,
+  inquiryProductLink,
+} from "../../src/standard-links.js"
 
 describe("Inquiry targets", () => {
+  it("allows the same owner target to be linked from multiple inquiries", () => {
+    for (const definition of [inquiryProductLink, inquiryOptionUnitLink, inquiryMediaAssetLink]) {
+      expect(definition.cardinality).toBe("many-to-many")
+    }
+  })
+
   it("resolves a selected targetLinkId only when its standard link is active", async () => {
     const snapshot = {
       linkId: "link_1",
