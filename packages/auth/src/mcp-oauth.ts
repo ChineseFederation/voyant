@@ -38,6 +38,9 @@ export const MCP_OAUTH_SCOPES = [
   MCP_OAUTH_SCOPE_OFFLINE,
 ] as const
 
+/** Scopes enforced by the MCP resource server itself (RFC 9728 metadata). */
+export const MCP_RESOURCE_SCOPES = [MCP_OAUTH_SCOPE_READ, MCP_OAUTH_SCOPE_WRITE] as const
+
 /**
  * The one action name treated as non-mutating. The access catalog convention is
  * `read` / `write` / `delete`, so anything that is not exactly `read` is
@@ -124,7 +127,9 @@ export function mcpProtectedResourceMetadata(input: {
   return {
     resource: input.resource,
     authorization_servers: [input.authorizationServer],
-    scopes_supported: [...MCP_OAUTH_SCOPES],
+    // `offline_access` requests refresh tokens from the authorization server;
+    // it is not a capability enforced by this resource server.
+    scopes_supported: [...MCP_RESOURCE_SCOPES],
     bearer_methods_supported: ["header"],
     ...(input.resourceName ? { resource_name: input.resourceName } : {}),
   }
@@ -194,9 +199,11 @@ export function mcpOAuthProviderConfig(options: McpOAuthPluginOptions) {
     // of the flow. The consent screen, not registration, is the trust boundary.
     allowDynamicClientRegistration: true,
     allowUnauthenticatedClientRegistration: true,
-    // A newly registered connector starts read-only; asking for write forces it
-    // through consent for the wider grant.
-    clientRegistrationDefaultScopes: [MCP_OAUTH_SCOPE_READ],
+    // Hosted clients omit `scope` during dynamic registration, then request the
+    // scopes discovery advertises. Registering only `mcp:read` would make the
+    // server reject its own advertised scopes at authorization time.
+    // Human consent and resolveMcpGrantScopes remain the authorization bounds.
+    clientRegistrationDefaultScopes: [...MCP_OAUTH_SCOPES],
     clientRegistrationAllowedScopes: [...MCP_OAUTH_SCOPES],
     // Tokens are bearer credentials for the whole operator workspace: never
     // readable from a database dump.

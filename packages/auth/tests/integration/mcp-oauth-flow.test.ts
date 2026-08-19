@@ -135,6 +135,42 @@ describe("MCP connector OAuth handshake", () => {
   })
 
   maybe()(
+    "accepts advertised scopes after a hosted client registers without a scope field",
+    async () => {
+      const registration = await call("/auth/admin/oauth2/register", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          client_name: "Hosted Chat Client",
+          redirect_uris: ["https://chatgpt.com/connector/oauth/callback"],
+          token_endpoint_auth_method: "none",
+          grant_types: ["authorization_code", "refresh_token"],
+          response_types: ["code"],
+        }),
+      })
+      expect(registration.status).toBeLessThan(300)
+      const client = (await registration.json()) as { client_id: string }
+
+      const authorize = await call(
+        "/auth/admin/oauth2/authorize?" +
+          new URLSearchParams({
+            response_type: "code",
+            client_id: client.client_id,
+            redirect_uri: "https://chatgpt.com/connector/oauth/callback",
+            scope: "mcp:read mcp:write offline_access",
+            code_challenge: "a".repeat(43),
+            code_challenge_method: "S256",
+            resource: RESOURCE,
+          }).toString(),
+        { redirect: "manual" },
+      )
+
+      expect(await authorize.text()).not.toContain("invalid_scope")
+      expect(authorize.status).not.toBe(400)
+    },
+  )
+
+  maybe()(
     "completes authorize → consent → token and issues a token the resource server accepts",
     async () => {
       if (!setup) throw new Error("no setup")

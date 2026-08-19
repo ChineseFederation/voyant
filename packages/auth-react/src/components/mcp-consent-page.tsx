@@ -25,6 +25,11 @@ import {
 import { Check, Eye, Pencil, ShieldCheck } from "lucide-react"
 import { type ReactNode, useState } from "react"
 import { type McpConsentMessages, useMcpConsentMessages } from "../i18n/mcp-consent.js"
+import {
+  McpConsentError,
+  type McpConsentFetcher,
+  submitMcpConsentDecision,
+} from "../mcp-consent-client.js"
 
 export interface McpConsentPageProps {
   /** Display name of the connecting client, from dynamic registration. */
@@ -40,7 +45,7 @@ export interface McpConsentPageProps {
   oauthQuery: string
   /** Absolute base URL of the API (e.g. `/api`). */
   baseUrl: string
-  fetcher?: (input: string, init?: RequestInit) => Promise<Response>
+  fetcher: McpConsentFetcher
   messages?: McpConsentMessages
 }
 
@@ -61,13 +66,13 @@ export function McpConsentPage({
   scope,
   oauthQuery,
   baseUrl,
-  fetcher = fetch,
+  fetcher,
   messages,
 }: McpConsentPageProps) {
   const fallback = useMcpConsentMessages()
   const t = messages ?? fallback
   const [pending, setPending] = useState<"accept" | "deny" | null>(null)
-  const [failed, setFailed] = useState(false)
+  const [failure, setFailure] = useState<string | null>(null)
 
   const name = clientName?.trim() || t.unknownClient
   const grantedScopes = new Set((scope ?? "").split(/\s+/).filter(Boolean))
@@ -75,24 +80,17 @@ export function McpConsentPage({
 
   const decide = async (accept: boolean) => {
     setPending(accept ? "accept" : "deny")
-    setFailed(false)
+    setFailure(null)
     try {
-      const response = await fetcher(`${baseUrl}/auth/admin/oauth2/consent`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ accept, oauth_query: oauthQuery }),
-      })
-      if (!response.ok) throw new Error("consent failed")
-      const result = (await response.json()) as { redirectURI?: string; url?: string }
-      // Accepting returns `redirectURI`; denying returns a `url` carrying the
-      // `access_denied` error back to the client. Both hand control back.
-      const redirectURI = result.redirectURI ?? result.url
-      if (!redirectURI) throw new Error("missing redirect")
       // Hand control back to the assistant with its authorization code.
-      window.location.href = redirectURI
-    } catch {
-      setFailed(true)
+      window.location.href = await submitMcpConsentDecision({
+        baseUrl,
+        fetcher,
+        accept,
+        oauthQuery,
+      })
+    } catch (error) {
+      setFailure(error instanceof McpConsentError ? error.diagnostic : String(error))
       setPending(null)
     }
   }
@@ -124,7 +122,14 @@ export function McpConsentPage({
           />
         </ul>
 
-        {failed ? <p className="text-sm text-destructive">{t.failed}</p> : null}
+        {failure === null ? null : (
+          <div role="alert" className="flex flex-col gap-1">
+            <p className="text-sm text-destructive">{t.failed}</p>
+            <p className="font-mono text-xs text-muted-foreground">
+              {t.failedDetail.replace("{detail}", failure)}
+            </p>
+          </div>
+        )}
 
         <div className="flex flex-col gap-2">
           <Button onClick={() => void decide(true)} disabled={pending !== null}>

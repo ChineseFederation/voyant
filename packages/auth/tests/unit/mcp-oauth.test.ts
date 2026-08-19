@@ -138,7 +138,7 @@ describe("mcpProtectedResourceMetadata", () => {
     ).toEqual({
       resource: "https://ops.example.com/api/v1/admin/mcp",
       authorization_servers: ["https://ops.example.com/api/auth/admin"],
-      scopes_supported: ["mcp:read", "mcp:write", "offline_access"],
+      scopes_supported: ["mcp:read", "mcp:write"],
       bearer_methods_supported: ["header"],
       resource_name: "Voyant",
     })
@@ -216,8 +216,12 @@ describe("mcpOAuthProviderConfig", () => {
     expect(config.allowUnauthenticatedClientRegistration).toBe(true)
   })
 
-  it("registers new connectors read-only until consent widens them", () => {
-    expect(config.clientRegistrationDefaultScopes).toEqual([MCP_OAUTH_SCOPE_READ])
+  it("defaults scope-less hosted-client registrations to all authorization scopes", () => {
+    expect(config.clientRegistrationDefaultScopes).toEqual([
+      MCP_OAUTH_SCOPE_READ,
+      "mcp:write",
+      "offline_access",
+    ])
   })
 
   it("hashes tokens and client secrets at rest", () => {

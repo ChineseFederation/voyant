@@ -4554,6 +4554,9 @@ importers:
       '@voyant-travel/admin-app':
         specifier: workspace:^
         version: link:../admin-app
+      '@voyant-travel/auth-react':
+        specifier: workspace:^
+        version: link:../auth-react
       '@voyant-travel/finance':
         specifier: workspace:^
         version: link:../finance

@@ -13,6 +13,7 @@ export interface McpConsentMessages {
   deny: string
   approving: string
   failed: string
+  failedDetail: string
   unknownClient: string
 }
 
@@ -30,6 +31,7 @@ const en: McpConsentMessages = {
   deny: "Cancel",
   approving: "Connecting…",
   failed: "Could not complete the connection. Close this window and try again.",
+  failedDetail: "Technical detail: {detail}",
   unknownClient: "This application",
 }
 
@@ -48,6 +50,7 @@ const ro: McpConsentMessages = {
   deny: "Anuleaza",
   approving: "Se conecteaza…",
   failed: "Conectarea nu a putut fi finalizata. Inchide fereastra si incearca din nou.",
+  failedDetail: "Detaliu tehnic: {detail}",
   unknownClient: "Aceasta aplicatie",
 }
 
