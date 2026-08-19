@@ -59,7 +59,10 @@ export const inquiryTargetsResponseSchema = z.object({ data: z.array(inquiryTarg
 export const inquiryTargetResponseSchema = z.object({ data: inquiryTargetRecordSchema })
 
 export const attachInquiryAssetSchema = z.object({
-  assetId: z.string().trim().regex(/^mast_/),
+  assetId: z
+    .string()
+    .trim()
+    .regex(/^mast_/),
   displayName: z.string().trim().min(1).max(500),
   caption: z.string().trim().min(1).max(2_000).nullable().optional(),
 })
@@ -173,6 +176,11 @@ export const updateInquirySchema = createInquirySchema
     customFields: true,
   })
   .partial()
+  .extend({
+    priority: inquiryPrioritySchema.optional(),
+    tags: z.array(z.string().trim().min(1).max(100)).max(100).optional(),
+    customFields: inquiryCustomFieldsSchema.optional(),
+  })
 
 export const inquiryListQuerySchema = paginationSchema.extend({
   view: z

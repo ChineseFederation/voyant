@@ -13,6 +13,7 @@ import {
   inquiryTravelBriefV1Schema,
   publicInquiryReceiptSchema,
   recordInquiryActivitySchema,
+  updateInquirySchema,
 } from "./validation.js"
 
 describe("Inquiry contracts", () => {
@@ -39,6 +40,12 @@ describe("Inquiry contracts", () => {
       customFields: {},
     })
     expect(parsed).not.toHaveProperty("firstResponseDueAt")
+  })
+
+  it("does not apply create defaults to a partial update", () => {
+    expect(updateInquirySchema.parse({ internalSummary: "Follow-up sent" })).toEqual({
+      internalSummary: "Follow-up sent",
+    })
   })
 
   it("requires at least one submitted contact detail", () => {
