@@ -48,6 +48,7 @@ import {
   catalogProjectionRuntimePort,
 } from "./subscriber-runtime-ports.js"
 import {
+  catalogBookingSessionCreatedPayloadSchema,
   catalogEventDeclarations,
   catalogOverlayChangedPayloadSchema,
   catalogWebhookDeclarations,
@@ -257,6 +258,14 @@ export const catalogVoyantModule = defineModule({
     },
   ],
   events: [
+    {
+      id: "@voyant-travel/catalog#event.booking-session-created",
+      eventType: "catalog.booking-session.created",
+      version: "1.0.0",
+      visibility: "internal",
+      audit: { sourceModule: "catalog", category: "domain" },
+      payloadSchema: catalogBookingSessionCreatedPayloadSchema,
+    },
     ...catalogEventDeclarations,
     {
       id: "@voyant-travel/catalog#event.entity.overlay-changed",
