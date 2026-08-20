@@ -16,13 +16,14 @@ import { createHash } from "node:crypto"
 import { drizzle } from "drizzle-orm/postgres-js"
 import { decodeJwt } from "jose"
 import postgres from "postgres"
-import { afterAll, describe, expect, it } from "vitest"
+import { afterAll, describe, expect, it, vi } from "vitest"
 import {
   parseOAuthClientIdClaim,
   parseOAuthScopeClaim,
   withDefaultMcpOAuthResource,
   withPublicApiEndpoints,
 } from "../../src/mcp-oauth.js"
+import { createOperatorAuthNodeRuntime } from "../../src/node-runtime.js"
 import { createBetterAuth } from "../../src/server.js"
 
 const CONNECTION = process.env.MCP_OAUTH_TEST_DATABASE_URL ?? ""
@@ -30,6 +31,24 @@ const CONNECTION = process.env.MCP_OAUTH_TEST_DATABASE_URL ?? ""
 const TEST_PASSWORD = "test-operator-password"
 const BASE_URL = "http://localhost:3300"
 const RESOURCE = `${BASE_URL}/api/v1/admin/mcp`
+const ACCESS_CATALOG = {
+  presets: [],
+  resources: [
+    {
+      id: "bookings",
+      unitId: "@voyant-travel/bookings",
+      resource: "bookings",
+      label: "Bookings",
+      description: "",
+      wildcard: "allow" as const,
+      remoteSafe: true,
+      actions: [
+        { action: "read", label: "Read", description: "" },
+        { action: "write", label: "Write", description: "" },
+      ],
+    },
+  ],
+}
 
 // Set up at module scope, not in `beforeAll`: vitest picks `it` vs `it.skip`
 // while collecting the suite, which happens before any hook has run.
@@ -45,14 +64,29 @@ const setup = await (async () => {
     const { oauthProvider } = await import("@better-auth/oauth-provider")
     const { jwt } = await import("better-auth/plugins")
     const { mcpOAuthProviderConfig } = await import("../../src/mcp-oauth.js")
+    const db = drizzle(sql)
     const auth = createBetterAuth({
-      db: drizzle(sql) as never,
+      db: db as never,
       secret: "x".repeat(32),
       baseURL: BASE_URL,
       basePath: "/auth/admin",
       plugins: [jwt(), oauthProvider(mcpOAuthProviderConfig({ resource: RESOURCE }))] as never,
     })
-    return { sql, auth }
+    const runtime = createOperatorAuthNodeRuntime({
+      accessCatalog: ACCESS_CATALOG,
+      appName: "mcp-oauth-flow",
+      authMode: "local",
+      reporter: { captureException: () => {} },
+      openDatabase: () => ({ db: db as never, dispose: async () => {} }),
+    })
+    const env = {
+      API_BASE_URL: `${BASE_URL}/api`,
+      APP_URL: BASE_URL,
+      BETTER_AUTH_ADMIN_SECRET: "x".repeat(32),
+      DATABASE_URL: CONNECTION,
+      SESSION_CLAIMS_ADMIN_SECRET: "x".repeat(32),
+    }
+    return { sql, db, auth, runtime, env }
   } catch (error) {
     console.warn(`[mcp-oauth-flow] skipping: ${(error as Error).message}`)
     return null
@@ -291,7 +325,23 @@ describe("MCP connector OAuth handshake", () => {
         expect.arrayContaining(["mcp:read", "mcp:write"]),
       )
 
-      // 7. Hosted clients also omit `resource` when refreshing. The default
+      // 7. Exercise the resource server too. This must obtain JWKS from the
+      //    in-process authorization server; a self-fetch through the public
+      //    hostname is not available in every managed-runtime topology.
+      const publicFetch = vi
+        .spyOn(globalThis, "fetch")
+        .mockRejectedValue(new Error("managed runtime self-fetch is unavailable"))
+      const resolved = await setup.runtime
+        .resolveMcpAccessToken(setup.env, setup.db as never, grant.access_token)
+        .finally(() => publicFetch.mockRestore())
+      expect(resolved).toMatchObject({
+        userId: claims.sub,
+        callerType: "api_key",
+        actor: "staff",
+        scopes: expect.arrayContaining(["bookings:read", "bookings:write"]),
+      })
+
+      // 8. Hosted clients also omit `resource` when refreshing. The default
       //    must keep refreshed access tokens JWT-bound to the same audience.
       const refreshed = await call("/auth/admin/oauth2/token", {
         method: "POST",
@@ -306,7 +356,7 @@ describe("MCP connector OAuth handshake", () => {
       const refreshedGrant = (await refreshed.json()) as { access_token: string }
       expect([decodeJwt(refreshedGrant.access_token).aud].flat()).toContain(RESOURCE)
 
-      // 8. Revoking consent is what makes "Disconnect" immediate.
+      // 9. Revoking consent is what makes "Disconnect" immediate.
       const consents = await setup.sql`select id from oauth_consent where client_id = ${client_id}`
       expect(consents.length).toBeGreaterThan(0)
     },

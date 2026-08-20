@@ -31,9 +31,10 @@ import {
 } from "@voyant-travel/hono/middleware/error-boundary"
 import { getRequestId } from "@voyant-travel/hono/observability"
 import type { AccessCatalog } from "@voyant-travel/types/api-keys"
-import { verifyAccessToken } from "better-auth/oauth2"
+import { verifyJwsAccessToken } from "better-auth/oauth2"
 import { jwt } from "better-auth/plugins"
 import { and, eq, sql } from "drizzle-orm"
+import type { JSONWebKeySet } from "jose"
 
 /**
  * Discovery documents are fetched cross-origin by MCP clients before any
@@ -395,6 +396,12 @@ export function createOperatorAuthNodeRuntime<Env extends OperatorAuthNodeEnv>(
   runtimeOptions: CreateOperatorAuthNodeRuntimeOptions<Env>,
 ) {
   type AuthHonoEnv = { Bindings: Env; Variables: { db: VoyantDb } }
+
+  // Better Auth caches function-backed JWKS sources by object identity. Keep
+  // one key for this runtime so ordinary requests do not re-read the signing
+  // key table, while a token with a new `kid` still triggers the library's
+  // built-in refresh path.
+  const mcpJwksCacheKey = {}
 
   const openDatabase =
     runtimeOptions.openDatabase ??
@@ -1090,8 +1097,22 @@ export function createOperatorAuthNodeRuntime<Env extends OperatorAuthNodeEnv>(
     const baseUrl = getPublicApiBaseUrl(env)
     let claims: Record<string, unknown>
     try {
-      claims = (await verifyAccessToken(token, {
-        jwksUrl: `${baseUrl}/auth/admin/jwks`,
+      const betterAuth = buildAdminBetterAuth(env, db)
+      claims = (await verifyJwsAccessToken(token, {
+        // The authorization server and resource server are the same process.
+        // Read the public keys through Better Auth's in-process API instead of
+        // making the managed runtime call its own public hostname. That public
+        // loop can be rejected by the edge/origin boundary even though the
+        // externally published JWKS endpoint is healthy, which made every
+        // otherwise valid connector token fail closed to 401.
+        jwksFetch: async () => {
+          const response = await betterAuth.handler(
+            new Request(`${getAuthBaseUrl(env)}/auth/admin/jwks`),
+          )
+          if (!response.ok) throw new Error(`In-process JWKS request failed: ${response.status}`)
+          return (await response.json()) as JSONWebKeySet
+        },
+        jwksCacheKey: mcpJwksCacheKey,
         verifyOptions: {
           // The audience binds the token to the MCP resource specifically, so a
           // grant issued for another audience on this server cannot be replayed
