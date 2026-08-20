@@ -1,5 +1,11 @@
 # @voyant-travel/auth
 
+## 0.153.6
+
+### Patch Changes
+
+- d34c564: Verify MCP OAuth access tokens against Better Auth's in-process JWKS instead of making managed runtimes fetch their own public hostname.
+
 ## 0.153.5
 
 ### Patch Changes
