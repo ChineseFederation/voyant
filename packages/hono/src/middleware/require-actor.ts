@@ -64,10 +64,31 @@ function isSearchPath(pathname: string): boolean {
   return /(?:\/|-)search(?:\/|$)/.test(pathname)
 }
 
+/**
+ * Inquiry association removals, which are WRITES on the Inquiry.
+ *
+ * Detaching a Product target or an attachment removes a link; the Product and
+ * the Media asset both survive. The Inquiry action declarations classify both
+ * under `crm:write` (inquiry-management-rfc §11.4), but the coarse guard maps
+ * DELETE to `delete` alone, so a `crm:write` principal was refused before the
+ * handler ran and the packaged UI's Detach / Remove controls 403'd for every
+ * scoped staff session and API key (Codex review on voyant#4838).
+ *
+ * Deliberately NOT generalised to every `/attachments/{id}` DELETE: finance and
+ * legal own routes of the same shape whose `delete` requirement is correct, and
+ * loosening those is their owners' call, not this guard's.
+ */
+function isInquiryLinkRemovalPath(pathname: string): boolean {
+  return /\/relationships\/inquiries\/[^/]+\/(?:targets|attachments)\/[^/]+$/.test(pathname)
+}
+
 function apiKeyPermissionActionsForMethod(method: string, pathname: string): string[] {
   const actions = baseApiKeyPermissionActionsForMethod(method)
   if (isSearchPath(pathname)) {
     return Array.from(new Set([...actions, "search", "read"]))
+  }
+  if (method.toUpperCase() === "DELETE" && isInquiryLinkRemovalPath(pathname)) {
+    return Array.from(new Set([...actions, "write"]))
   }
   return actions
 }

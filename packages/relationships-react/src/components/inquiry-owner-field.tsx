@@ -24,7 +24,14 @@ export interface InquiryOwnerOption {
 export interface InquiryOwnerFieldProps {
   ownerId: string | null
   options: InquiryOwnerOption[]
-  onAssign: (ownerId: string | null) => Promise<unknown>
+  /**
+   * Clearing the owner MUST carry a reason: `assignInquirySchema` refuses an
+   * ownerless assignment without one, so a clear that omits it is a guaranteed
+   * 400 and the Inquiry can never be unassigned.
+   */
+  onAssign: (ownerId: string | null, unassignedReason?: string) => Promise<unknown>
+  /** The reason captured alongside this field, used when clearing the owner. */
+  unassignedReason?: string
   disabled?: boolean
 }
 
@@ -40,7 +47,21 @@ export function InquiryOwnerField(props: InquiryOwnerFieldProps) {
   const messages = i18n.messages.inquiryDetail
   const labelFor = (id: string) => props.options.find((option) => option.id === id)?.name ?? id
   const [inputValue, setInputValue] = useState(props.ownerId ? labelFor(props.ownerId) : "")
+  const [clearBlocked, setClearBlocked] = useState(false)
   const currentUser = props.options.find((option) => option.isCurrentUser)
+  const reason = props.unassignedReason?.trim() ?? ""
+
+  const clearOwner = () => {
+    if (!reason) {
+      // Restore the name rather than leaving the box empty and the owner set.
+      setInputValue(props.ownerId ? labelFor(props.ownerId) : "")
+      setClearBlocked(true)
+      return
+    }
+    setClearBlocked(false)
+    setInputValue("")
+    void props.onAssign(null, reason)
+  }
 
   return (
     <div className="space-y-2">
@@ -60,11 +81,16 @@ export function InquiryOwnerField(props: InquiryOwnerFieldProps) {
         itemToStringValue={(id) => id as string}
         onInputValueChange={(next) => {
           setInputValue(next)
-          if (!next && props.ownerId) void props.onAssign(null)
+          if (!next && props.ownerId) clearOwner()
         }}
         onValueChange={(next) => {
           const id = (next as string | null) ?? null
-          setInputValue(id ? labelFor(id) : "")
+          if (!id) {
+            clearOwner()
+            return
+          }
+          setClearBlocked(false)
+          setInputValue(labelFor(id))
           void props.onAssign(id)
         }}
       >
@@ -98,6 +124,11 @@ export function InquiryOwnerField(props: InquiryOwnerFieldProps) {
           </ComboboxList>
         </ComboboxContent>
       </Combobox>
+      {clearBlocked ? (
+        <p className="text-xs text-destructive" role="alert">
+          {messages.unassignedReasonRequired}
+        </p>
+      ) : null}
       {currentUser && props.ownerId !== currentUser.id ? (
         <Button
           type="button"
@@ -105,6 +136,7 @@ export function InquiryOwnerField(props: InquiryOwnerFieldProps) {
           size="sm"
           disabled={props.disabled}
           onClick={() => {
+            setClearBlocked(false)
             setInputValue(currentUser.name)
             void props.onAssign(currentUser.id)
           }}

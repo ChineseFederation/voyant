@@ -5,11 +5,11 @@ import type {
   InquiryProposalConversionRefusalReason,
   InquiryProposalConversionResult,
 } from "@voyant-travel/relationships-contracts"
-import { and, eq, sql } from "drizzle-orm"
+import { and, eq, isNull, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
 import { INQUIRY_CONVERTED_EVENT } from "../events.js"
-import { inquiries, inquiryConversions } from "../schema.js"
+import { inquiries, inquiryConversions, inquiryTargetSnapshots } from "../schema.js"
 import { InquiryServiceError } from "./inquiries.js"
 
 export class InquiryProposalConversionRefusedError extends InquiryServiceError {
@@ -100,6 +100,28 @@ export async function convertInquiryToProposal(
       )
     }
 
+    // The Products the customer asked about become the Proposal's lines. Sending
+    // an empty list made every conversion drop them, so staff had to rebuild the
+    // customer's selection by hand (RFC §11.3 / Codex review on #4838). The
+    // immutable snapshot is the source: it is what the Inquiry recorded at the
+    // time, and it survives the Product being renamed or withdrawn afterwards.
+    const productTargets = (
+      await tx
+        .select()
+        .from(inquiryTargetSnapshots)
+        .where(
+          and(
+            eq(inquiryTargetSnapshots.inquiryId, inquiryId),
+            eq(inquiryTargetSnapshots.kind, "product"),
+            isNull(inquiryTargetSnapshots.removedAt),
+          ),
+        )
+    ).map((target) => ({
+      productId: target.targetId,
+      nameSnapshot: target.snapshot.title,
+      ...(target.snapshot.optionLabel ? { description: target.snapshot.optionLabel } : {}),
+    }))
+
     const outcome = await proposalRuntime.convertInquiry(tx, {
       inquiryId,
       idempotencyKey: command.idempotencyKey,
@@ -111,7 +133,7 @@ export async function convertInquiryToProposal(
       actorId,
       tags: inquiry.tags,
       pipeline: { pipelineId: command.pipelineId, stageId: command.stageId },
-      productTargets: [],
+      productTargets,
     })
     if (outcome.kind === "refused") {
       throw new InquiryProposalConversionRefusedError(outcome.reason)

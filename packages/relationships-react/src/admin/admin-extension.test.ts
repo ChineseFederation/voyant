@@ -136,7 +136,10 @@ describe("createRelationshipsAdminExtension", () => {
     expect(ssrById.get("relationships-inquiries-detail")).toBeUndefined()
   })
 
-  it("loads the inquiry queue as actionable open work by default", async () => {
+  // The key IS the filters object, so it must match InquiryQueueHost's first
+  // query exactly — including `offset` — or the prefetch is thrown away and the
+  // page refetches behind its pending state.
+  it("loads the inquiry queue on the same key the queue host queries", async () => {
     const route = createRelationshipsAdminExtension().routes?.find(
       (candidate) => candidate.id === "relationships-inquiries-index",
     )
@@ -152,7 +155,7 @@ describe("createRelationshipsAdminExtension", () => {
       "relationships",
       "inquiries",
       "list",
-      { view: "actionable", limit: 50 },
+      { view: "actionable", limit: 50, offset: 0 },
     ])
   })
 })

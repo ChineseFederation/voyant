@@ -76,10 +76,15 @@ export function InquiryDetailHost({ id }: { id: string }) {
       isSaving={mutations.update.isPending}
       onBack={() => navigate("inquiry.list", {})}
       onUpdate={(input) => mutations.update.mutateAsync({ id, input })}
-      onAssign={(ownerId) => mutations.assign.mutateAsync({ id, input: { ownerId } })}
+      onAssign={(ownerId, unassignedReason) =>
+        mutations.assign.mutateAsync({
+          id,
+          input: { ownerId, ...(unassignedReason ? { unassignedReason } : {}) },
+        })
+      }
       onTransition={(input) => mutations.transition.mutateAsync({ id, input })}
       onClose={(input) => mutations.close.mutateAsync({ id, input })}
-      onReopen={() => mutations.reopen.mutateAsync({ id })}
+      onReopen={(input) => mutations.reopen.mutateAsync({ id, input })}
       onRecordFirstResponse={() => mutations.recordFirstResponse.mutateAsync({ id })}
       isRecordingFirstResponse={mutations.recordFirstResponse.isPending}
       onUploadAttachment={(file, caption) =>

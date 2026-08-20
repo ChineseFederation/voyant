@@ -159,6 +159,7 @@ export const crmUiRoInquiryMessages = {
     customerRequired: "Asociază o persoană sau organizație înainte de calificare.",
     ownerRequired:
       "Alocă un responsabil sau introdu motivul pentru care solicitarea rămâne nealocată.",
+    unassignedReasonRequired: "Introdu întâi motivul pentru care solicitarea rămâne nealocată.",
     unassignedReason: "Motivul pentru care rămâne nealocată",
     close: "Închide",
     reopen: "Redeschide",

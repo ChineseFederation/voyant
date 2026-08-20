@@ -140,9 +140,13 @@ export function createRelationshipsAdminExtension(
         loader: async ({ queryClient, runtime }: AdminRouteLoaderContext) => {
           const { getInquiriesQueryOptions } = await import("../query-options.js")
           return queryClient.ensureQueryData(
+            // Must match InquiryQueueHost's first query EXACTLY: the query key is
+            // the filters object, so omitting `offset` made a second key and the
+            // prefetch went unused while the page refetched (Codex review on #4838).
             getInquiriesQueryOptions(loaderClient(runtime), {
               view: "actionable",
               limit: 50,
+              offset: 0,
             }),
           )
         },

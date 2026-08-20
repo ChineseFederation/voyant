@@ -9,6 +9,7 @@ import type {
   InquiryPriority,
   InquiryRecord,
   RecordInquiryActivityInput,
+  ReopenInquiryInput,
   TransitionInquiryInput,
 } from "@voyant-travel/relationships-contracts"
 import {
@@ -52,10 +53,10 @@ export interface InquiryWorkspaceProps {
     internalSummary?: string | null
     nextActionAt?: string | null
   }) => Promise<unknown>
-  onAssign: (ownerId: string | null) => Promise<unknown>
+  onAssign: (ownerId: string | null, unassignedReason?: string) => Promise<unknown>
   onTransition: (input: TransitionInquiryInput) => Promise<unknown>
   onClose: (input: CloseInquiryInput) => Promise<unknown>
-  onReopen: () => Promise<unknown>
+  onReopen: (input?: ReopenInquiryInput) => Promise<unknown>
   onRecordFirstResponse: () => Promise<unknown>
   isRecordingFirstResponse?: boolean
   onUploadAttachment?: (file: File, caption?: string) => Promise<unknown>
@@ -99,7 +100,24 @@ const closeOutcomes: InquiryCloseOutcome[] = [
   "customer_withdrew",
   "other",
 ]
-const dateTimeValue = (value: string | null) => (value ? value.slice(0, 16) : "")
+/**
+ * An instant, as the local wall-clock fields a `datetime-local` input expects.
+ *
+ * Slicing the ISO string leaves UTC clock fields in a control the browser reads
+ * as LOCAL time, and the save path parses it back with `new Date(...)`. For any
+ * operator outside UTC that shifted an untouched deadline by their offset every
+ * time they pressed Save (Codex review on #4838).
+ */
+export function dateTimeValue(value: string | null): string {
+  if (!value) return ""
+  const instant = new Date(value)
+  if (Number.isNaN(instant.getTime())) return ""
+  const pad = (part: number) => String(part).padStart(2, "0")
+  return (
+    `${instant.getFullYear()}-${pad(instant.getMonth() + 1)}-${pad(instant.getDate())}` +
+    `T${pad(instant.getHours())}:${pad(instant.getMinutes())}`
+  )
+}
 const activityTypes = ["call", "email", "meeting", "task", "follow_up", "note"] as const
 
 function inquiryActivityDirection(activity: InquiryActivityRecord) {
@@ -160,7 +178,9 @@ export function InquiryWorkspace(props: InquiryWorkspaceProps) {
    * the list stays a next step rather than a list of rules.
    */
   const blockedReasons = [
-    ...(inquiry.status === "new" && !canTriage ? [messages.ownerRequired] : []),
+    ...((inquiry.status === "new" || inquiry.status === "closed") && !canTriage
+      ? [messages.ownerRequired]
+      : []),
     ...(!canAdvanceWithFollowUp &&
     ["triaged", "in_progress", "waiting_on_customer"].includes(inquiry.status)
       ? [messages.followUpRequired]
@@ -271,7 +291,21 @@ export function InquiryWorkspace(props: InquiryWorkspaceProps) {
                 </Button>
               ) : null}
               {inquiry.status === "closed" ? (
-                <Button onClick={() => void props.onReopen()}>{messages.reopen}</Button>
+                // Reopening lands in triage, which needs an owner or a stated
+                // reason for having none. The button used to send nothing, so a
+                // closed-from-new ownerless Inquiry could not be reopened at all.
+                <Button
+                  disabled={!canTriage}
+                  onClick={() =>
+                    void props.onReopen(
+                      inquiry.ownerId || inquiry.unassignedReason
+                        ? undefined
+                        : { unassignedReason: unassignedReason.trim() },
+                    )
+                  }
+                >
+                  {messages.reopen}
+                </Button>
               ) : null}
             </div>
             {/* A disabled button has to say why it is disabled. These reasons
@@ -768,6 +802,7 @@ export function InquiryWorkspace(props: InquiryWorkspaceProps) {
                 <InquiryOwnerField
                   ownerId={inquiry.ownerId}
                   options={props.ownerOptions}
+                  unassignedReason={unassignedReason}
                   onAssign={props.onAssign}
                 />
               ) : (
@@ -790,14 +825,15 @@ export function InquiryWorkspace(props: InquiryWorkspaceProps) {
                   </Button>
                 </div>
               )}
-              {!inquiry.ownerId ? (
-                <Input
-                  aria-label={messages.unassignedReason}
-                  placeholder={messages.unassignedReason}
-                  value={unassignedReason}
-                  onChange={(event) => setUnassignedReason(event.target.value)}
-                />
-              ) : null}
+              {/* Always available: this is also what an operator must supply to
+                  UNASSIGN a currently-owned Inquiry, and hiding it while an
+                  owner is set made that impossible to satisfy. */}
+              <Input
+                aria-label={messages.unassignedReason}
+                placeholder={messages.unassignedReason}
+                value={unassignedReason}
+                onChange={(event) => setUnassignedReason(event.target.value)}
+              />
               {inquiry.status !== "closed" && inquiry.status !== "converted" ? (
                 <div className="flex gap-2">
                   <Select

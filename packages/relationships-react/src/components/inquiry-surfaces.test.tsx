@@ -5,7 +5,7 @@ import { CrmUiMessagesProvider } from "../i18n/index.js"
 import { buildInquiriesQueryString } from "../query-options.js"
 import { InquiryQueue, withInquiryStatus } from "./inquiry-queue.js"
 import { mergeSelectedProduct, targetSubtitle } from "./inquiry-targets-section.js"
-import { InquiryWorkspace } from "./inquiry-workspace.js"
+import { dateTimeValue, InquiryWorkspace } from "./inquiry-workspace.js"
 
 const inquiry: InquiryRecord = inquiryRecordSchema.parse({
   id: "inq_01",
@@ -446,5 +446,100 @@ describe("Proposal conversion overrides", () => {
 
     expect(html).toContain("<details")
     expect(html).toContain("Advanced: choose a pipeline and stage")
+  })
+})
+
+describe("next-action deadline round trip", () => {
+  // The control is a `datetime-local`, which the browser reads as LOCAL time,
+  // and the save path parses it back with `new Date(...)`. Slicing the ISO
+  // string put UTC clock fields in it, so any operator outside UTC shifted an
+  // untouched deadline by their offset every time they pressed Save.
+  it("survives the save path unchanged", () => {
+    const stored = "2026-08-26T06:33:00.000Z"
+    const roundTripped = new Date(dateTimeValue(stored)).toISOString()
+
+    expect(roundTripped).toBe(stored)
+  })
+
+  it("shows the operator their own clock, not UTC", () => {
+    const stored = "2026-08-26T06:33:00.000Z"
+    const shown = dateTimeValue(stored)
+    const instant = new Date(stored)
+    const expectedHour = String(instant.getHours()).padStart(2, "0")
+
+    expect(shown).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/)
+    expect(shown.slice(11, 13)).toBe(expectedHour)
+  })
+
+  it("treats an absent or unparseable deadline as empty", () => {
+    expect(dateTimeValue(null)).toBe("")
+    expect(dateTimeValue("not a date")).toBe("")
+  })
+})
+
+describe("reopening a closed inquiry", () => {
+  const noOp = vi.fn().mockResolvedValue(undefined)
+  const refused = async () =>
+    ({ kind: "refused", error: "refused", reason: "stage_closed" }) as const
+  const refusedSession = async () =>
+    ({ kind: "refused", error: "refused", reason: "unsupported_target" }) as const
+
+  // Reopening lands in triage, which requires an owner or a stated reason for
+  // having none. The button sent nothing, so this class of Inquiry could not be
+  // reopened through the packaged UI at all.
+  it("blocks reopen until an ownerless inquiry states a reason", () => {
+    const closed = inquiryRecordSchema.parse({
+      ...inquiry,
+      status: "closed",
+      ownerId: null,
+      unassignedReason: null,
+      closeOutcome: "no_response",
+      closedAt: "2026-08-19T10:00:00.000Z",
+    })
+    const html = renderToStaticMarkup(
+      <InquiryWorkspace
+        inquiry={closed}
+        onBack={noOp}
+        onUpdate={noOp}
+        onAssign={noOp}
+        onTransition={noOp}
+        onRecordFirstResponse={noOp}
+        onClose={noOp}
+        onReopen={noOp}
+        onConvertToProposal={refused}
+        onConvertToBookingSession={refusedSession}
+      />,
+    )
+
+    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Reopen<\/button>/)
+    expect(html).toContain("Assign an owner or enter a reason for leaving this inquiry unassigned.")
+  })
+
+  it("offers reopen when the inquiry already carries a reason", () => {
+    const closed = inquiryRecordSchema.parse({
+      ...inquiry,
+      status: "closed",
+      ownerId: null,
+      unassignedReason: "Triage pool",
+      closeOutcome: "no_response",
+      closedAt: "2026-08-19T10:00:00.000Z",
+    })
+    const html = renderToStaticMarkup(
+      <InquiryWorkspace
+        inquiry={closed}
+        onBack={noOp}
+        onUpdate={noOp}
+        onAssign={noOp}
+        onTransition={noOp}
+        onRecordFirstResponse={noOp}
+        onClose={noOp}
+        onReopen={noOp}
+        onConvertToProposal={refused}
+        onConvertToBookingSession={refusedSession}
+      />,
+    )
+
+    expect(html).not.toMatch(/<button[^>]*disabled=""[^>]*>Reopen<\/button>/)
+    expect(html).toContain("Reopen")
   })
 })

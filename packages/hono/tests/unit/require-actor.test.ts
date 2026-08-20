@@ -364,6 +364,80 @@ describe("requireActor", () => {
     expect(webhook.status).toBe(200)
   })
 
+  it("treats an Inquiry link removal as a crm write (voyant#4838)", async () => {
+    // Detaching a Product target or an attachment removes a LINK; the Product
+    // and the Media asset survive. The Inquiry actions declare `crm:write`, but
+    // DELETE maps to `delete` alone, so a crm:write principal was refused before
+    // the handler ran and the packaged UI's Detach control always 403'd.
+    const writer = () =>
+      makeApp((c) => {
+        c.set("actor", "staff")
+        c.set("callerType", "api_key")
+        c.set("scopes", ["crm:read", "crm:write"])
+      })
+
+    // The graph maps the Relationships admin mount onto the `crm` resource.
+    const crmResource = {
+      resources: [{ path: "/v1/admin/relationships", resource: "crm" }],
+    } as const
+
+    for (const path of [
+      "/v1/admin/relationships/inquiries/inq_1/targets/link_1",
+      "/v1/admin/relationships/inquiries/inq_1/attachments/link_1",
+    ]) {
+      const app = writer()
+      app.use("*", requireActor(crmResource, "staff"))
+      app.delete(path, (c) => c.json({ ok: true }))
+      expect((await app.request(path, { method: "DELETE" })).status).toBe(200)
+    }
+
+    // A staff SESSION with the same scope reaches it too — both callers share
+    // one action derivation.
+    const session = makeApp((c) => {
+      c.set("actor", "staff")
+      c.set("callerType", "session")
+      c.set("scopes", ["crm:write"])
+    })
+    session.use("*", requireActor(crmResource, "staff"))
+    session.delete("/v1/admin/relationships/inquiries/inq_1/targets/link_1", (c) =>
+      c.json({ ok: true }),
+    )
+    expect(
+      (
+        await session.request("/v1/admin/relationships/inquiries/inq_1/targets/link_1", {
+          method: "DELETE",
+        })
+      ).status,
+    ).toBe(200)
+  })
+
+  it("keeps DELETE a delete everywhere else (voyant#4838)", async () => {
+    // The exception is scoped to Inquiry links on purpose. Finance and legal own
+    // routes of the same shape whose `delete` requirement is correct, and a real
+    // CRM record deletion still needs crm:delete.
+    for (const [scopes, path] of [
+      [["finance:write"], "/v1/admin/finance/invoices/inv_1/attachments/att_1"],
+      [["legal:write"], "/v1/admin/legal/contracts/attachments/att_1"],
+      [["crm:write"], "/v1/admin/relationships/people/pers_1"],
+      [["crm:write"], "/v1/admin/relationships/inquiries/inq_1"],
+    ] as const) {
+      const app = makeApp((c) => {
+        c.set("actor", "staff")
+        c.set("callerType", "api_key")
+        c.set("scopes", [...scopes])
+      })
+      app.use(
+        "*",
+        requireActor(
+          { resources: [{ path: "/v1/admin/relationships", resource: "crm" }] },
+          "staff",
+        ),
+      )
+      app.delete(path, (c) => c.json({ ok: true }))
+      expect((await app.request(path, { method: "DELETE" })).status).toBe(403)
+    }
+  })
+
   it("honors the search action on a POST /search endpoint (voyant#2649)", async () => {
     // Catalog search is exposed as POST (complex body) but is a read-family
     // operation, so a `catalog:search`/`catalog:read` token must reach it.

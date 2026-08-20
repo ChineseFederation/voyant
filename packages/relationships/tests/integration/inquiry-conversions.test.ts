@@ -90,6 +90,43 @@ describe.skipIf(!DB_AVAILABLE)("Inquiry Proposal conversion coordinator", () => 
     }
   }
 
+  // The Products the customer asked about are the Proposal's lines. The caller
+  // always sent an empty list, so every conversion dropped them and staff had to
+  // rebuild the selection by hand (RFC §11.3, Codex review on #4838).
+  it("hands the Inquiry's Product targets to the Proposal owner", async () => {
+    const inquiryId = await qualifiedInquiry()
+    await productTarget(inquiryId)
+    const proposals = runtime()
+
+    await convertInquiryToProposal(
+      db,
+      proposals,
+      inquiryId,
+      { kind: "proposal" as const, idempotencyKey: "with-targets", keepInquiryOpen: false },
+      "user_1",
+    )
+
+    const input = vi.mocked(proposals.convertInquiry).mock.calls[0]?.[1]
+    expect(input?.productTargets).toEqual([
+      { productId: "prod_kyoto", nameSnapshot: "Kyoto discovery" },
+    ])
+  })
+
+  it("sends no Product lines when the Inquiry names none", async () => {
+    const inquiryId = await qualifiedInquiry()
+    const proposals = runtime()
+
+    await convertInquiryToProposal(
+      db,
+      proposals,
+      inquiryId,
+      { kind: "proposal" as const, idempotencyKey: "no-targets", keepInquiryOpen: false },
+      "user_1",
+    )
+
+    expect(vi.mocked(proposals.convertInquiry).mock.calls[0]?.[1]?.productTargets).toEqual([])
+  })
+
   it("persists one stable conversion and replays it after the Inquiry becomes terminal", async () => {
     const inquiryId = await qualifiedInquiry()
     const proposals = runtime()
