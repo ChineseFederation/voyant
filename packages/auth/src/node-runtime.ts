@@ -1149,6 +1149,30 @@ export function createOperatorAuthNodeRuntime<Env extends OperatorAuthNodeEnv>(
       .limit(1)
     if (!consent) return null
 
+    // A managed release advances VOYANT_CLOUD_DEPLOYMENT_ID while preserving
+    // the tenant database and OAuth grants. The mirrored Cloud user link can
+    // therefore still name the previous deployment even though the member's
+    // access remains active. Session and API-token authentication already
+    // revalidate that link (which safely retargets deployment drift); MCP must
+    // do the same before resolveStaffAccess applies its deployment fence, or
+    // every connector starts returning 401 immediately after a rollout.
+    if (isVoyantCloudAuthMode(env)) {
+      const revalidateConfig = getCloudAuthRevalidateConfig(env)
+      if (!revalidateConfig) return null
+
+      try {
+        const revalidation = await revalidateVoyantCloudAdminAuthUser({
+          db: db as Parameters<typeof revalidateVoyantCloudAdminAuthUser>[0]["db"],
+          userId,
+          config: revalidateConfig,
+        })
+        if (!revalidation.ok) return null
+      } catch (error) {
+        console.error("[auth/mcp-token] Cloud revalidation failed:", error)
+        return null
+      }
+    }
+
     const staffAccess = await resolveStaffAccess({
       accessCatalog: runtimeOptions.accessCatalog,
       authMode: resolveOperatorAuthMode(env),
