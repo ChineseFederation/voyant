@@ -1,4 +1,9 @@
 // agent-quality: file-size exception -- owner: customer-portal; existing service module stays co-located until a dedicated split preserves behavior and tests.
+
+import {
+  hasActiveBookingCustomerAccess,
+  listAccessibleBookingIds,
+} from "@voyant-travel/bookings/customer-access"
 import {
   bookingDocuments,
   bookingFulfillments,
@@ -1266,53 +1271,14 @@ async function upsertCustomerBillingAddress(
   })
 }
 
-async function getAccessibleBookingIds(
-  db: PostgresJsDatabase,
-  params: { buyer: CustomerBuyerContext; email: string | null },
-) {
-  if (params.buyer.kind === "business") {
-    if (!(await isActiveBusinessBuyerOrganization(db, params.buyer))) return []
-    const rows = await db
-      .select({ bookingId: bookings.id })
-      .from(bookings)
-      .where(eq(bookings.organizationId, params.buyer.relationshipOrganizationId))
-    return rows.map((row) => row.bookingId)
+async function getAccessibleBookingIds(db: PostgresJsDatabase, buyer: CustomerBuyerContext) {
+  if (buyer.kind === "business" && !(await isActiveBusinessBuyerOrganization(db, buyer))) {
+    return []
   }
 
-  const linkedPersonId = await resolveLinkedCustomerRecordId(db, params.buyer.userId)
-  if (!linkedPersonId) return []
-  const email = params.email?.trim().toLowerCase() ?? null
-
-  const [directBookingRows, participantPersonRows, participantEmailRows] = await Promise.all([
-    linkedPersonId
-      ? db
-          .select({ bookingId: bookings.id })
-          .from(bookings)
-          .where(eq(bookings.personId, linkedPersonId))
-      : Promise.resolve([]),
-    linkedPersonId
-      ? db
-          .select({ bookingId: bookingTravelers.bookingId })
-          .from(bookingTravelers)
-          .where(eq(bookingTravelers.personId, linkedPersonId))
-      : Promise.resolve([]),
-    // Phone-only users have no email to match on — fall back to linked-person matching only.
-    email
-      ? db
-          .select({ bookingId: bookingTravelers.bookingId })
-          .from(bookingTravelers)
-          // agent-quality: raw-sql reviewed -- owner: customer-portal; dynamic SQL interpolation uses Drizzle parameter binding or vetted SQL identifiers.
-          .where(sql`lower(${bookingTravelers.email}) = ${email}`)
-      : Promise.resolve([]),
-  ])
-
-  return Array.from(
-    new Set(
-      [...directBookingRows, ...participantPersonRows, ...participantEmailRows].map(
-        (row) => row.bookingId,
-      ),
-    ),
-  )
+  return listAccessibleBookingIds(db, {
+    buyerAccount: { id: buyer.buyerAccountId, kind: buyer.kind },
+  })
 }
 
 async function isActiveBusinessBuyerOrganization(
@@ -1337,60 +1303,15 @@ async function hasBookingAccess(params: {
   db: PostgresJsDatabase
   bookingId: string
   buyer: CustomerBuyerContext
-  // Phone-only users have no email; the email-match branch is skipped
-  // and access falls through to the linked-person path.
-  authEmail: string | null
-  linkedPersonId: string | null
 }) {
   if (params.buyer.kind === "business") {
     if (!(await isActiveBusinessBuyerOrganization(params.db, params.buyer))) return false
-    const [match] = await params.db
-      .select({ bookingId: bookings.id })
-      .from(bookings)
-      .where(
-        and(
-          eq(bookings.id, params.bookingId),
-          eq(bookings.organizationId, params.buyer.relationshipOrganizationId),
-        ),
-      )
-      .limit(1)
-    return Boolean(match)
   }
 
-  if (!params.linkedPersonId) return false
-
-  const ownershipConditions = []
-  if (params.authEmail) {
-    // agent-quality: raw-sql reviewed -- owner: customer-portal; dynamic SQL interpolation uses Drizzle parameter binding or vetted SQL identifiers.
-    ownershipConditions.push(sql`lower(${bookingTravelers.email}) = ${params.authEmail}`)
-  }
-
-  if (params.linkedPersonId) {
-    ownershipConditions.push(eq(bookingTravelers.personId, params.linkedPersonId))
-  }
-
-  if (ownershipConditions.length === 0) {
-    return false
-  }
-
-  const [participantMatch, bookingMatch] = await Promise.all([
-    params.db
-      .select({ bookingId: bookingTravelers.bookingId })
-      .from(bookingTravelers)
-      .where(and(eq(bookingTravelers.bookingId, params.bookingId), or(...ownershipConditions)))
-      .limit(1),
-    params.linkedPersonId
-      ? params.db
-          .select({ bookingId: bookings.id })
-          .from(bookings)
-          .where(
-            and(eq(bookings.id, params.bookingId), eq(bookings.personId, params.linkedPersonId)),
-          )
-          .limit(1)
-      : Promise.resolve([]),
-  ])
-
-  return Boolean(participantMatch[0] || bookingMatch[0])
+  return hasActiveBookingCustomerAccess(params.db, {
+    bookingId: params.bookingId,
+    buyerAccountId: params.buyer.buyerAccountId,
+  })
 }
 
 async function getBookingBillingContact(
@@ -2100,10 +2021,7 @@ export const publicCustomerPortalService = {
       return null
     }
 
-    const accessibleBookingIds = await getAccessibleBookingIds(db, {
-      buyer,
-      email: authProfile.email,
-    })
+    const accessibleBookingIds = await getAccessibleBookingIds(db, buyer)
     const targetBookingIds =
       input.bookingIds?.filter((bookingId) => accessibleBookingIds.includes(bookingId)) ??
       accessibleBookingIds
@@ -2336,10 +2254,7 @@ export const publicCustomerPortalService = {
       return null
     }
 
-    const bookingIds = await getAccessibleBookingIds(db, {
-      buyer,
-      email: authProfile.emailVerified ? authProfile.email : null,
-    })
+    const bookingIds = await getAccessibleBookingIds(db, buyer)
     if (bookingIds.length === 0) {
       return []
     }
@@ -2442,21 +2357,12 @@ export const publicCustomerPortalService = {
       return null
     }
 
-    const [linkedPersonId, customerRecord] =
-      buyer.kind === "personal"
-        ? await Promise.all([
-            resolveLinkedCustomerRecordId(db, buyer.userId),
-            getCustomerRecord(db, buyer.userId),
-          ])
-        : [null, null]
-    const authEmail =
-      authProfile.emailVerified && authProfile.email ? authProfile.email.trim().toLowerCase() : null
+    const customerRecord =
+      buyer.kind === "personal" ? await getCustomerRecord(db, buyer.userId) : null
     const canAccess = await hasBookingAccess({
       db,
       bookingId,
       buyer,
-      authEmail,
-      linkedPersonId,
     })
 
     if (!canAccess) {
@@ -2486,23 +2392,13 @@ export const publicCustomerPortalService = {
       return null
     }
 
-    const [linkedPersonId, customerRecord] =
-      buyer.kind === "personal"
-        ? await Promise.all([
-            resolveLinkedCustomerRecordId(db, buyer.userId),
-            getCustomerRecord(db, buyer.userId),
-          ])
-        : [null, null]
+    const customerRecord =
+      buyer.kind === "personal" ? await getCustomerRecord(db, buyer.userId) : null
 
     const canAccess = await hasBookingAccess({
       db,
       bookingId,
       buyer,
-      authEmail:
-        authProfile.emailVerified && authProfile.email
-          ? authProfile.email.trim().toLowerCase()
-          : null,
-      linkedPersonId,
     })
 
     if (!canAccess) {

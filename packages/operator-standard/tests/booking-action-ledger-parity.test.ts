@@ -32,6 +32,18 @@ describe("standard booking action-ledger authority", () => {
         capabilityId: "bookings:documents:record",
       },
       {
+        id: "@voyant-travel/bookings#action.list-booking-customer-access",
+        capabilityId: "booking-customer-access:list",
+      },
+      {
+        id: "@voyant-travel/bookings#action.grant-booking-customer-access",
+        capabilityId: "booking-customer-access:grant",
+      },
+      {
+        id: "@voyant-travel/bookings#action.revoke-booking-customer-access",
+        capabilityId: "booking-customer-access:revoke",
+      },
+      {
         id: "@voyant-travel/bookings#action.preview-traveler-correction-amendment",
         capabilityId: "bookings:amendments:preview-traveler-correction",
       },

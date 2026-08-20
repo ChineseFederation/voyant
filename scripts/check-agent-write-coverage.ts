@@ -56,6 +56,13 @@ const ALLOWLIST = new Map<string, { rationale: string }>([
       ] as const,
   ),
   [
+    "@voyant-travel/bookings:booking/customer-access",
+    {
+      rationale:
+        "Granting or revoking a Buyer Account's access to a Booking is the authorization decision the rest of the customer plane trusts, and the staff endpoints exist so a human can remediate a claim that identity proof could not settle. An agent Tool would be a second, unproven path to the same authority.",
+    },
+  ],
+  [
     "@voyant-travel/catalog:catalog/booking-session/maintenance",
     {
       rationale:

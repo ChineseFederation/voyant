@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm"
+import { and, desc, eq, isNull } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
 import { type CustomerVerificationChallenge, customerVerificationChallenges } from "./schema.js"
@@ -155,6 +155,8 @@ async function getLatestChallenge(
   channel: CustomerVerificationChannel,
   destination: string,
   purpose: string,
+  subjectRef?: string | null,
+  matchSubjectRef = false,
 ) {
   const [row] = await db
     .select()
@@ -164,6 +166,13 @@ async function getLatestChallenge(
         eq(customerVerificationChallenges.channel, channel),
         eq(customerVerificationChallenges.destination, destination),
         eq(customerVerificationChallenges.purpose, purpose),
+        ...(matchSubjectRef
+          ? [
+              subjectRef
+                ? eq(customerVerificationChallenges.subjectRef, subjectRef)
+                : isNull(customerVerificationChallenges.subjectRef),
+            ]
+          : []),
       ),
     )
     .orderBy(
@@ -191,7 +200,7 @@ async function startChallenge(
   const expiresAt = new Date(now.getTime() + expiresInSeconds * 1000)
   const code = generateVerificationCode(codeLength)
   const codeHash = await hashVerificationCode(code)
-  const existing = await getLatestChallenge(db, channel, destination, purpose)
+  const existing = await getLatestChallenge(db, channel, destination, purpose, subjectRef, true)
 
   if (existing && existing.status === "pending" && existing.expiresAt > now) {
     const [updated] = await db
@@ -258,7 +267,7 @@ async function confirmChallenge(
   const now = options?.now?.() ?? new Date()
   const row = await getLatestChallenge(db, channel, destination, purpose)
 
-  if (!row || row.status !== "pending") {
+  if (row?.status !== "pending") {
     throw new CustomerVerificationError("Verification challenge not found", "challenge_not_found")
   }
 

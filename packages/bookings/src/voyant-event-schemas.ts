@@ -58,6 +58,28 @@ export const bookingInquiryCreatedPayloadSchema = {
   additionalProperties: false,
 } as const
 
+export const bookingCustomerAccessLifecyclePayloadSchema = {
+  type: "object",
+  required: ["bookingId", "grantId", "buyerAccountKind", "source", "role", "occurredAt", "actorId"],
+  properties: {
+    bookingId: { type: "string" },
+    grantId: { type: "string" },
+    buyerAccountKind: { enum: ["personal", "business"] },
+    source: {
+      enum: [
+        "authenticated_commit",
+        "verified_booking_claim",
+        "staff_grant",
+        "legacy_session_backfill",
+      ],
+    },
+    role: { enum: ["owner"] },
+    occurredAt: { type: "string", format: "date-time" },
+    actorId: { type: ["string", "null"] },
+  },
+  additionalProperties: false,
+} as const
+
 export const bookingLifecyclePayloadSchema = {
   type: "object",
   required: ["bookingId", "bookingNumber", "actorId"],

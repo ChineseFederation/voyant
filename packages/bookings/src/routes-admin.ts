@@ -63,6 +63,7 @@ import {
   buildBookingRouteRuntime,
 } from "./route-runtime.js"
 import { bookingAmendmentAdminRoutes } from "./routes-amendments.js"
+import { bookingCustomerAccessAdminRoutes } from "./routes-customer-access-admin.js"
 import { bookingGroupRoutes } from "./routes-groups.js"
 import { bookingInquiryAdminRoutes } from "./routes-inquiries.js"
 import { createBookingsAdminRoute as createRoute } from "./routes-openapi.js"
@@ -3676,6 +3677,7 @@ const documentsRoutes = new OpenAPIHono<Env>({ defaultHook: openApiValidationHoo
 // before the `coreCrudRoutes` `/{id}` catch-all — so coreCrud is mounted LAST.
 export const bookingRoutes = new OpenAPIHono<Env>({ defaultHook: openApiValidationHook })
   .route("/", bookingAmendmentAdminRoutes)
+  .route("/", bookingCustomerAccessAdminRoutes)
   .route("/", bookingInquiryAdminRoutes)
   .route("/", readsRoutes)
   .route("/", lifecycleRoutes)

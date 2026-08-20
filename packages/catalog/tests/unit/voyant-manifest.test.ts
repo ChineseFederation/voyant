@@ -206,6 +206,10 @@ describe("catalog deployment manifest", () => {
         // Optional: resolves the billing party for a verified guest. Without
         // it only authenticated customers can self-serve.
         { id: "bookings.relationships.runtime", optional: true },
+        // Optional because the engine must still work where auth is not
+        // deployed: unbound, a personal buyer simply gets no CRM Person linked
+        // to their Buyer Account.
+        { id: "auth.personal-buyer-person.runtime", optional: true },
         // Optional, and unbound is the intended default for a self-hosted
         // deployment — nothing in the engine depends on an analytics vendor.
         { id: "analytics.runtime", optional: true },

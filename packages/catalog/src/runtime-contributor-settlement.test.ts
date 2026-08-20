@@ -34,6 +34,7 @@ describe("managed Booking Session settlement composition", () => {
     const upsertPersonFromContact = vi.fn(async () => ({ id: "per_buyer" }))
     const relationships = {
       loadPersonTravelSnapshot: vi.fn(async () => null),
+      createPersonWithoutContactMatch: vi.fn(async () => ({ id: "per_new_buyer" })),
       upsertPersonFromContact,
       getPersonById: vi.fn(async () => null),
       getOrganizationById: vi.fn(async () => null),

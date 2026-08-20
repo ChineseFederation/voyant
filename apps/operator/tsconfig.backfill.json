@@ -1,0 +1,9 @@
+{
+  "extends": "./.voyant/tsconfig.server.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["node"]
+  },
+  "include": ["scripts/backfill-booking-customer-access.ts"],
+  "exclude": []
+}

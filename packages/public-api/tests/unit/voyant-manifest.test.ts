@@ -201,7 +201,11 @@ describe("storefront deployment manifest", () => {
 
   it("declares executable Tools and action-ledger bindings for every extension surface", () => {
     expect(publicApiCustomerPortalVoyantModule.tools).toHaveLength(13)
-    expect(publicApiCustomerPortalVoyantModule.actions).toHaveLength(5)
+    // Six actions, thirteen Tools: claiming Booking access is an action without
+    // a Tool. Granting a Buyer Account access to a Booking is the authorization
+    // decision the rest of the customer plane trusts, so it is deliberately not
+    // an agent surface (see the allowlist in check-agent-write-coverage.ts).
+    expect(publicApiCustomerPortalVoyantModule.actions).toHaveLength(6)
     // The verification DOMAIN moved to identity (voyant#4627). Its four Tools
     // stayed, because resolving the customer's OWN destination needs the
     // customer portal's composed profile — so they hang off this package's

@@ -1,4 +1,8 @@
-import { bookings, bookingTravelers } from "@voyant-travel/bookings/schema"
+import {
+  bookingCustomerAccessGrants,
+  bookings,
+  bookingTravelers,
+} from "@voyant-travel/bookings/schema"
 import { customerAuthProfilesTable, customerAuthUser } from "@voyant-travel/db/schema/iam"
 import { cleanupTestDb, closeTestDb, createTestDb } from "@voyant-travel/db/test-utils"
 import { handleApiError } from "@voyant-travel/hono"
@@ -23,6 +27,11 @@ describe.skipIf(!TEST_DATABASE_URL)("customer buyer authorization", () => {
 
   beforeEach(async () => {
     await cleanupTestDb(db)
+    // IAM schemas are intentionally outside the shared public-schema cleanup.
+    // This file owns its customer identities, so clear them explicitly to keep
+    // repeat runs deterministic against the same integration database.
+    await db.delete(customerAuthProfilesTable)
+    await db.delete(customerAuthUser)
   })
 
   afterAll(async () => {
@@ -57,7 +66,7 @@ describe.skipIf(!TEST_DATABASE_URL)("customer buyer authorization", () => {
       .insert(bookings)
       .values({
         bookingNumber: input.bookingNumber,
-        status: "on_hold",
+        status: "confirmed",
         sourceType: "direct",
         sellCurrency: "EUR",
         personId: input.personId ?? null,
@@ -75,7 +84,29 @@ describe.skipIf(!TEST_DATABASE_URL)("customer buyer authorization", () => {
     return booking!
   }
 
-  it("isolates exact business Organization access from personal Person and traveler-email access", async () => {
+  async function grantBooking(
+    bookingId: string,
+    buyerAccountId: string,
+    buyerAccountKind: "personal" | "business",
+    revoked = false,
+  ) {
+    await db.insert(bookingCustomerAccessGrants).values({
+      bookingId,
+      buyerAccountId,
+      buyerAccountKind,
+      role: "owner",
+      source: "staff_grant",
+      ...(revoked
+        ? {
+            revokedAt: new Date(),
+            revokedByPrincipalId: "staff-test",
+            revocationReason: "test revocation",
+          }
+        : {}),
+    })
+  }
+
+  it("authorizes bookings only through active Buyer Account grants", async () => {
     await db.insert(people).values({ id: "person-buyer", firstName: "Person", lastName: "Buyer" })
     await db.insert(organizations).values([
       { id: "org-a", name: "Organization A", status: "active" },
@@ -87,12 +118,31 @@ describe.skipIf(!TEST_DATABASE_URL)("customer buyer authorization", () => {
       relationshipPersonId: "person-buyer",
     })
     const personal = await seedBooking({ bookingNumber: "PERSON", personId: "person-buyer" })
+    const personalWithoutGrant = await seedBooking({
+      bookingNumber: "PERSON-NO-GRANT",
+      personId: "person-buyer",
+    })
     const email = await seedBooking({
       bookingNumber: "EMAIL",
       travelerEmail: "customer@example.com",
     })
+    const emailWithoutGrant = await seedBooking({
+      bookingNumber: "EMAIL-NO-GRANT",
+      travelerEmail: "customer@example.com",
+    })
     const orgA = await seedBooking({ bookingNumber: "ORG-A", organizationId: "org-a" })
-    await seedBooking({ bookingNumber: "ORG-B", organizationId: "org-b" })
+    const orgAWithoutGrant = await seedBooking({
+      bookingNumber: "ORG-A-NO-GRANT",
+      organizationId: "org-a",
+    })
+    const orgB = await seedBooking({ bookingNumber: "ORG-B", organizationId: "org-b" })
+
+    // Matching Person, traveler email, and billing Organization are relationship
+    // facts only. Explicit grants select which account can read each booking.
+    await grantBooking(orgA.id, "business:auth-org-a", "business")
+    await grantBooking(personal.id, "personal:customer-a", "personal")
+    await grantBooking(email.id, "personal:customer-a", "personal", true)
+    await grantBooking(orgB.id, "business:auth-org-b", "business")
 
     const businessBuyer = {
       userId: "customer-a",
@@ -115,6 +165,9 @@ describe.skipIf(!TEST_DATABASE_URL)("customer buyer authorization", () => {
     await expect(
       publicCustomerPortalService.getBooking(db, businessBuyer, email.id),
     ).resolves.toBeNull()
+    await expect(
+      publicCustomerPortalService.getBooking(db, businessBuyer, orgAWithoutGrant.id),
+    ).resolves.toBeNull()
 
     const personalBuyer = {
       userId: "customer-a",
@@ -127,24 +180,19 @@ describe.skipIf(!TEST_DATABASE_URL)("customer buyer authorization", () => {
       membershipRole: null as null,
     }
     const personalRows = await publicCustomerPortalService.listBookings(db, personalBuyer)
-    expect(personalRows?.map((row) => row.bookingId).sort()).toEqual([personal.id, email.id].sort())
+    expect(personalRows?.map((row) => row.bookingId)).toEqual([personal.id])
+    await expect(
+      publicCustomerPortalService.getBooking(db, personalBuyer, email.id),
+    ).resolves.toBeNull()
+    await expect(
+      publicCustomerPortalService.getBooking(db, personalBuyer, personalWithoutGrant.id),
+    ).resolves.toBeNull()
+    await expect(
+      publicCustomerPortalService.getBooking(db, personalBuyer, emailWithoutGrant.id),
+    ).resolves.toBeNull()
     await expect(
       publicCustomerPortalService.getBooking(db, personalBuyer, orgA.id),
     ).resolves.toBeNull()
-
-    await db.update(people).set({ archivedAt: new Date() }).where(eq(people.id, "person-buyer"))
-    expect(
-      await publicCustomerPortalService.listBookings(db, {
-        userId: "customer-a",
-        buyerAccountId: "personal:customer-a",
-        kind: "personal",
-        authOrganizationId: null,
-        relationshipOrganizationId: null,
-        relationshipPersonId: "person-buyer",
-        membershipId: null,
-        membershipRole: null,
-      }),
-    ).toEqual([])
 
     await db
       .update(organizations)

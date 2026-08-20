@@ -13,6 +13,7 @@ import type { FinanceOperatorSettingsRuntime } from "@voyant-travel/finance/runt
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { Context } from "hono"
 import { resolveBookingSessionStaffAuthorities } from "../booking-engine/sessions-staff-authority.js"
+import type { PersonalBuyerPersonRuntime } from "../personal-buyer-person-runtime-port.js"
 import { requireCatalogRuntimeServices } from "../runtime-contracts.js"
 import {
   getBookingEngineRegistryFromContext,
@@ -26,6 +27,7 @@ function getCatalogBookingDb(c: Context): AnyDrizzleDb {
 
 export interface BookingSessionServiceRuntimeOptions<ContextValue = Context> {
   resolveBookingsRelationshipsRuntime?: () => Promise<BookingsRelationshipsRuntime | null>
+  resolvePersonalBuyerPersonRuntime?: () => Promise<PersonalBuyerPersonRuntime | null>
   resolveFinanceServiceRuntime?: (context: ContextValue) => FinanceServiceRuntime
 }
 
@@ -33,7 +35,10 @@ export interface BookingSessionServiceRuntimeOptions<ContextValue = Context> {
 export function createBookingSessionServiceRuntimes<ContextValue>(
   options: BookingSessionServiceRuntimeOptions<ContextValue>,
   context: ContextValue,
-): Pick<ProductionBookingSessionModuleDeps, "relationships" | "financeRuntime"> {
+): Pick<
+  ProductionBookingSessionModuleDeps,
+  "relationships" | "personalBuyerPerson" | "financeRuntime"
+> {
   return {
     // Runtime ports may still be promises (or not yet contributed) when
     // Catalog contributes its ports, so keep Relationships lazy until a
@@ -46,6 +51,11 @@ export function createBookingSessionServiceRuntimes<ContextValue>(
               const runtime = await options.resolveBookingsRelationshipsRuntime?.()
               return runtime?.loadPersonTravelSnapshot(...args) ?? null
             },
+            async createPersonWithoutContactMatch(...args) {
+              const runtime = await options.resolveBookingsRelationshipsRuntime?.()
+              if (!runtime) throw new Error("Relationships runtime is not available")
+              return runtime.createPersonWithoutContactMatch(...args)
+            },
             async upsertPersonFromContact(...args) {
               const runtime = await options.resolveBookingsRelationshipsRuntime?.()
               return runtime?.upsertPersonFromContact(...args) ?? null
@@ -57,6 +67,16 @@ export function createBookingSessionServiceRuntimes<ContextValue>(
             async getOrganizationById(...args) {
               const runtime = await options.resolveBookingsRelationshipsRuntime?.()
               return runtime?.getOrganizationById(...args) ?? null
+            },
+          },
+        }
+      : {}),
+    ...(options.resolvePersonalBuyerPersonRuntime
+      ? {
+          personalBuyerPerson: {
+            async ensurePersonalBuyerPerson(...args) {
+              const runtime = await options.resolvePersonalBuyerPersonRuntime?.()
+              return runtime?.ensurePersonalBuyerPerson(...args) ?? null
             },
           },
         }
@@ -118,6 +138,13 @@ export function createOperatorCatalogBookingRouteModuleOptions(options: {
           actor?: string
           realm?: string
           scopes?: string[]
+          buyerAccountId?: string
+          buyerAccountKind?: "personal" | "business"
+          relationshipPersonId?: string
+          authOrganizationId?: string
+          relationshipOrganizationId?: string
+          buyerMembershipId?: string
+          buyerMembershipRole?: string
         }
         const capability = c.req.header("Voyant-Booking-Session-Capability")?.trim()
         if (actorKind === "anonymous" && vars.actor === "customer" && vars.realm === "customer") {
@@ -125,6 +152,17 @@ export function createOperatorCatalogBookingRouteModuleOptions(options: {
             actorKind: "customer" as const,
             ...(vars.userId ? { principalId: vars.userId } : {}),
             ...(vars.organizationId ? { organizationId: vars.organizationId } : {}),
+            ...(vars.buyerAccountId ? { buyerAccountId: vars.buyerAccountId } : {}),
+            ...(vars.buyerAccountKind ? { buyerAccountKind: vars.buyerAccountKind } : {}),
+            ...(vars.relationshipPersonId
+              ? { relationshipPersonId: vars.relationshipPersonId }
+              : {}),
+            ...(vars.authOrganizationId ? { authOrganizationId: vars.authOrganizationId } : {}),
+            ...(vars.relationshipOrganizationId
+              ? { relationshipOrganizationId: vars.relationshipOrganizationId }
+              : {}),
+            ...(vars.buyerMembershipId ? { membershipId: vars.buyerMembershipId } : {}),
+            ...(vars.buyerMembershipRole ? { membershipRole: vars.buyerMembershipRole } : {}),
             ...(capability ? { capability } : {}),
           }
         }

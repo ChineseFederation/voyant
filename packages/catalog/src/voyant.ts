@@ -1,4 +1,5 @@
 // agent-quality: file-size exception -- owner: catalog; the package-owned manifest centralizes its APIs, Tools, runtime ports, and deployment declarations.
+
 import {
   bookingActionSourceRuntimePort,
   bookingsRelationshipsRuntimePort,
@@ -27,6 +28,7 @@ import { catalogCompositeBookingSessionRuntimePort } from "./composite-booking-s
 import { catalogContentRuntimePort } from "./content-runtime-port.js"
 import { catalogIndexSubscriberDeclarations } from "./index-subscriber-declarations.js"
 import { catalogIndexerProviderPort } from "./indexer/provider.js"
+import { personalBuyerPersonRuntimePort } from "./personal-buyer-person-runtime-port.js"
 import { catalogReindexJobRuntimePort } from "./reindex-job-runtime-port.js"
 import {
   catalogAccommodationsRuntimeExtensionPort,
@@ -464,6 +466,7 @@ export const catalogBookingEngineVoyantModule = defineModule({
     // Resolves the billing party for a verified guest, who has no account.
     // Optional: without it only authenticated customers can self-serve.
     requirePort(bookingsRelationshipsRuntimePort, { optional: true }),
+    requirePort(personalBuyerPersonRuntimePort, { optional: true }),
     // Product analytics. Optional, and unbound is the intended default for a
     // self-hosted deployment: nothing here depends on an analytics vendor.
     requirePort(analyticsPort, { optional: true }),

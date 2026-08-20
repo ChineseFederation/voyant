@@ -1,9 +1,9 @@
+// agent-quality: file-size exception -- owner: catalog; payment preparation, billing-party resolution, and settlement transfer remain one transaction-facing adapter until a split can preserve the protocol atomically.
 import type {
   BookingPaymentCheckoutV1,
   BookingSessionBankTransferV1,
 } from "@voyant-travel/catalog-contracts/booking-engine/lifecycle-conformance"
 import type { BookingSessionTargetV1 } from "@voyant-travel/catalog-contracts/booking-engine/session-contracts"
-import { identifiedUserId } from "@voyant-travel/core"
 import type {
   ComputedScheduleEntry,
   PaymentAdapter,
@@ -706,30 +706,31 @@ function formatDepartureDate(departureDate: string | null, locale: string): stri
 }
 
 /**
- * The opaque, stable customer reference a hosted provider binds a stored
- * customer to. Prefers the CRM person the buyer was identified as; falls back
- * to the owning principal only for a customer-actor Session, because on a
- * staff-created Session the principal is the agent, not the shopper.
+ * The opaque, stable account reference a hosted provider binds a stored
+ * customer to. Only an authenticated customer Session with a persisted Buyer
+ * Account receives one. CRM people, acting principals, staff, partners, and
+ * guests are deliberately not reusable payment-customer identities
+ * (voyant#4637).
  *
- * The principal has to survive `identifiedUserId` first. A guest Session is
- * `actorKind: "customer"` with the anonymous placeholder as its principal, and
- * a reference is a *stable customer key* — the provider mints a Customer under
- * it on first use and matches every later checkout to that same record. Handing
- * over a value every guest shares therefore pools unrelated shoppers into one
- * Customer, keeping the first shopper's billing email on all of them
- * (voyant#4637). Absent is the correct answer: an anonymous shopper pays as a
- * guest, which is what the resolution contract asks for.
+ * This does mean a returning customer whose provider Customer was minted under
+ * the old Person-id key is not matched to it, and does not see instruments
+ * stored against it. That is the intended trade, not a gap to close here: the
+ * RFC treats provider customers keyed by Person id as compatibility data rather
+ * than authorization, and requires an explicit provider-customer mapping for
+ * the Buyer Account before a saved instrument may be offered. Attaching the
+ * qualified reference to an existing provider record is an adapter-side
+ * migration. Do not reinstate a Person or principal fallback to paper over it —
+ * that re-derives a payment identity from data the customer never proved
+ * control of, which is the thing this function stopped doing.
  */
 function customerReference(session: {
   actorKind: string
-  ownerPrincipalId?: string
+  ownerBuyerAccountId?: string
   statePayload: Record<string, unknown>
 }): string | undefined {
-  const billing = record(session.statePayload.billing)
-  const personId = stringValue(record(billing?.contact)?.personId)
-  if (personId) return personId
   if (session.actorKind !== "customer") return undefined
-  return identifiedUserId(session.ownerPrincipalId) ?? undefined
+  const buyerAccountId = session.ownerBuyerAccountId?.trim()
+  return buyerAccountId ? `voyant-buyer-account:${buyerAccountId}` : undefined
 }
 
 /**

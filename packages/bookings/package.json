@@ -41,7 +41,10 @@
     "./openapi/admin/booking-requirements": "./openapi/admin/booking-requirements.json",
     "./openapi/public-api": "./openapi/public-api/bookings.json",
     "./openapi/public-api/booking-requirements": "./openapi/public-api/booking-requirements.json",
-    "./guest-booking-guard": "./src/guest-booking-guard.ts"
+    "./guest-booking-guard": "./src/guest-booking-guard.ts",
+    "./customer-access": "./src/customer-access.ts",
+    "./customer-access-claims": "./src/customer-access-claims.ts",
+    "./legacy-customer-access-backfill": "./src/legacy-customer-access-backfill.ts"
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
@@ -252,6 +255,21 @@
       "./guest-booking-guard": {
         "types": "./dist/guest-booking-guard.d.ts",
         "default": "./dist/guest-booking-guard.js"
+      },
+      "./customer-access": {
+        "types": "./dist/customer-access.d.ts",
+        "import": "./dist/customer-access.js",
+        "default": "./dist/customer-access.js"
+      },
+      "./customer-access-claims": {
+        "types": "./dist/customer-access-claims.d.ts",
+        "import": "./dist/customer-access-claims.js",
+        "default": "./dist/customer-access-claims.js"
+      },
+      "./legacy-customer-access-backfill": {
+        "types": "./dist/legacy-customer-access-backfill.d.ts",
+        "import": "./dist/legacy-customer-access-backfill.js",
+        "default": "./dist/legacy-customer-access-backfill.js"
       }
     },
     "main": "./dist/index.js",

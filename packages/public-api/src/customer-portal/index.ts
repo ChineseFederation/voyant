@@ -96,6 +96,10 @@ export function createCustomerPortalApiModule(
       createPublicCustomerPortalRoutes(options),
       "@voyant-travel/public-api#customer-portal.api",
     ),
+    // A browser-safe key may reach these routes, but none are anonymous: the
+    // route handlers additionally require a live customer identity and active
+    // Buyer Account before any booking-claim state is read or changed.
+    publishable: true,
   }
 }
 

@@ -316,10 +316,11 @@ jobs:
     # against a hang rather than a budget the lane is already spending.
     #
     # Raised again to 30 for the same reason, with the arithmetic spelled out so
-    # the next person does not have to rediscover it: the lane now names 58
-    # files, each paying its own process start and database setup, and the
-    # insurance work (voyant#4750, voyant#4756) added four. At 20 it was being
-    # cancelled mid-suite with every test passing — a budget, not a backstop.
+    # the next person does not have to rediscover it: the lane now names 64
+    # files, each paying its own process start and database setup — the
+    # insurance work (voyant#4750, voyant#4756) added four and customer Booking
+    # access added six. At 20 it was being cancelled mid-suite with every test
+    # passing — a budget, not a backstop.
     # If this needs raising a third time, the answer is probably to stop giving
     # each file its own process rather than to add another ten minutes.
     timeout-minutes: 30
@@ -435,6 +436,22 @@ jobs:
                 tests/integration/booking-documents.test.ts
               pnpm --filter @voyant-travel/bookings exec vitest run \
                 tests/integration/fx-rollup.test.ts
+              # Customer Booking access. These six carry the claim that a
+              # Booking is reachable only through an explicit grant, and every
+              # one of them is `describe.skipIf(!TEST_DATABASE_URL)` — so
+              # outside this lane they report as skipped, not as unrun.
+              pnpm --filter @voyant-travel/bookings exec vitest run \
+                tests/integration/customer-access.test.ts
+              pnpm --filter @voyant-travel/bookings exec vitest run \
+                tests/integration/customer-access-claims.test.ts
+              pnpm --filter @voyant-travel/public-api exec vitest run \
+                tests/integration/customer-booking-claims.test.ts
+              pnpm --filter @voyant-travel/public-api exec vitest run \
+                tests/integration/customer-buyer-authorization.test.ts
+              pnpm --filter @voyant-travel/auth exec vitest run \
+                tests/integration/personal-buyer-person-runtime.test.ts
+              pnpm --filter @voyant-travel/identity exec vitest run \
+                tests/verification/integration/consume-challenge.test.ts
               pnpm --filter @voyant-travel/operations exec vitest run \
                 tests/availability/integration/auto-allocate-concurrency.test.ts
               pnpm --filter @voyant-travel/operations exec vitest run \

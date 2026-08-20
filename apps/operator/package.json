@@ -8,11 +8,12 @@
     "build": "voyant build && node ../../scripts/package-operator-admin-shell.mjs",
     "measure": "node ../../scripts/measure-operator-application.mjs --require-build",
     "start": "voyant start",
-    "typecheck": "pnpm run prepare:verify && NODE_OPTIONS=--max-old-space-size=6144 tsc -p .voyant/tsconfig.server.json && NODE_OPTIONS=--max-old-space-size=6144 tsc -p .voyant/tsconfig.tests-smoke.json && NODE_OPTIONS=--max-old-space-size=12288 tsc -p .voyant/tsconfig.client.json",
+    "typecheck": "pnpm run prepare:verify && NODE_OPTIONS=--max-old-space-size=6144 tsc -p .voyant/tsconfig.server.json && NODE_OPTIONS=--max-old-space-size=6144 tsc -p tsconfig.backfill.json && NODE_OPTIONS=--max-old-space-size=6144 tsc -p .voyant/tsconfig.tests-smoke.json && NODE_OPTIONS=--max-old-space-size=12288 tsc -p .voyant/tsconfig.client.json",
     "test": "pnpm run prepare:verify && vitest run --config .voyant/vitest.config.ts --passWithNoTests",
     "graph:check": "node ../../scripts/generate-operator-application-manifest.mjs --check && node ../../scripts/generate-operator-application-metadata.mjs --check && voyant db doctor --fail-on-drift",
     "prepare:verify": "node ../../scripts/generate-operator-application-manifest.mjs --check && node ../../scripts/generate-operator-application-metadata.mjs --emit && voyant build --artifacts-only && tsx .voyant/generate-routes.mjs",
     "db:migrate": "voyant migrate",
+    "backfill:booking-customer-access": "node --import tsx scripts/backfill-booking-customer-access.ts",
     "lint": "biome check src/ tests/"
   },
   "dependencies": {

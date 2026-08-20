@@ -303,6 +303,7 @@
     "@better-auth/oauth-provider": "1.6.23",
     "@hono/zod-openapi": "catalog:",
     "@voyant-travel/action-ledger": "workspace:^",
+    "@voyant-travel/catalog": "workspace:^",
     "@voyant-travel/core": "workspace:^",
     "@voyant-travel/db": "workspace:^",
     "@voyant-travel/distribution": "workspace:^",

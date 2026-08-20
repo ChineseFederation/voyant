@@ -27,6 +27,8 @@ export const bookingSessionsTable = pgTable(
     actorKind: text("actor_kind").notNull(),
     ownerPrincipalId: text("owner_principal_id"),
     ownerOrganizationId: text("owner_organization_id"),
+    ownerBuyerAccountId: text("owner_buyer_account_id"),
+    ownerBuyerAccountKind: text("owner_buyer_account_kind"),
     channelId: text("channel_id"),
     /**
      * Commercial scope, fixed at create. Requirements labels are
@@ -119,6 +121,16 @@ export const bookingSessionsTable = pgTable(
           (${table.actorKind} = 'anonymous' AND ${table.ownerPrincipalId} IS NULL AND ${table.capabilityHash} IS NOT NULL AND jsonb_array_length(${table.capabilityScopes}) > 0)
           OR (${table.actorKind} <> 'anonymous' AND ${table.capabilityHash} IS NULL AND ${table.ownerPrincipalId} IS NOT NULL AND jsonb_array_length(${table.capabilityScopes}) = 0)
         ))`,
+    ),
+    check(
+      "booking_sessions_buyer_account_pair",
+      sql`(${table.ownerBuyerAccountId} IS NULL AND ${table.ownerBuyerAccountKind} IS NULL)
+        OR (${table.ownerBuyerAccountId} IS NOT NULL
+            AND ${table.ownerBuyerAccountKind} IN ('personal', 'business'))`,
+    ),
+    check(
+      "booking_sessions_buyer_account_actor",
+      sql`${table.ownerBuyerAccountId} IS NULL OR ${table.actorKind} = 'customer'`,
     ),
     index("idx_booking_sessions_state_expires").on(table.state, table.expiresAt),
     index("idx_booking_sessions_product").on(table.productId),

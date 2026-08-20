@@ -127,6 +127,182 @@
     "parameters": {}
   },
   "paths": {
+    "/v1/public/customer-portal/booking-claims": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "bookingReference": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  },
+                  "channel": {
+                    "type": "string",
+                    "enum": ["email", "sms"]
+                  },
+                  "idempotencyKey": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255
+                  }
+                },
+                "required": ["bookingReference", "idempotencyKey"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "The booking claim request was accepted without disclosing reference eligibility",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "claimId": {
+                          "type": "string"
+                        },
+                        "deliveryStatus": {
+                          "type": "string",
+                          "enum": ["accepted"]
+                        }
+                      },
+                      "required": ["claimId", "deliveryStatus"]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many booking-claim attempts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "enum": ["Too Many Requests"]
+                    },
+                    "code": {
+                      "type": "string",
+                      "enum": ["rate_limited"]
+                    }
+                  },
+                  "required": ["error", "code"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postPublicCustomerPortalBookingClaims",
+        "summary": "POST /v1/public/customer-portal/booking-claims",
+        "tags": ["customer-portal"],
+        "x-voyant-module": "customer-portal",
+        "x-voyant-surface": "public-api",
+        "x-voyant-api-id": "@voyant-travel/public-api#customer-portal.api",
+        "x-voyant-package-name": "@voyant-travel/public-api"
+      }
+    },
+    "/v1/public/customer-portal/booking-claims/{claimId}/confirm": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": true,
+            "name": "claimId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "pattern": "^\\d{4,8}$"
+                  },
+                  "idempotencyKey": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255
+                  }
+                },
+                "required": ["code", "idempotencyKey"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The booking-specific customer access grant was created or replayed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "string",
+                          "enum": ["granted", "replayed"]
+                        },
+                        "grantId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["status", "grantId"]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The claim is invalid, expired, mismatched, or already consumed elsewhere",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "enum": ["invalid_or_expired"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postPublicCustomerPortalBookingClaimsByClaimIdConfirm",
+        "summary": "POST /v1/public/customer-portal/booking-claims/{claimId}/confirm",
+        "tags": ["customer-portal"],
+        "x-voyant-module": "customer-portal",
+        "x-voyant-surface": "public-api",
+        "x-voyant-api-id": "@voyant-travel/public-api#customer-portal.api",
+        "x-voyant-package-name": "@voyant-travel/public-api"
+      }
+    },
     "/v1/public/customer-portal/me": {
       "get": {
         "responses": {

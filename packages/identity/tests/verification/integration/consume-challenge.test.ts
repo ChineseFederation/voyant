@@ -3,9 +3,11 @@ import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { beforeAll, beforeEach, describe, expect, it } from "vitest"
 
 import {
+  confirmAndConsumeChallengeById,
   consumeVerifiedChallenge,
   PUBLIC_API_VERIFICATION_BOOKING_CREATE_PURPOSE,
 } from "../../../src/verification/consume.js"
+import { createCustomerVerificationService } from "../../../src/verification/service.js"
 
 const DB_AVAILABLE = !!process.env.TEST_DATABASE_URL
 
@@ -22,7 +24,7 @@ describe.skipIf(!DB_AVAILABLE)("consumeVerifiedChallenge", () => {
   })
 
   beforeEach(async () => {
-    await db.execute(sql.raw("DELETE FROM storefront_verification_challenges"))
+    await db.execute(sql.raw("DELETE FROM customer_verification_challenges"))
   })
 
   it("spends a bound, verified challenge exactly once", async () => {
@@ -73,6 +75,139 @@ describe.skipIf(!DB_AVAILABLE)("consumeVerifiedChallenge", () => {
 
     expect(await consumeVerifiedChallenge(db, input())).toEqual({ status: "rejected" })
   })
+
+  it("does not coalesce pending challenges bound to different subjects", async () => {
+    const deliveredCodes: string[] = []
+    const service = createCustomerVerificationService()
+    const senders = {
+      sendEmailChallenge: async ({ code }: { code: string }) => {
+        deliveredCodes.push(code)
+      },
+    }
+
+    const first = await service.startEmailChallenge(
+      db,
+      {
+        email: EMAIL,
+        purpose: "booking_access_claim",
+        subjectRef: "claim_a",
+      },
+      senders,
+    )
+    const second = await service.startEmailChallenge(
+      db,
+      {
+        email: EMAIL,
+        purpose: "booking_access_claim",
+        subjectRef: "claim_b",
+      },
+      senders,
+    )
+
+    expect(second.id).not.toBe(first.id)
+    expect(deliveredCodes).toHaveLength(2)
+  })
+
+  it("confirms and consumes only the exact pending challenge and all of its bindings", async () => {
+    let code = ""
+    const service = createCustomerVerificationService()
+    const challenge = await service.startEmailChallenge(
+      db,
+      {
+        email: EMAIL,
+        purpose: "booking_access_claim",
+        subjectRef: "claim_exact",
+      },
+      {
+        sendEmailChallenge: async (input) => {
+          code = input.code
+        },
+      },
+    )
+
+    const exact = () => ({
+      challengeId: challenge.id,
+      channel: "email" as const,
+      purpose: "booking_access_claim",
+      subjectRef: "claim_exact",
+      destination: EMAIL,
+      code,
+      consumedRef: "claim_exact",
+    })
+
+    await expect(
+      confirmAndConsumeChallengeById(db, { ...exact(), subjectRef: "claim_other" }),
+    ).resolves.toEqual({ status: "rejected" })
+    await expect(confirmAndConsumeChallengeById(db, exact())).resolves.toEqual({
+      status: "consumed",
+      destination: EMAIL,
+    })
+    await expect(confirmAndConsumeChallengeById(db, exact())).resolves.toEqual({
+      status: "replay",
+      destination: EMAIL,
+    })
+  })
+
+  it("allows one exact-id consumer and rejects a competing consumedRef", async () => {
+    let code = ""
+    const service = createCustomerVerificationService()
+    const challenge = await service.startEmailChallenge(
+      db,
+      { email: EMAIL, purpose: "booking_access_claim", subjectRef: "claim_race" },
+      {
+        sendEmailChallenge: async (input) => {
+          code = input.code
+        },
+      },
+    )
+    const common = {
+      challengeId: challenge.id,
+      channel: "email" as const,
+      purpose: "booking_access_claim",
+      subjectRef: "claim_race",
+      destination: EMAIL,
+      code,
+    }
+
+    const results = await Promise.all([
+      confirmAndConsumeChallengeById(db, { ...common, consumedRef: "claim_a" }),
+      confirmAndConsumeChallengeById(db, { ...common, consumedRef: "claim_b" }),
+    ])
+
+    expect(results.map((result) => result.status).sort()).toEqual(["consumed", "rejected"])
+  })
+
+  it("locks an exact challenge after its bounded invalid-code attempts", async () => {
+    let code = ""
+    const service = createCustomerVerificationService({ maxAttempts: 2 })
+    const challenge = await service.startEmailChallenge(
+      db,
+      { email: EMAIL, purpose: "booking_access_claim", subjectRef: "claim_bounded" },
+      {
+        sendEmailChallenge: async (input) => {
+          code = input.code
+        },
+      },
+    )
+    const exact = {
+      challengeId: challenge.id,
+      channel: "email" as const,
+      purpose: "booking_access_claim",
+      subjectRef: "claim_bounded",
+      destination: EMAIL,
+      consumedRef: "claim_bounded",
+    }
+
+    await expect(confirmAndConsumeChallengeById(db, { ...exact, code: "000000" })).resolves.toEqual(
+      { status: "rejected" },
+    )
+    await expect(confirmAndConsumeChallengeById(db, { ...exact, code: "111111" })).resolves.toEqual(
+      { status: "rejected" },
+    )
+    await expect(confirmAndConsumeChallengeById(db, { ...exact, code })).resolves.toEqual({
+      status: "rejected",
+    })
+  })
 })
 
 function input(patch: Record<string, unknown> = {}) {
@@ -100,7 +235,7 @@ async function seed(
   const minutesAgo = options.verifiedMinutesAgo ?? 1
   await db.execute(
     sql.raw(`
-    INSERT INTO storefront_verification_challenges
+    INSERT INTO customer_verification_challenges
       (id, channel, destination, purpose, code_hash, status, expires_at, verified_at,
        subject_ref, consumed_at, consumed_ref)
     VALUES (
@@ -119,26 +254,26 @@ async function ensureSchema(db: PostgresJsDatabase) {
   await db.execute(
     sql.raw(`
     DO $$ BEGIN
-      CREATE TYPE storefront_verification_channel AS ENUM ('email', 'sms');
+      CREATE TYPE customer_verification_channel AS ENUM ('email', 'sms');
     EXCEPTION WHEN duplicate_object THEN NULL; END $$;
   `),
   )
   await db.execute(
     sql.raw(`
     DO $$ BEGIN
-      CREATE TYPE storefront_verification_status AS ENUM ('pending', 'verified', 'expired', 'failed', 'cancelled');
+      CREATE TYPE customer_verification_status AS ENUM ('pending', 'verified', 'expired', 'failed', 'cancelled');
     EXCEPTION WHEN duplicate_object THEN NULL; END $$;
   `),
   )
   await db.execute(
     sql.raw(`
-    CREATE TABLE IF NOT EXISTS storefront_verification_challenges (
+    CREATE TABLE IF NOT EXISTS customer_verification_challenges (
       id text PRIMARY KEY,
-      channel storefront_verification_channel NOT NULL,
+      channel customer_verification_channel NOT NULL,
       destination text NOT NULL,
       purpose text NOT NULL DEFAULT 'contact_confirmation',
       code_hash text NOT NULL,
-      status storefront_verification_status NOT NULL DEFAULT 'pending',
+      status customer_verification_status NOT NULL DEFAULT 'pending',
       attempt_count integer NOT NULL DEFAULT 0,
       max_attempts integer NOT NULL DEFAULT 5,
       expires_at timestamptz NOT NULL,
@@ -153,7 +288,7 @@ async function ensureSchema(db: PostgresJsDatabase) {
   )
   await db.execute(
     sql.raw(`
-    ALTER TABLE storefront_verification_challenges
+    ALTER TABLE customer_verification_challenges
       ADD COLUMN IF NOT EXISTS subject_ref text,
       ADD COLUMN IF NOT EXISTS consumed_at timestamptz,
       ADD COLUMN IF NOT EXISTS consumed_ref text;

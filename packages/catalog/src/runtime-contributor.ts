@@ -1,4 +1,5 @@
 // agent-quality: file-size exception -- owner: catalog; one generated-runtime contributor map centralizes the package's lazy port factories and shared host primitives.
+
 import {
   type BookingActionSourceRuntime,
   type BookingsRelationshipsRuntime,
@@ -62,6 +63,10 @@ import {
   type CatalogCompositeBookingSessionRuntime,
   catalogCompositeBookingSessionRuntimePort,
 } from "./composite-booking-session-runtime-port.js"
+import {
+  type PersonalBuyerPersonRuntime,
+  personalBuyerPersonRuntimePort,
+} from "./personal-buyer-person-runtime-port.js"
 import {
   type CatalogReindexCheckpoint,
   type CatalogReindexClaim,
@@ -174,6 +179,10 @@ export function createCatalogRuntimePortContribution(
     async resolveBookingsRelationshipsRuntime() {
       if (host.hasRuntimePort?.(bookingsRelationshipsRuntimePort) !== true) return null
       return host.getRuntimePort<BookingsRelationshipsRuntime>(bookingsRelationshipsRuntimePort)
+    },
+    async resolvePersonalBuyerPersonRuntime() {
+      if (host.hasRuntimePort?.(personalBuyerPersonRuntimePort) !== true) return null
+      return host.getRuntimePort<PersonalBuyerPersonRuntime>(personalBuyerPersonRuntimePort)
     },
     resolveFinanceServiceRuntime(context: unknown) {
       const eventBus = (context as { var?: { eventBus?: unknown } } | undefined)?.var?.eventBus
@@ -330,17 +339,7 @@ export function createCatalogRuntimePortContribution(
             },
             scope: input.scope,
           },
-          input.ownerUserId
-            ? {
-                actorKind: "customer",
-                principalId: input.ownerUserId,
-                storefront: input.channel,
-              }
-            : {
-                actorKind: "anonymous",
-                capability: input.capability,
-                storefront: input.channel,
-              },
+          compositeSessionAccess(input),
         )
       },
     } satisfies CatalogCompositeBookingSessionRuntime,
@@ -582,4 +581,44 @@ function claimFromRow(
 
 function stringValue(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() ? value.trim() : undefined
+}
+
+/**
+ * How a composite Trip Session identifies its creator.
+ *
+ * A customer-owned Session must carry a Buyer Account, so claiming
+ * `actorKind: "customer"` on the strength of a user id alone produces a Session
+ * the access rules then refuse — which would fail every authenticated Trip
+ * checkout before a Session existed at all.
+ *
+ * A personal Buyer Account is `personal:<principal>` by construction, so the
+ * whole context is derivable here. A business account is not: it additionally
+ * needs the auth organization, its CRM counterpart, and the caller's
+ * membership, and this port carries none of them. Rather than fabricate a
+ * membership the caller never proved, that case creates the Session against the
+ * capability it already supplies. The Trip still books; the Booking is claimed
+ * rather than owned outright, which is the same answer a guest gets.
+ */
+function compositeSessionAccess(input: {
+  capability: string
+  ownerUserId: string | null
+  ownerBuyerAccountId?: string | null
+  channel: { channelId: string }
+}) {
+  const principalId = input.ownerUserId?.trim()
+  const buyerAccountId = input.ownerBuyerAccountId?.trim()
+  if (principalId && buyerAccountId === `personal:${principalId}`) {
+    return {
+      actorKind: "customer" as const,
+      principalId,
+      buyerAccountId,
+      buyerAccountKind: "personal" as const,
+      publicApiOrigin: input.channel,
+    }
+  }
+  return {
+    actorKind: "anonymous" as const,
+    capability: input.capability,
+    publicApiOrigin: input.channel,
+  }
 }

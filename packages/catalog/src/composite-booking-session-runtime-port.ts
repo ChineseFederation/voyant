@@ -10,6 +10,14 @@ export interface CatalogCompositeBookingSessionRuntime {
     tripEnvelopeId: string
     capability: string
     ownerUserId: string | null
+    /**
+     * The Buyer Account the caller was authenticated as, when the caller had
+     * one. A composite Session is only owned by a customer if this arrives
+     * alongside `ownerUserId`; without it the Session is created against the
+     * capability, because a customer-owned Session with no Buyer Account is
+     * exactly what the access rules refuse.
+     */
+    ownerBuyerAccountId?: string | null
     channel: { channelId: string }
     scope: { locale: string; market: string; currency: string }
   }): Promise<BookingSessionOutcomeV1>

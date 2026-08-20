@@ -311,6 +311,7 @@ async function bookAuthorizedSelection(
     tripEnvelopeId: resolved.access.envelopeId,
     capability,
     ownerUserId: resolved.access.ownerUserId,
+    ownerBuyerAccountId: resolved.access.ownerBuyerAccountId,
     channel: { channelId: resolved.access.channelId },
     scope: {
       locale: resolved.access.locale,

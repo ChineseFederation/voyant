@@ -11,7 +11,7 @@ vi.mock("../../src/booking-number.js", () => ({
 
 import { createSelfServiceCreateRuntime } from "../../src/self-service-create-runtime.js"
 
-describe("Finance self-service create runtime storefront origin", () => {
+describe("Finance self-service create runtime public API origin", () => {
   beforeEach(() => {
     executeCreate.mockReset()
     executeCreate.mockResolvedValue({ value: { bookingId: "book_1" } })
@@ -20,7 +20,7 @@ describe("Finance self-service create runtime storefront origin", () => {
   it.each([
     [
       "public",
-      { storefront: { channelId: "chan_public" } },
+      { publicApiOrigin: { channelId: "chan_public" } },
       { publicApiOrigin: { channelId: "chan_public" } },
     ],
     ["staff", {}, {}],
@@ -46,8 +46,52 @@ describe("Finance self-service create runtime storefront origin", () => {
     expect(executeCreate).toHaveBeenCalledWith(
       expect.objectContaining({ commandInput: expect.objectContaining(expected) }),
     )
-    if (!("storefront" in extra)) {
+    if (!("publicApiOrigin" in extra)) {
       expect(executeCreate.mock.calls[0]?.[0]?.commandInput).not.toHaveProperty("publicApiOrigin")
     }
+  })
+
+  it("grants an authenticated Buyer Account inside the Booking create transaction", async () => {
+    const transaction = { transaction: true }
+    executeCreate.mockImplementationOnce(async (input) => {
+      await input.consumeSources(transaction, "book_1")
+      return { value: { bookingId: "book_1" } }
+    })
+    const grantCustomerAccess = vi.fn(async () => undefined)
+    const source = {
+      resolveBookingSource: vi.fn(async () => ({ status: "ok" as const, command: {} })),
+      consumeBookingSource: vi.fn(async () => undefined),
+    }
+    const runtime = createSelfServiceCreateRuntime({
+      resolveSource: () => source as never,
+      admit: () => ({}) as never,
+      grantCustomerAccess,
+    })
+
+    await runtime.createFromSession({
+      db: {} as never,
+      sessionId: "bses_1",
+      quoteId: "cquo_1",
+      caller: { personId: "per_1" },
+      idempotencyKey: "create_1",
+      userId: "usr_1",
+      customerAccess: {
+        buyerAccountId: "business:org_1",
+        buyerAccountKind: "business",
+        membershipId: "membership_1",
+        membershipRole: "member",
+      },
+    })
+
+    expect(grantCustomerAccess).toHaveBeenCalledWith(transaction, {
+      bookingId: "book_1",
+      buyerAccountId: "business:org_1",
+      buyerAccountKind: "business",
+      grantedByPrincipalId: "usr_1",
+      grantedByMembershipId: "membership_1",
+      grantedByMembershipRole: "member",
+      idempotencyKey: "create_1:customer-access",
+      proofRef: "bses_1",
+    })
   })
 })

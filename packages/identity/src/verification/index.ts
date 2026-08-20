@@ -13,10 +13,13 @@ import {
 import { customerVerificationModule } from "./schema.js"
 
 export type {
+  ConfirmAndConsumeChallengeByIdInput,
+  ConfirmAndConsumeChallengeByIdResult,
   ConsumeVerifiedChallengeInput,
   ConsumeVerifiedChallengeResult,
 } from "./consume.js"
 export {
+  confirmAndConsumeChallengeById,
   consumeVerifiedChallenge,
   PUBLIC_API_VERIFICATION_BOOKING_CREATE_PURPOSE,
   peekVerifiedChallengeDestination,

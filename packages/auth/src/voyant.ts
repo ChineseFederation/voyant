@@ -1,3 +1,4 @@
+import { personalBuyerPersonRuntimePort } from "@voyant-travel/catalog/personal-buyer-person-runtime-port"
 import { defineModule, providePort, requirePort } from "@voyant-travel/core/project"
 import { customerBusinessAccountOnboardingRuntimePort } from "./customer-business-onboarding-runtime-port.js"
 import { identityAccessRuntimePort } from "./identity-access-runtime-port.js"
@@ -251,7 +252,9 @@ export const authPublicApiVoyantModule = defineModule({
   // channel, plus the deployment's customer-account configuration and its
   // KMS-encrypted provider credentials, backing the local customer-auth
   // resolver. There is no storefront entity above any of it (voyant#4624).
-  provides: { ports: [providePort(publicApiRuntimePort)] },
+  provides: {
+    ports: [providePort(publicApiRuntimePort), providePort(personalBuyerPersonRuntimePort)],
+  },
   runtimePorts: [
     requirePort(publicApiRuntimePort),
     requirePort(customerBusinessAccountOnboardingRuntimePort, { optional: true }),

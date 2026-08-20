@@ -58,6 +58,7 @@
     "./booking-engine/operator-routes": "./src/booking-engine/operator-routes.ts",
     "./runtime-port": "./src/content-runtime-port.ts",
     "./composite-booking-session-runtime-port": "./src/composite-booking-session-runtime-port.ts",
+    "./personal-buyer-person-runtime-port": "./src/personal-buyer-person-runtime-port.ts",
     "./booking-session-maintenance-job": "./src/booking-session-maintenance-job.ts",
     "./reindex-job": "./src/reindex-job.ts",
     "./sources-sync-job": "./src/sources-sync-job.ts",
@@ -383,6 +384,11 @@
         "types": "./dist/composite-booking-session-runtime-port.d.ts",
         "import": "./dist/composite-booking-session-runtime-port.js",
         "default": "./dist/composite-booking-session-runtime-port.js"
+      },
+      "./personal-buyer-person-runtime-port": {
+        "types": "./dist/personal-buyer-person-runtime-port.d.ts",
+        "import": "./dist/personal-buyer-person-runtime-port.js",
+        "default": "./dist/personal-buyer-person-runtime-port.js"
       },
       "./booking-session-maintenance-job": {
         "types": "./dist/booking-session-maintenance-job.d.ts",

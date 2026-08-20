@@ -15,7 +15,7 @@ import {
 const ACCESS = {
   actorKind: "anonymous" as const,
   capability: `bcap_${"a".repeat(43)}`,
-  storefront: { channelId: "chan_public" },
+  publicApiOrigin: { channelId: "chan_public" },
 }
 
 describe("paid Booking Session settlement failures", () => {
