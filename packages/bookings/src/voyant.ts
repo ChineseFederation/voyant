@@ -14,8 +14,10 @@ import {
 } from "@voyant-travel/core/runtime-port"
 
 import { BOOKING_VOYANT_ACTIONS } from "./action-declarations.js"
-import { bookingsCanonicalInquiryIntakeRuntimePort } from "./inquiry-intake-runtime-port.js"
-import { legacyBookingInquiryReadRuntimePort } from "./legacy-inquiry-read-runtime-port.js"
+import {
+  bookingsCanonicalInquiryIntakeRuntimePort,
+  legacyBookingInquiryReadRuntimePort,
+} from "./inquiry/ports.js"
 import { bookingsReportingDeclaration } from "./reporting-definitions.js"
 import {
   bookingActionProjectionRuntimePort,

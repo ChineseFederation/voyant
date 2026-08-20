@@ -1,12 +1,14 @@
 // agent-quality: file-size exception -- owner: relationships; the import-cheap package manifest remains centralized until #3398 moves custom-field API and Settings facets to their generic owner.
 
-import { bookingsCanonicalInquiryIntakeRuntimePort } from "@voyant-travel/bookings/inquiry-intake-runtime-port"
-import { legacyBookingInquiryReadRuntimePort } from "@voyant-travel/bookings/legacy-inquiry-read-runtime-port"
+import {
+  bookingsCanonicalInquiryIntakeRuntimePort,
+  legacyBookingInquiryReadRuntimePort,
+} from "@voyant-travel/bookings/inquiry/ports"
 import {
   bookingsCrmSnapshotRuntimePort,
   bookingsRelationshipsRuntimePort,
 } from "@voyant-travel/bookings/runtime-port"
-import { catalogInquiryBookingSessionRuntimePort } from "@voyant-travel/catalog/inquiry-booking-session-runtime-port"
+import { catalogInquiryBookingSessionRuntimePort } from "@voyant-travel/catalog/inquiry/ports"
 import { defineModule, providePort, requirePort } from "@voyant-travel/core/project"
 import {
   customFieldsRuntimePort,

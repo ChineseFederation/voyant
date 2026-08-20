@@ -58,6 +58,7 @@
     "./subscriber-runtime-ports": "./src/subscriber-runtime-ports.ts",
     "./booking-engine/operator-routes": "./src/booking-engine/operator-routes.ts",
     "./runtime-port": "./src/content-runtime-port.ts",
+    "./inquiry/ports": "./src/inquiry/ports.ts",
     "./composite-booking-session-runtime-port": "./src/composite-booking-session-runtime-port.ts",
     "./inquiry-booking-session-runtime-port": "./src/inquiry-booking-session-runtime-port.ts",
     "./booking-session-maintenance-job": "./src/booking-session-maintenance-job.ts",
@@ -385,6 +386,11 @@
         "types": "./dist/content-runtime-port.d.ts",
         "import": "./dist/content-runtime-port.js",
         "default": "./dist/content-runtime-port.js"
+      },
+      "./inquiry/ports": {
+        "types": "./dist/inquiry/ports.d.ts",
+        "import": "./dist/inquiry/ports.js",
+        "default": "./dist/inquiry/ports.js"
       },
       "./inquiry-booking-session-runtime-port": {
         "types": "./dist/inquiry-booking-session-runtime-port.d.ts",

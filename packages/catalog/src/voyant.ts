@@ -20,7 +20,7 @@ import {
   catalogOffersRuntimePort,
   catalogSearchRuntimePort,
 } from "./api-runtime-ports.js"
-import { catalogBookingSessionCreatedAnalyticsSubscriberDeclaration } from "./booking-session-created-analytics-subscriber.js"
+import { catalogBookingSessionCreatedAnalyticsSubscriberDeclaration } from "./booking-session-created-analytics-subscriber-manifest.js"
 import { catalogBookingSessionMaintenanceJobRuntimePort } from "./booking-session-maintenance-job-runtime-port.js"
 import { catalogBookingSessionSettlementRuntimePort } from "./booking-session-settlement-runtime-port.js"
 import { catalogBookingSnapshotSubscriberDeclaration } from "./booking-snapshot-subscriber-declaration.js"
