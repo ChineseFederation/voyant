@@ -341,6 +341,72 @@ describe("MCP connector OAuth handshake", () => {
         scopes: expect.arrayContaining(["bookings:read", "bookings:write"]),
       })
 
+      // Managed operators resolve the same grant through the deployment-scoped
+      // Cloud staff link rather than the local profile fallback. Keep this in
+      // the real OAuth flow: a local-only assertion can pass while every hosted
+      // connector still fails after token verification.
+      const previousManagedDeploymentId = "dpl_mcp_oauth_flow_previous"
+      const managedDeploymentId = "dpl_mcp_oauth_flow_current"
+      await setup.sql`
+        insert into cloud_auth_user_links (
+          user_id,
+          provider_id,
+          provider_account_id,
+          deployment_id,
+          platform_organization_id,
+          workos_organization_id,
+          role_slug
+        ) values (
+          ${claims.sub},
+          'voyant-cloud',
+          'provider-account-mcp-flow',
+          ${previousManagedDeploymentId},
+          'org_mcp_flow',
+          'org_workos_mcp_flow',
+          'admin'
+        )
+      `
+      const managedRuntime = createOperatorAuthNodeRuntime({
+        accessCatalog: ACCESS_CATALOG,
+        appName: "managed-mcp-oauth-flow",
+        authMode: "voyant-cloud",
+        reporter: { captureException: () => {} },
+        openDatabase: () => ({ db: setup.db as never, dispose: async () => {} }),
+      })
+      const cloudRevalidation = vi
+        .spyOn(globalThis, "fetch")
+        .mockResolvedValue(Response.json({ ok: true, status: "active" }))
+      let managedResolved: Awaited<ReturnType<typeof managedRuntime.resolveMcpAccessToken>>
+      try {
+        managedResolved = await managedRuntime.resolveMcpAccessToken(
+          {
+            ...setup.env,
+            VOYANT_CLOUD_DEPLOYMENT_ID: managedDeploymentId,
+            VOYANT_CLOUD_ADMIN_AUTH_REVALIDATE_URL:
+              "https://api.voyant.test/cloud/v1/admin-auth/revalidate",
+            VOYANT_CLOUD_ADMIN_AUTH_CLIENT_TOKEN: "deployment-test-token",
+          },
+          setup.db as never,
+          grant.access_token,
+        )
+        expect(cloudRevalidation).toHaveBeenCalledOnce()
+      } finally {
+        cloudRevalidation.mockRestore()
+      }
+      expect(managedResolved).toMatchObject({
+        userId: claims.sub,
+        organizationId: "org_mcp_flow",
+        callerType: "api_key",
+        actor: "staff",
+        scopes: expect.arrayContaining(["bookings:read", "bookings:write"]),
+      })
+      const [retargeted] = await setup.sql`
+        select deployment_id
+        from cloud_auth_user_links
+        where user_id = ${claims.sub}
+      `
+      expect(retargeted?.deployment_id).toBe(managedDeploymentId)
+
       // 8. Hosted clients also omit `resource` when refreshing. The default
       //    must keep refreshed access tokens JWT-bound to the same audience.
       const refreshed = await call("/auth/admin/oauth2/token", {
