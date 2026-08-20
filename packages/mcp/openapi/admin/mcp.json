@@ -20,6 +20,75 @@
         "x-voyant-surface": "admin"
       }
     },
+    "/v1/admin/mcp/policy": {
+      "get": {
+        "operationId": "getMcpExposurePolicy",
+        "x-voyant-api-id": "@voyant-travel/mcp#api.admin",
+        "responses": {
+          "200": {
+            "description": "The deployment-wide MCP exposure policy."
+          }
+        },
+        "summary": "GET /v1/admin/mcp/policy",
+        "tags": ["mcp"],
+        "x-voyant-module": "mcp",
+        "x-voyant-surface": "admin"
+      },
+      "put": {
+        "operationId": "updateMcpExposurePolicy",
+        "x-voyant-api-id": "@voyant-travel/mcp#api.admin",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "allowedRiskLevels": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": ["low", "medium", "high", "critical"]
+                    }
+                  },
+                  "allowWrites": {
+                    "type": "boolean"
+                  },
+                  "allowSensitiveData": {
+                    "type": "boolean"
+                  },
+                  "toolOverrides": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "string",
+                      "enum": ["allow", "deny"]
+                    }
+                  }
+                },
+                "required": [
+                  "allowedRiskLevels",
+                  "allowWrites",
+                  "allowSensitiveData",
+                  "toolOverrides"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated deployment-wide MCP exposure policy."
+          },
+          "403": {
+            "description": "Only an authenticated dashboard session may update the policy."
+          }
+        },
+        "summary": "PUT /v1/admin/mcp/policy",
+        "tags": ["mcp"],
+        "x-voyant-module": "mcp",
+        "x-voyant-surface": "admin"
+      }
+    },
     "/v1/admin/mcp": {
       "post": {
         "operationId": "callMcp",

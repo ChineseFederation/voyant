@@ -529,7 +529,7 @@ describe("createMcpApiRoutes", () => {
         id: "@voyant-travel/mcp#api.admin",
         surface: "admin",
         mount: "mcp",
-        methods: ["GET", "POST"],
+        methods: ["GET", "POST", "PUT"],
         openapi: { document: "mcp" },
       }),
     ])
@@ -553,8 +553,67 @@ describe("createMcpApiRoutes", () => {
     expect(operationClaims(livePaths)).toEqual(claims)
     expect(claims).toEqual([
       ["GET", "/v1/admin/mcp/manifest", "@voyant-travel/mcp#api.admin"],
+      ["GET", "/v1/admin/mcp/policy", "@voyant-travel/mcp#api.admin"],
       ["POST", "/v1/admin/mcp", "@voyant-travel/mcp#api.admin"],
+      ["PUT", "/v1/admin/mcp/policy", "@voyant-travel/mcp#api.admin"],
     ])
+  })
+
+  it("enforces deployment exposure policy across discovery and invocation", async () => {
+    const registry = createToolRegistry()
+    registry.register(echoTool)
+    let policy = {
+      allowedRiskLevels: ["low" as const],
+      allowWrites: false,
+      allowSensitiveData: false,
+      toolOverrides: {},
+    }
+    const mcp = createMcpApiRoutes({
+      accessCatalog,
+      registry,
+      buildContext: () => buildContext(),
+      exposurePolicyStore: {
+        async load() {
+          return policy
+        },
+        async save(_db, next) {
+          policy = next
+          return policy
+        },
+      },
+    })
+    const app = new Hono()
+    app.use("*", async (c, next) => {
+      c.set("scopes", ["catalog:read"])
+      c.set("callerType", "session")
+      await next()
+    })
+    app.route("/", mcp)
+
+    expect(await searchToolNames(app, { query: "echo" })).toEqual([])
+
+    const update = await app.request("/policy", {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        ...policy,
+        toolOverrides: { "@voyant-travel/test#tool.echo": "allow" },
+      }),
+    })
+    expect(update.status).toBe(200)
+    expect(await update.json()).toMatchObject({
+      toolOverrides: { "@voyant-travel/test#tool.echo": "allow" },
+    })
+    const manifest = (await (await app.request("/manifest")).json()) as {
+      tools: Array<{ capabilityId: string; exposure: { enabled: boolean } }>
+    }
+    expect(manifest.tools).toContainEqual(
+      expect.objectContaining({
+        capabilityId: "@voyant-travel/test#tool.echo",
+        exposure: expect.objectContaining({ enabled: true }),
+      }),
+    )
+    expect(await searchToolNames(app, { query: "echo" })).toContain("echo")
   })
 
   function operationClaims(paths: Record<string, Record<string, Record<string, unknown>>>) {

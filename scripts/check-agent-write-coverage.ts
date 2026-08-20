@@ -97,6 +97,13 @@ const ALLOWLIST = new Map<string, { rationale: string }>([
         "Effective publication preview is an admin validation surface for publication policy and is intentionally not a write Tool.",
     },
   ],
+  [
+    "@voyant-travel/mcp:mcp/policy",
+    {
+      rationale:
+        "The MCP exposure policy is the security boundary that decides which Tools an external assistant may see or call. It is intentionally dashboard-session only so an MCP client cannot widen its own authority.",
+    },
+  ],
 ])
 
 void main()

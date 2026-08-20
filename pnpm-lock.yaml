@@ -3821,6 +3821,9 @@ importers:
       '@voyant-travel/core':
         specifier: workspace:^
         version: link:../core
+      '@voyant-travel/db':
+        specifier: workspace:^
+        version: link:../db
       '@voyant-travel/framework':
         specifier: workspace:*
         version: link:../framework
@@ -3833,6 +3836,9 @@ importers:
       '@voyant-travel/types':
         specifier: workspace:^
         version: link:../types
+      drizzle-orm:
+        specifier: 'catalog:'
+        version: 0.45.2(@cloudflare/workers-types@4.20260702.1)(@electric-sql/pglite@0.5.4)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.0)(@types/pg@8.20.0)(@upstash/redis@1.38.0)(kysely@0.29.2)(pg@8.22.0)(postgres@3.4.9)
       hono:
         specifier: 4.12.25
         version: 4.12.25

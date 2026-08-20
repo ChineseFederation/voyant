@@ -19,23 +19,28 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  Checkbox,
   Input,
   Spinner,
+  Switch,
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
 } from "@voyant-travel/ui/components"
 import { Check, Copy, KeyRound, Plug } from "lucide-react"
-import { type ReactNode, useMemo, useState } from "react"
+import { type ReactNode, useEffect, useMemo, useState } from "react"
 import { listMcpConnectors, revokeMcpConnector } from "./mcp-connectors.js"
 import {
   buildMcpClientConfigs,
   filterMcpTools,
+  isMcpToolExposed,
   MCP_TOKEN_PLACEHOLDER,
   type McpClientConfig,
   type McpClientId,
+  type McpExposurePolicy,
   type McpManifest,
+  type McpToolRisk,
   mcpRiskLabel,
   resolveMcpEndpoint,
   useMcpMessages,
@@ -45,6 +50,7 @@ type McpMessages = ReturnType<typeof useMcpMessages>
 
 const manifestKey = ["operator-mcp", "manifest"] as const
 const connectorsKey = ["operator-mcp", "connectors"] as const
+const risks: McpToolRisk[] = ["low", "medium", "high", "critical"]
 
 const riskVariant: Record<string, "secondary" | "outline" | "destructive"> = {
   low: "secondary",
@@ -153,6 +159,8 @@ export function McpSettingsPage() {
   const queryClient = useQueryClient()
   const t = useMcpMessages()
   const [search, setSearch] = useState("")
+  const [policyDraft, setPolicyDraft] = useState<McpExposurePolicy>()
+  const [policySaved, setPolicySaved] = useState(false)
 
   const endpoint = useMemo(
     () =>
@@ -179,6 +187,28 @@ export function McpSettingsPage() {
       const response = await fetcher(`${baseUrl}/v1/admin/mcp/manifest`)
       if (!response.ok) throw new Error(t.loadFailed)
       return (await response.json()) as McpManifest
+    },
+  })
+
+  useEffect(() => {
+    if (manifest.data?.policy) setPolicyDraft(manifest.data.policy)
+  }, [manifest.data?.policy])
+
+  const savePolicy = useMutation({
+    mutationFn: async (policy: McpExposurePolicy) => {
+      const response = await fetcher(`${baseUrl}/v1/admin/mcp/policy`, {
+        method: "PUT",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(policy),
+      })
+      if (!response.ok) throw new Error(t.policySaveFailed)
+      return (await response.json()) as McpExposurePolicy
+    },
+    onSuccess: (policy) => {
+      setPolicyDraft(policy)
+      setPolicySaved(true)
+      void queryClient.invalidateQueries({ queryKey: manifestKey })
     },
   })
 
@@ -211,6 +241,94 @@ export function McpSettingsPage() {
             <SetupStep index={2} title={t.connectStep2} body="" />
             <SetupStep index={3} title={t.connectStep3} body="" />
           </ol>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>{t.policyTitle}</CardTitle>
+          <CardDescription>{t.policyDescription}</CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-5">
+          {policyDraft ? (
+            <>
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-sm font-medium">{t.policyWrites}</p>
+                  <p className="text-sm text-muted-foreground">{t.policyWritesDescription}</p>
+                </div>
+                <Switch
+                  checked={policyDraft.allowWrites}
+                  onCheckedChange={(allowWrites) => {
+                    setPolicySaved(false)
+                    setPolicyDraft({ ...policyDraft, allowWrites })
+                  }}
+                  aria-label={t.policyWrites}
+                />
+              </div>
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-sm font-medium">{t.policySensitive}</p>
+                  <p className="text-sm text-muted-foreground">{t.policySensitiveDescription}</p>
+                </div>
+                <Switch
+                  checked={policyDraft.allowSensitiveData}
+                  onCheckedChange={(allowSensitiveData) => {
+                    setPolicySaved(false)
+                    setPolicyDraft({ ...policyDraft, allowSensitiveData })
+                  }}
+                  aria-label={t.policySensitive}
+                />
+              </div>
+              <div className="flex flex-col gap-3">
+                <div>
+                  <p className="text-sm font-medium">{t.policyRisk}</p>
+                  <p className="text-sm text-muted-foreground">{t.policyRiskDescription}</p>
+                </div>
+                <div className="flex flex-wrap gap-4">
+                  {risks.map((risk) => (
+                    <label
+                      key={risk}
+                      htmlFor={`mcp-risk-${risk}`}
+                      className="flex items-center gap-2 text-sm"
+                    >
+                      <Checkbox
+                        id={`mcp-risk-${risk}`}
+                        checked={policyDraft.allowedRiskLevels.includes(risk)}
+                        onCheckedChange={(checked) => {
+                          setPolicySaved(false)
+                          setPolicyDraft({
+                            ...policyDraft,
+                            allowedRiskLevels: checked
+                              ? [...new Set([...policyDraft.allowedRiskLevels, risk])]
+                              : policyDraft.allowedRiskLevels.filter((item) => item !== risk),
+                          })
+                        }}
+                      />
+                      {mcpRiskLabel(risk, t)}
+                    </label>
+                  ))}
+                </div>
+                <p className="text-sm text-muted-foreground">{t.policyCriticalNote}</p>
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <Button
+                  disabled={savePolicy.isPending}
+                  onClick={() => savePolicy.mutate(policyDraft)}
+                >
+                  {savePolicy.isPending ? t.savingPolicy : t.savePolicy}
+                </Button>
+                {policySaved ? (
+                  <p className="text-sm text-muted-foreground">{t.policySaved}</p>
+                ) : null}
+                {savePolicy.error ? (
+                  <p className="text-sm text-destructive">{t.policySaveFailed}</p>
+                ) : null}
+              </div>
+            </>
+          ) : manifest.isPending ? (
+            <Spinner />
+          ) : null}
         </CardContent>
       </Card>
 
@@ -360,16 +478,39 @@ export function McpSettingsPage() {
                 <ul className="flex flex-col divide-y">
                   {visible.map((tool) => (
                     <li key={tool.capabilityId} className="flex flex-col gap-2 py-3">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <code className="font-mono text-sm font-medium">{tool.name}</code>
-                        <Badge variant={riskVariant[tool.deploymentRisk] ?? "secondary"}>
-                          {mcpRiskLabel(tool.deploymentRisk, t)}
-                        </Badge>
-                        {tool.annotations?.readOnlyHint ? (
-                          <Badge variant="outline">{t.readOnly}</Badge>
-                        ) : null}
-                        {tool.actionPolicy?.approval === "required" ? (
-                          <Badge variant="outline">{t.approvalRequired}</Badge>
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <code className="font-mono text-sm font-medium">{tool.name}</code>
+                          <Badge variant={riskVariant[tool.deploymentRisk] ?? "secondary"}>
+                            {mcpRiskLabel(tool.deploymentRisk, t)}
+                          </Badge>
+                          {tool.annotations?.readOnlyHint ? (
+                            <Badge variant="outline">{t.readOnly}</Badge>
+                          ) : null}
+                          {tool.actionPolicy?.approval === "required" ? (
+                            <Badge variant="outline">{t.approvalRequired}</Badge>
+                          ) : null}
+                        </div>
+                        {policyDraft ? (
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline">
+                              {isMcpToolExposed(tool, policyDraft) ? t.exposed : t.blocked}
+                            </Badge>
+                            <Switch
+                              checked={isMcpToolExposed(tool, policyDraft)}
+                              onCheckedChange={(checked) => {
+                                setPolicySaved(false)
+                                setPolicyDraft({
+                                  ...policyDraft,
+                                  toolOverrides: {
+                                    ...policyDraft.toolOverrides,
+                                    [tool.capabilityId]: checked ? "allow" : "deny",
+                                  },
+                                })
+                              }}
+                              aria-label={`${tool.name}: ${isMcpToolExposed(tool, policyDraft) ? t.exposed : t.blocked}`}
+                            />
+                          </div>
                         ) : null}
                       </div>
                       <p className="text-sm text-muted-foreground">{tool.description}</p>
@@ -378,6 +519,21 @@ export function McpSettingsPage() {
                           {t.scopesLabel}:{" "}
                           <code className="font-mono">{tool.requiredScopes.join(", ")}</code>
                         </p>
+                      ) : null}
+                      {policyDraft?.toolOverrides[tool.capabilityId] ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="self-start"
+                          onClick={() => {
+                            const { [tool.capabilityId]: _, ...toolOverrides } =
+                              policyDraft.toolOverrides
+                            setPolicySaved(false)
+                            setPolicyDraft({ ...policyDraft, toolOverrides })
+                          }}
+                        >
+                          {t.useDefault}
+                        </Button>
                       ) : null}
                     </li>
                   ))}

@@ -66,9 +66,11 @@
     "@hono/zod-openapi": "catalog:",
     "@modelcontextprotocol/sdk": "^1.30.0",
     "@voyant-travel/core": "workspace:^",
+    "@voyant-travel/db": "workspace:^",
     "@voyant-travel/hono": "workspace:^",
     "@voyant-travel/tools": "workspace:^",
     "@voyant-travel/types": "workspace:^",
+    "drizzle-orm": "catalog:",
     "hono": "catalog:",
     "hono-rate-limiter": "^0.5.3",
     "zod": "catalog:"

@@ -96,10 +96,12 @@ export function collectAuthorizedTools(
   permissions: ApiKeyPermissions,
   accessCatalog: AccessCatalog,
   audience: ToolContext["audience"],
+  admitted: (entry: ToolManifestEntry) => boolean = () => true,
 ): Map<string, AuthorizedTool> {
   const surface = new Map<string, AuthorizedTool>()
   for (const entry of registry.list()) {
     if (!isAuthorized(entry, permissions, accessCatalog, audience)) continue
+    if (!admitted(entry)) continue
     if (!registry.get(entry.name)) continue
     surface.set(entry.name, { entry })
     for (const alias of entry.aliases) surface.set(alias, { entry, aliasFor: entry.name })

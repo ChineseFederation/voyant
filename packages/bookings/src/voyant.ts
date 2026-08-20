@@ -516,6 +516,10 @@ export const bookingsVoyantModule = defineModule({
             action: "read",
             label: "Read bookings",
             description: "Read booking records and non-sensitive booking state.",
+            // Remote assistants may inspect the same non-PII booking surface
+            // available to the approving staff member. Booking mutations and
+            // customer data remain sensitive and are withheld from MCP grants.
+            remoteSafe: true,
           },
           {
             action: "write",

@@ -43,6 +43,7 @@
     "./schema/iam/customer_profiles": "./src/schema/iam/customer_profiles.ts",
     "./schema/iam/invitations": "./src/schema/iam/invitations.ts",
     "./schema/iam/kms": "./src/schema/iam/kms.ts",
+    "./schema/iam/mcp": "./src/schema/iam/mcp.ts",
     "./schema/iam/oauth_provider": "./src/schema/iam/oauth_provider.ts",
     "./schema/iam/roles": "./src/schema/iam/roles.ts",
     "./schema/iam/public-api": "./src/schema/iam/public-api.ts",
@@ -248,6 +249,11 @@
         "types": "./dist/schema/iam/kms.d.ts",
         "import": "./dist/schema/iam/kms.js",
         "default": "./dist/schema/iam/kms.js"
+      },
+      "./schema/iam/mcp": {
+        "types": "./dist/schema/iam/mcp.d.ts",
+        "import": "./dist/schema/iam/mcp.js",
+        "default": "./dist/schema/iam/mcp.js"
       },
       "./schema/iam/oauth_provider": {
         "types": "./dist/schema/iam/oauth_provider.d.ts",

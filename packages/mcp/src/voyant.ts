@@ -10,7 +10,7 @@ export const mcpVoyantModule = defineModule({
       id: "@voyant-travel/mcp#api.admin",
       surface: "admin",
       mount: "mcp",
-      methods: ["GET", "POST"],
+      methods: ["GET", "POST", "PUT"],
       openapi: { document: "mcp" },
       runtime: {
         entry: "@voyant-travel/mcp/runtime",
