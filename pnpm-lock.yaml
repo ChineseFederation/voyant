@@ -514,6 +514,9 @@ importers:
       '@voyant-travel/relationships':
         specifier: workspace:^
         version: link:../../packages/relationships
+      '@voyant-travel/relationships-contracts':
+        specifier: workspace:^
+        version: link:../../packages/relationships-contracts
       '@voyant-travel/relationships-react':
         specifier: workspace:^
         version: link:../../packages/relationships-react
@@ -4833,6 +4836,9 @@ importers:
       '@voyant-travel/relationships':
         specifier: workspace:*
         version: link:../relationships
+      '@voyant-travel/relationships-contracts':
+        specifier: workspace:*
+        version: link:../relationships-contracts
       '@voyant-travel/relationships-react':
         specifier: workspace:*
         version: link:../relationships-react
