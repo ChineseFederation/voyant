@@ -1,5 +1,11 @@
 # @voyant-travel/auth
 
+## 0.153.5
+
+### Patch Changes
+
+- 9602d20: Bind MCP OAuth tokens to the deployment's sole protected resource when hosted ChatGPT and Claude clients omit the optional RFC 8707 resource parameter.
+
 ## 0.153.4
 
 ### Patch Changes

@@ -20,6 +20,7 @@ import { afterAll, describe, expect, it } from "vitest"
 import {
   parseOAuthClientIdClaim,
   parseOAuthScopeClaim,
+  withDefaultMcpOAuthResource,
   withPublicApiEndpoints,
 } from "../../src/mcp-oauth.js"
 import { createBetterAuth } from "../../src/server.js"
@@ -66,7 +67,11 @@ const maybe = () => (setup ? it : it.skip)
 
 async function call(path: string, init?: RequestInit): Promise<Response> {
   if (!setup) throw new Error("auth not initialized")
-  return setup.auth.handler(new Request(`${BASE_URL}${path}`, init))
+  const request = await withDefaultMcpOAuthResource(
+    new Request(`${BASE_URL}${path}`, init),
+    RESOURCE,
+  )
+  return setup.auth.handler(request)
 }
 
 describe("MCP connector OAuth handshake", () => {
@@ -213,20 +218,20 @@ describe("MCP connector OAuth handshake", () => {
           token_endpoint_auth_method: "none",
           grant_types: ["authorization_code", "refresh_token"],
           response_types: ["code"],
-          scope: "mcp:read mcp:write",
+          scope: "mcp:read mcp:write offline_access",
         }),
       })
       const { client_id } = (await registration.json()) as { client_id: string }
 
-      // 3. Authorization request with PKCE, bound to the MCP resource.
+      // 3. Authorization request with PKCE. Hosted clients discover the sole
+      //    resource but currently omit RFC 8707's optional `resource` field.
       const verifier = "a".repeat(64)
       const challenge = createHash("sha256").update(verifier).digest("base64url")
       const authorizeUrl =
         `/auth/admin/oauth2/authorize?response_type=code&client_id=${client_id}` +
         `&redirect_uri=${encodeURIComponent("https://claude.ai/api/mcp/auth_callback")}` +
-        `&scope=${encodeURIComponent("mcp:read mcp:write")}` +
-        `&code_challenge=${challenge}&code_challenge_method=S256` +
-        `&resource=${encodeURIComponent(RESOURCE)}&state=xyz`
+        `&scope=${encodeURIComponent("mcp:read mcp:write offline_access")}` +
+        `&code_challenge=${challenge}&code_challenge_method=S256&state=xyz`
       const authorize = await call(authorizeUrl, { headers: { cookie }, redirect: "manual" })
 
       // The operator is sent to the consent screen with a consent code.
@@ -263,12 +268,16 @@ describe("MCP connector OAuth handshake", () => {
           redirect_uri: "https://claude.ai/api/mcp/auth_callback",
           client_id,
           code_verifier: verifier,
-          resource: RESOURCE,
         }).toString(),
       })
       expect(token.status).toBeLessThan(300)
-      const grant = (await token.json()) as { access_token: string; scope?: string }
+      const grant = (await token.json()) as {
+        access_token: string
+        refresh_token: string
+        scope?: string
+      }
       expect(grant.access_token).toEqual(expect.any(String))
+      expect(grant.refresh_token).toEqual(expect.any(String))
 
       // 6. The claims the resource server actually checks. This is the pairing
       //    that was never proven together: issuer AND audience on a real token.
@@ -282,7 +291,22 @@ describe("MCP connector OAuth handshake", () => {
         expect.arrayContaining(["mcp:read", "mcp:write"]),
       )
 
-      // 7. Revoking consent is what makes "Disconnect" immediate.
+      // 7. Hosted clients also omit `resource` when refreshing. The default
+      //    must keep refreshed access tokens JWT-bound to the same audience.
+      const refreshed = await call("/auth/admin/oauth2/token", {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          grant_type: "refresh_token",
+          refresh_token: grant.refresh_token,
+          client_id,
+        }).toString(),
+      })
+      expect(refreshed.status).toBeLessThan(300)
+      const refreshedGrant = (await refreshed.json()) as { access_token: string }
+      expect([decodeJwt(refreshedGrant.access_token).aud].flat()).toContain(RESOURCE)
+
+      // 8. Revoking consent is what makes "Disconnect" immediate.
       const consents = await setup.sql`select id from oauth_consent where client_id = ${client_id}`
       expect(consents.length).toBeGreaterThan(0)
     },

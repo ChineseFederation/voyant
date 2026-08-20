@@ -79,6 +79,7 @@ import {
   parseOAuthClientIdClaim,
   parseOAuthScopeClaim,
   resolveMcpGrantScopes,
+  withDefaultMcpOAuthResource,
   withPublicApiEndpoints,
 } from "./mcp-oauth.js"
 import { PublicApiCustomerAuthResolutionError } from "./public-api-customer-auth-resolver.js"
@@ -2126,7 +2127,11 @@ export function createOperatorAuthNodeRuntime<Env extends OperatorAuthNodeEnv>(
     const { db, dispose } = openDatabase(c.env)
     try {
       const betterAuth = buildAdminBetterAuth(c.env, db)
-      return await betterAuth.handler(c.req.raw)
+      const request = await withDefaultMcpOAuthResource(
+        c.req.raw,
+        `${getPublicApiBaseUrl(c.env)}/v1/admin/mcp`,
+      )
+      return await betterAuth.handler(request)
     } finally {
       c.executionCtx.waitUntil(dispose())
     }

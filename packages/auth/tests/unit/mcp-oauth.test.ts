@@ -8,6 +8,7 @@ import {
   parseOAuthClientIdClaim,
   parseOAuthScopeClaim,
   resolveMcpGrantScopes,
+  withDefaultMcpOAuthResource,
   withPublicApiEndpoints,
 } from "../../src/mcp-oauth.js"
 
@@ -248,5 +249,41 @@ describe("mcpOAuthProviderConfig", () => {
 
   it("binds tokens to the MCP resource as the audience", () => {
     expect(config.validAudiences).toEqual(["https://ops.example.com/api/v1/admin/mcp"])
+  })
+})
+
+describe("withDefaultMcpOAuthResource", () => {
+  const resource = "https://ops.example.com/api/v1/admin/mcp"
+  const tokenRequest = (body: URLSearchParams, contentType = "application/x-www-form-urlencoded") =>
+    new Request("https://ops.example.com/api/auth/admin/oauth2/token", {
+      method: "POST",
+      headers: { "content-type": contentType },
+      body,
+    })
+
+  it.each([
+    "authorization_code",
+    "refresh_token",
+  ])("defaults an omitted resource for the %s grant", async (grantType) => {
+    const normalized = await withDefaultMcpOAuthResource(
+      tokenRequest(new URLSearchParams({ grant_type: grantType, client_id: "hosted-client" })),
+      resource,
+    )
+
+    expect(new URLSearchParams(await normalized.text()).get("resource")).toBe(resource)
+  })
+
+  it("preserves an explicit resource so the provider can validate it", async () => {
+    const request = tokenRequest(
+      new URLSearchParams({ grant_type: "authorization_code", resource: "https://other.test/mcp" }),
+    )
+
+    expect(await withDefaultMcpOAuthResource(request, resource)).toBe(request)
+  })
+
+  it("does not alter unrelated requests or grant types", async () => {
+    const request = tokenRequest(new URLSearchParams({ grant_type: "client_credentials" }))
+
+    expect(await withDefaultMcpOAuthResource(request, resource)).toBe(request)
   })
 })
