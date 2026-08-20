@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest"
 import { CrmUiMessagesProvider } from "../i18n/index.js"
 import { buildInquiriesQueryString } from "../query-options.js"
 import { InquiryQueue, withInquiryStatus } from "./inquiry-queue.js"
-import { mergeSelectedProduct } from "./inquiry-targets-section.js"
+import { mergeSelectedProduct, targetSubtitle } from "./inquiry-targets-section.js"
 import { InquiryWorkspace } from "./inquiry-workspace.js"
 
 const inquiry: InquiryRecord = inquiryRecordSchema.parse({
@@ -161,13 +161,19 @@ describe("Inquiry operator surfaces", () => {
         onReopen={noOp}
         onConvertToProposal={refusedConversion}
         onConvertToBookingSession={refusedBookingSession}
+        proposalPipelines={[{ id: "pipe_1", name: "Sales", isDefault: true }]}
       />,
     )
     expect(html).toContain("Customer request")
     expect(html).not.toContain("Record first response")
     expect(html).toContain("We would like a quiet island.")
     expect(html).toContain('for="inquiry-proposal-pipeline"')
-    expect(html).toContain('for="inquiry-proposal-stage"')
+    // A pipeline is CHOSEN, not typed: the control is a select trigger, and no
+    // pipeline id reaches the markup. (The options themselves live in a portal
+    // that only mounts on open, so static markup cannot see their labels.)
+    expect(html).toMatch(/<button[^>]*id="inquiry-proposal-pipeline"/)
+    expect(html).not.toMatch(/<input[^>]*id="inquiry-proposal-pipeline"/)
+    expect(html).not.toContain("pipe_1")
     expect(html).toContain('for="keep-inquiry-open"')
     expect(html).toContain("Create proposal")
     expect(html).toContain("Start booking journey")
@@ -240,6 +246,7 @@ describe("Inquiry operator surfaces", () => {
           onReopen={noOp}
           onConvertToProposal={refusedConversion}
           onConvertToBookingSession={refusedBookingSession}
+          proposalPipelines={[{ id: "pipe_1", name: "Vânzări", isDefault: true }]}
         />
       </CrmUiMessagesProvider>,
     )
@@ -361,5 +368,83 @@ describe("Inquiry target picker", () => {
 
   it("passes the results through when nothing is chosen", () => {
     expect(mergeSelectedProduct([product], null)).toEqual([product])
+  })
+})
+
+describe("Inquiry target rows", () => {
+  const format = (value: string) =>
+    new Intl.DateTimeFormat("en-GB", { dateStyle: "medium" }).format(new Date(value))
+
+  it("drops a date the title already states", () => {
+    const title = format("2026-09-19")
+    expect(targetSubtitle({ snapshot: { title, startDate: "2026-09-19" } }, format)).toBe("")
+  })
+
+  it("keeps a date the title does not state", () => {
+    expect(
+      targetSubtitle({ snapshot: { title: "Quiet Greece", startDate: "2026-09-19" } }, format),
+    ).toBe(format("2026-09-19"))
+  })
+
+  it("keeps an option label alongside the date", () => {
+    expect(
+      targetSubtitle(
+        { snapshot: { title: "Quiet Greece", optionLabel: "Sea view", startDate: "2026-09-19" } },
+        format,
+      ),
+    ).toBe(`Sea view · ${format("2026-09-19")}`)
+  })
+})
+
+describe("Proposal conversion overrides", () => {
+  const noOp = vi.fn().mockResolvedValue(undefined)
+  const refused = async () =>
+    ({ kind: "refused", error: "refused", reason: "stage_closed" }) as const
+  const refusedSession = async () =>
+    ({ kind: "refused", error: "refused", reason: "unsupported_target" }) as const
+
+  // A deployment without Proposals reachable should not show an override that
+  // can only ever be empty.
+  it("hides the pipeline override when no pipeline is reachable", () => {
+    const html = renderToStaticMarkup(
+      <InquiryWorkspace
+        inquiry={inquiry}
+        onBack={noOp}
+        onUpdate={noOp}
+        onAssign={noOp}
+        onTransition={noOp}
+        onRecordFirstResponse={noOp}
+        onClose={noOp}
+        onReopen={noOp}
+        onConvertToProposal={refused}
+        onConvertToBookingSession={refusedSession}
+      />,
+    )
+
+    expect(html).not.toContain("Advanced: choose a pipeline and stage")
+    expect(html).not.toContain('for="inquiry-proposal-pipeline"')
+    // The conversion itself stays available — the override is what is optional.
+    expect(html).toContain("Create proposal")
+  })
+
+  it("keeps the override behind a disclosure when pipelines exist", () => {
+    const html = renderToStaticMarkup(
+      <InquiryWorkspace
+        inquiry={inquiry}
+        onBack={noOp}
+        onUpdate={noOp}
+        onAssign={noOp}
+        onTransition={noOp}
+        onRecordFirstResponse={noOp}
+        onClose={noOp}
+        onReopen={noOp}
+        onConvertToProposal={refused}
+        onConvertToBookingSession={refusedSession}
+        proposalPipelines={[{ id: "pipe_1", name: "Sales", isDefault: true }]}
+      />,
+    )
+
+    expect(html).toContain("<details")
+    expect(html).toContain("Advanced: choose a pipeline and stage")
   })
 })

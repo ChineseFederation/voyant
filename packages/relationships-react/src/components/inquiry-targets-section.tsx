@@ -11,6 +11,11 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@voyant-travel/ui/components"
 import {
   Combobox,
@@ -23,6 +28,7 @@ import {
 } from "@voyant-travel/ui/components/combobox"
 import { Package } from "lucide-react"
 import { useState } from "react"
+import type { InquiryTargetDeparture } from "../hooks/use-inquiry-target-departures.js"
 import type { InquiryTargetProduct } from "../hooks/use-inquiry-target-products.js"
 import { useCrmUiI18nOrDefault } from "../i18n/index.js"
 
@@ -44,6 +50,11 @@ export interface InquiryTargetsSectionProps {
   products?: InquiryTargetProduct[]
   productSearch: string
   onProductSearchChange: (search: string) => void
+  /** Departures of {@link departureProductId}; the host supplies the current results. */
+  departures?: InquiryTargetDeparture[]
+  /** Which attached Product the departure list is scoped to. */
+  departureProductId?: string | null
+  onDepartureProductChange?: (productId: string | null) => void
   onAddTarget?: (input: AddInquiryTargetInput) => Promise<unknown>
   onRemoveTarget?: (linkId: string) => Promise<unknown>
   /** Targets cannot change once the Inquiry is closed or converted. */
@@ -67,6 +78,25 @@ export function mergeSelectedProduct(
   return [selected, ...results]
 }
 
+/**
+ * The line under a target's title, or "" when it would only repeat it.
+ *
+ * A departure's title IS its date, so echoing the snapshot's `startDate`
+ * underneath printed the same day twice. The caller passes the SAME formatter
+ * the title was built with, so the comparison is between like and like.
+ */
+export function targetSubtitle(
+  target: Pick<InquiryTargetRecord, "snapshot">,
+  formatDate: (value: string) => string,
+): string {
+  const title = target.snapshot.title
+  const parts = [
+    target.snapshot.optionLabel,
+    target.snapshot.startDate ? formatDate(target.snapshot.startDate) : null,
+  ].filter((part): part is string => Boolean(part) && !title.includes(part as string))
+  return parts.join(" · ")
+}
+
 export function InquiryTargetsSection(props: InquiryTargetsSectionProps) {
   const i18n = useCrmUiI18nOrDefault()
   const messages = i18n.messages.inquiryDetail
@@ -76,7 +106,17 @@ export function InquiryTargetsSection(props: InquiryTargetsSectionProps) {
   // the results then no longer contain the selection, and an id-only selection
   // would resolve to its own id and attach nothing.
   const [selected, setSelected] = useState<InquiryTargetProduct | null>(null)
+  const [selectedDepartureId, setSelectedDepartureId] = useState("")
   const [error, setError] = useState<string | null>(null)
+  const attachedProducts = props.targets.filter((target) => target.kind === "product")
+  const formatTargetDate = (value: string) => i18n.formatDate(value, { dateStyle: "medium" })
+  const departureLabel = (departure: InquiryTargetDeparture) =>
+    [
+      formatTargetDate(departure.startsAt),
+      typeof departure.remainingPax === "number" ? `${departure.remainingPax} pax` : null,
+    ]
+      .filter(Boolean)
+      .join(" · ")
   const products = mergeSelectedProduct(props.products ?? [], selected)
   const productById = new Map(products.map((product) => [product.id, product]))
   const labelFor = (id: string) => productById.get(id)?.name ?? id
@@ -102,6 +142,26 @@ export function InquiryTargetsSection(props: InquiryTargetsSectionProps) {
     }
   }
 
+  const attachDeparture = async () => {
+    const departure = (props.departures ?? []).find((row) => row.id === selectedDepartureId)
+    if (!departure || !props.onAddTarget) return
+    setError(null)
+    try {
+      await props.onAddTarget({
+        kind: "departure",
+        targetId: departure.id,
+        snapshot: {
+          title: departureLabel(departure),
+          startDate: departure.dateLocal,
+          ...(departure.endsAt ? { endDate: departure.endsAt.slice(0, 10) } : {}),
+        },
+      })
+      setSelectedDepartureId("")
+    } catch {
+      setError(messages.targetAddFailed)
+    }
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -121,16 +181,9 @@ export function InquiryTargetsSection(props: InquiryTargetsSectionProps) {
                   <Package className="size-4 shrink-0 text-muted-foreground" />
                   <div className="min-w-0">
                     <div className="truncate font-medium">{target.snapshot.title}</div>
-                    {target.snapshot.optionLabel || target.snapshot.startDate ? (
+                    {targetSubtitle(target, formatTargetDate) ? (
                       <div className="truncate text-xs text-muted-foreground">
-                        {[
-                          target.snapshot.optionLabel,
-                          target.snapshot.startDate
-                            ? i18n.formatDate(target.snapshot.startDate)
-                            : null,
-                        ]
-                          .filter(Boolean)
-                          .join(" · ")}
+                        {targetSubtitle(target, formatTargetDate)}
                       </div>
                     ) : null}
                   </div>
@@ -224,6 +277,63 @@ export function InquiryTargetsSection(props: InquiryTargetsSectionProps) {
               onClick={() => void attach()}
             >
               {messages.addTarget}
+            </Button>
+          </div>
+        )}
+
+        {/* A departure belongs to a Product, so it is only offered once one is
+            attached, and it is scoped to whichever Product the operator names. */}
+        {props.readOnly || !props.onAddTarget || attachedProducts.length === 0 ? null : (
+          <div className="flex flex-wrap items-end gap-2 border-t pt-3">
+            {attachedProducts.length > 1 ? (
+              <div className="min-w-48">
+                <label className="text-xs text-muted-foreground" htmlFor="inquiry-departure-scope">
+                  {messages.departureScope}
+                </label>
+                <Select
+                  value={props.departureProductId ?? attachedProducts[0]?.targetId ?? ""}
+                  onValueChange={(value) => props.onDepartureProductChange?.(value ?? null)}
+                >
+                  <SelectTrigger id="inquiry-departure-scope">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {attachedProducts.map((target) => (
+                      <SelectItem key={target.linkId} value={target.targetId}>
+                        {target.snapshot.title}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : null}
+            <div className="min-w-64 flex-1">
+              <Select
+                value={selectedDepartureId}
+                onValueChange={(value) => setSelectedDepartureId(value ?? "")}
+              >
+                <SelectTrigger aria-label={messages.addDeparture}>
+                  <SelectValue placeholder={messages.departurePlaceholder} />
+                </SelectTrigger>
+                <SelectContent>
+                  {(props.departures ?? []).map((departure) => (
+                    <SelectItem key={departure.id} value={departure.id}>
+                      {departureLabel(departure)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {(props.departures ?? []).length === 0 ? (
+                <p className="mt-1 text-xs text-muted-foreground">{messages.departureEmpty}</p>
+              ) : null}
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={!selectedDepartureId || props.isMutating}
+              onClick={() => void attachDeparture()}
+            >
+              {messages.addDeparture}
             </Button>
           </div>
         )}

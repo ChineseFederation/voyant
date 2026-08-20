@@ -82,6 +82,12 @@ export interface InquiryWorkspaceProps {
   ownerOptions?: InquiryOwnerOption[]
   /** Resolves a created Booking Session to a page the operator can open. */
   getBookingSessionHref?: (bookingSessionId: string) => string
+  /** Proposal pipelines the conversion may target; absent hides the override. */
+  proposalPipelines?: { id: string; name: string; isDefault: boolean }[]
+  /** Stages of the chosen pipeline. */
+  proposalStages?: { id: string; name: string }[]
+  /** Lets the host fetch the stages of whichever pipeline is chosen. */
+  onProposalPipelineChange?: (pipelineId: string | null) => void
 }
 
 const closeOutcomes: InquiryCloseOutcome[] = [
@@ -632,35 +638,63 @@ export function InquiryWorkspace(props: InquiryWorkspaceProps) {
               {/* Both are optional overrides that take a pipeline/stage id, and
                   the default is right for almost every conversion. Leading with
                   them asked an agent to know an id to do the ordinary thing. */}
-              <details className="rounded-md border px-3 py-2">
-                <summary className="cursor-pointer text-sm font-medium">
-                  {messages.proposalAdvanced}
-                </summary>
-                <div className="mt-3 space-y-3">
-                  <div>
-                    <label className="text-sm font-medium" htmlFor="inquiry-proposal-pipeline">
-                      {messages.proposalPipeline}
-                    </label>
-                    <Input
-                      id="inquiry-proposal-pipeline"
-                      value={proposalPipelineId}
-                      placeholder={messages.proposalOptional}
-                      onChange={(event) => setProposalPipelineId(event.target.value)}
-                    />
+              {props.proposalPipelines?.length ? (
+                <details className="rounded-md border px-3 py-2">
+                  <summary className="cursor-pointer text-sm font-medium">
+                    {messages.proposalAdvanced}
+                  </summary>
+                  <div className="mt-3 space-y-3">
+                    <div>
+                      <label className="text-sm font-medium" htmlFor="inquiry-proposal-pipeline">
+                        {messages.proposalPipeline}
+                      </label>
+                      <Select
+                        value={proposalPipelineId}
+                        onValueChange={(value) => {
+                          setProposalPipelineId(value ?? "")
+                          props.onProposalPipelineChange?.(value ?? null)
+                          // A stage belongs to one pipeline; keeping the old one
+                          // would send a mismatched pair the API then refuses.
+                          setProposalStageId("")
+                        }}
+                      >
+                        <SelectTrigger id="inquiry-proposal-pipeline">
+                          <SelectValue placeholder={messages.proposalOptional} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {props.proposalPipelines.map((pipeline) => (
+                            <SelectItem key={pipeline.id} value={pipeline.id}>
+                              {pipeline.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {proposalPipelineId ? (
+                      <div>
+                        <label className="text-sm font-medium" htmlFor="inquiry-proposal-stage">
+                          {messages.proposalStage}
+                        </label>
+                        <Select
+                          value={proposalStageId}
+                          onValueChange={(value) => setProposalStageId(value ?? "")}
+                        >
+                          <SelectTrigger id="inquiry-proposal-stage">
+                            <SelectValue placeholder={messages.proposalOptional} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(props.proposalStages ?? []).map((stage) => (
+                              <SelectItem key={stage.id} value={stage.id}>
+                                {stage.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    ) : null}
                   </div>
-                  <div>
-                    <label className="text-sm font-medium" htmlFor="inquiry-proposal-stage">
-                      {messages.proposalStage}
-                    </label>
-                    <Input
-                      id="inquiry-proposal-stage"
-                      value={proposalStageId}
-                      placeholder={messages.proposalOptional}
-                      onChange={(event) => setProposalStageId(event.target.value)}
-                    />
-                  </div>
-                </div>
-              </details>
+                </details>
+              ) : null}
               <label className="flex items-center gap-2 text-sm" htmlFor="keep-inquiry-open">
                 <input
                   id="keep-inquiry-open"

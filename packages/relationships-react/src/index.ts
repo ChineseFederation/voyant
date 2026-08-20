@@ -79,6 +79,16 @@ export { useInquiryActivities } from "./hooks/use-inquiry-activities.js"
 export { useInquiryMutation } from "./hooks/use-inquiry-mutation.js"
 export { useInquiryOwnerOptions } from "./hooks/use-inquiry-owner-options.js"
 export {
+  type InquiryProposalPipeline,
+  type InquiryProposalStage,
+  useInquiryProposalPipelines,
+  useInquiryProposalStages,
+} from "./hooks/use-inquiry-proposal-pipelines.js"
+export {
+  type InquiryTargetDeparture,
+  useInquiryTargetDepartures,
+} from "./hooks/use-inquiry-target-departures.js"
+export {
   type InquiryTargetProduct,
   useInquiryTargetProducts,
 } from "./hooks/use-inquiry-target-products.js"

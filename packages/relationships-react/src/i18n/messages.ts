@@ -118,6 +118,11 @@ export type CrmUiMessages = {
     addTarget: string
     targetSearchPlaceholder: string
     targetEmpty: string
+    addDeparture: string
+    departurePlaceholder: string
+    departureEmpty: string
+    departureScope: string
+    departureNeedsProduct: string
     removeTarget: string
     targetInUse: string
     targetAddFailed: string
