@@ -49,7 +49,7 @@ export interface InquiryConvertedEvent extends InquiryEvent {
 
 export interface InquiryTargetChangedEvent extends InquiryEvent {
   linkId: string
-  kind: "product" | "option_unit"
+  kind: "product" | "departure"
   targetId: string
   occurredAt: string
 }

@@ -98,7 +98,7 @@ describe("relationships deployment manifest", () => {
         { id: "@voyant-travel/relationships#linkable.organization" },
         { id: "@voyant-travel/relationships#linkable.person" },
         { id: "@voyant-travel/relationships#link.inquiry-product" },
-        { id: "@voyant-travel/relationships#link.inquiry-option-unit" },
+        { id: "@voyant-travel/relationships#link.inquiry-departure" },
         { id: "@voyant-travel/relationships#link.inquiry-media-asset" },
       ],
     })
@@ -320,7 +320,7 @@ describe("relationships deployment manifest", () => {
     })
     const runtime = contribution[relationshipsRouteRuntimePort.id] as {
       inquiryTargetValidation: {
-        validateTarget(db: unknown, kind: "product" | "option_unit", id: string): Promise<string>
+        validateTarget(db: unknown, kind: "product" | "departure", id: string): Promise<string>
       }
     }
 
@@ -331,7 +331,7 @@ describe("relationships deployment manifest", () => {
       runtime.inquiryTargetValidation.validateTarget({}, "product", "prod_missing"),
     ).resolves.toBe("not_found")
     await expect(
-      runtime.inquiryTargetValidation.validateTarget({}, "option_unit", "avsl_missing"),
+      runtime.inquiryTargetValidation.validateTarget({}, "departure", "avsl_missing"),
     ).resolves.toBe("unavailable")
   })
 

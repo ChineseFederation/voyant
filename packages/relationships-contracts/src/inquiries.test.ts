@@ -167,7 +167,7 @@ describe("Inquiry contracts", () => {
       inquiryTargetRecordSchema.parse({
         linkId: "link_1",
         inquiryId: "inq_1",
-        kind: "option_unit",
+        kind: "departure",
         targetId: "avsl_1",
         snapshot: {
           title: "Danube cruise",
@@ -179,7 +179,7 @@ describe("Inquiry contracts", () => {
         },
         createdAt: "2026-08-18T00:00:00.000Z",
       }),
-    ).toMatchObject({ kind: "option_unit", targetId: "avsl_1" })
+    ).toMatchObject({ kind: "departure", targetId: "avsl_1" })
   })
 
   it("keeps public intake source-controlled and returns an idempotent receipt", () => {

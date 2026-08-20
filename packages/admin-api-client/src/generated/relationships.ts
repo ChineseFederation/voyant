@@ -5655,7 +5655,7 @@ export interface operations {
               updatedAt: string
               targets: {
                 /** @enum {string} */
-                kind: "product" | "option_unit" | "catalog_item" | "trip"
+                kind: "product" | "departure" | "catalog_item" | "trip"
                 targetId: string
                 snapshot: {
                   title: string
@@ -5903,7 +5903,7 @@ export interface operations {
               updatedAt: string
               targets: {
                 /** @enum {string} */
-                kind: "product" | "option_unit" | "catalog_item" | "trip"
+                kind: "product" | "departure" | "catalog_item" | "trip"
                 targetId: string
                 snapshot: {
                   title: string
@@ -6059,7 +6059,7 @@ export interface operations {
               updatedAt: string
               targets: {
                 /** @enum {string} */
-                kind: "product" | "option_unit" | "catalog_item" | "trip"
+                kind: "product" | "departure" | "catalog_item" | "trip"
                 targetId: string
                 snapshot: {
                   title: string
@@ -6261,7 +6261,7 @@ export interface operations {
               updatedAt: string
               targets: {
                 /** @enum {string} */
-                kind: "product" | "option_unit" | "catalog_item" | "trip"
+                kind: "product" | "departure" | "catalog_item" | "trip"
                 targetId: string
                 snapshot: {
                   title: string
@@ -6502,7 +6502,7 @@ export interface operations {
               updatedAt: string
               targets: {
                 /** @enum {string} */
-                kind: "product" | "option_unit" | "catalog_item" | "trip"
+                kind: "product" | "departure" | "catalog_item" | "trip"
                 targetId: string
                 snapshot: {
                   title: string
@@ -6869,7 +6869,7 @@ export interface operations {
               updatedAt: string
               targets: {
                 /** @enum {string} */
-                kind: "product" | "option_unit" | "catalog_item" | "trip"
+                kind: "product" | "departure" | "catalog_item" | "trip"
                 targetId: string
                 snapshot: {
                   title: string
@@ -7078,7 +7078,7 @@ export interface operations {
               updatedAt: string
               targets: {
                 /** @enum {string} */
-                kind: "product" | "option_unit" | "catalog_item" | "trip"
+                kind: "product" | "departure" | "catalog_item" | "trip"
                 targetId: string
                 snapshot: {
                   title: string
@@ -7295,7 +7295,7 @@ export interface operations {
               updatedAt: string
               targets: {
                 /** @enum {string} */
-                kind: "product" | "option_unit" | "catalog_item" | "trip"
+                kind: "product" | "departure" | "catalog_item" | "trip"
                 targetId: string
                 snapshot: {
                   title: string
@@ -7504,7 +7504,7 @@ export interface operations {
               updatedAt: string
               targets: {
                 /** @enum {string} */
-                kind: "product" | "option_unit" | "catalog_item" | "trip"
+                kind: "product" | "departure" | "catalog_item" | "trip"
                 targetId: string
                 snapshot: {
                   title: string
@@ -7586,7 +7586,7 @@ export interface operations {
       content: {
         "application/json": {
           /** @enum {string} */
-          kind: "product" | "option_unit" | "catalog_item" | "trip"
+          kind: "product" | "departure" | "catalog_item" | "trip"
           targetId: string
           snapshot: {
             title: string
@@ -7612,7 +7612,7 @@ export interface operations {
           "application/json": {
             data: {
               /** @enum {string} */
-              kind: "product" | "option_unit" | "catalog_item" | "trip"
+              kind: "product" | "departure" | "catalog_item" | "trip"
               targetId: string
               snapshot: {
                 title: string
@@ -8126,7 +8126,7 @@ export interface operations {
                 updatedAt: string
                 targets: {
                   /** @enum {string} */
-                  kind: "product" | "option_unit" | "catalog_item" | "trip"
+                  kind: "product" | "departure" | "catalog_item" | "trip"
                   targetId: string
                   snapshot: {
                     title: string
@@ -8394,7 +8394,7 @@ export interface operations {
               updatedAt: string
               targets: {
                 /** @enum {string} */
-                kind: "product" | "option_unit" | "catalog_item" | "trip"
+                kind: "product" | "departure" | "catalog_item" | "trip"
                 targetId: string
                 snapshot: {
                   title: string
@@ -8610,7 +8610,7 @@ export interface operations {
               updatedAt: string
               targets: {
                 /** @enum {string} */
-                kind: "product" | "option_unit" | "catalog_item" | "trip"
+                kind: "product" | "departure" | "catalog_item" | "trip"
                 targetId: string
                 snapshot: {
                   title: string

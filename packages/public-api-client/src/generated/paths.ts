@@ -19680,7 +19680,7 @@ export interface operations {
           /** @default [] */
           targets?: {
             /** @enum {string} */
-            kind: "product" | "option_unit"
+            kind: "product" | "departure"
             targetId: string
             snapshot: {
               title: string

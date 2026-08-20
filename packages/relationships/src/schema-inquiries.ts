@@ -179,7 +179,7 @@ export const inquiryTargetSnapshots = pgTable(
     inquiryId: typeIdRef("inquiry_id")
       .notNull()
       .references(() => inquiries.id, { onDelete: "cascade" }),
-    kind: text("kind").$type<"product" | "option_unit">().notNull(),
+    kind: text("kind").$type<"product" | "departure">().notNull(),
     targetId: text("target_id").notNull(),
     snapshot: jsonb("snapshot").$type<InquiryTargetSnapshotValue>().notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

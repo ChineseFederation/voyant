@@ -25,7 +25,7 @@ import {
 import { relationshipsService } from "./service/index.js"
 import { convertInquiryToBookingTarget } from "./service/inquiry-booking-conversions.js"
 import { convertInquiryToProposal } from "./service/inquiry-conversions.js"
-import { inquiryOptionUnitLink, inquiryProductLink } from "./standard-links.js"
+import { inquiryDepartureLink, inquiryProductLink } from "./standard-links.js"
 import {
   addInquiryTargetSchema,
   assignInquirySchema,
@@ -59,7 +59,7 @@ export const voyantToolContextContribution = defineToolContextContribution({
     const db = context.db as PostgresJsDatabase
     const inquiryTargetLinks = createLinkService(
       () => db,
-      [inquiryProductLink, inquiryOptionUnitLink],
+      [inquiryProductLink, inquiryDepartureLink],
     )
     const withInquiryTargets = async <T extends { id: string }>(inquiry: T) => ({
       ...inquiry,

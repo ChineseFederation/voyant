@@ -1,4 +1,14 @@
-export type InquiryMaterializedTargetKind = "product" | "option_unit"
+/**
+ * Target kinds Relationships can materialize as a standard link.
+ *
+ * `departure` is the dated availability slot a customer asked about. It was
+ * briefly called `option_unit`, which named a different entity than the one it
+ * resolved: the authority is Availability's slot reader, the link is the
+ * departure linkable, and legacy Booking Inquiries populate it from
+ * `departureId`. Callers that passed a real `option_units` id were refused
+ * ([#4838]).
+ */
+export type InquiryMaterializedTargetKind = "product" | "departure"
 
 /**
  * Owner-side authority for an Inquiry target kind.
@@ -27,7 +37,7 @@ export const inquiryTargetAuthorityRuntimePort = Object.freeze({
     if (provider === null || typeof provider !== "object") {
       throw new Error("Inquiry target authority must be an object.")
     }
-    if (provider.kind !== "product" && provider.kind !== "option_unit") {
+    if (provider.kind !== "product" && provider.kind !== "departure") {
       throw new Error("Inquiry target authority must declare a supported kind.")
     }
     if (typeof provider.targetExists !== "function") {

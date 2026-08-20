@@ -16,7 +16,7 @@ import { createBookingsRuntime } from "../../../bookings/src/runtime.js"
 import { runLegacyInquiryCutoverBatch } from "../../src/legacy-inquiry-cutover.js"
 import { createRelationshipsRuntimePortContribution } from "../../src/runtime-contributor.js"
 import { inquiries, inquiryLegacySources } from "../../src/schema.js"
-import { inquiryOptionUnitLink, inquiryProductLink } from "../../src/standard-links.js"
+import { inquiryDepartureLink, inquiryProductLink } from "../../src/standard-links.js"
 
 const DB_AVAILABLE = Boolean(process.env.TEST_DATABASE_URL)
 
@@ -50,7 +50,7 @@ describe.skipIf(!DB_AVAILABLE)("Booking Inquiry compatibility over canonical Inq
   beforeAll(async () => {
     const { createTestDb } = await import("@voyant-travel/db/test-utils")
     db = createTestDb()
-    for (const definition of [inquiryProductLink, inquiryOptionUnitLink]) {
+    for (const definition of [inquiryProductLink, inquiryDepartureLink]) {
       const ddl = generateLinkTableSql(definition)
       await db.execute(sql.raw(ddl.createTable))
       for (const index of ddl.indexes) await db.execute(sql.raw(index))
@@ -76,7 +76,7 @@ describe.skipIf(!DB_AVAILABLE)("Booking Inquiry compatibility over canonical Inq
             resolveSnapshot: async () => ({ title: "Danube Escape" }),
           },
           {
-            kind: "option_unit" as const,
+            kind: "departure" as const,
             targetExists: async () => true,
             resolveSnapshot: async () => ({
               title: "April departure",
@@ -115,7 +115,7 @@ describe.skipIf(!DB_AVAILABLE)("Booking Inquiry compatibility over canonical Inq
   beforeEach(async () => {
     const { cleanupTestDb } = await import("@voyant-travel/db/test-utils")
     await cleanupTestDb(db)
-    for (const definition of [inquiryProductLink, inquiryOptionUnitLink]) {
+    for (const definition of [inquiryProductLink, inquiryDepartureLink]) {
       await db.execute(sql.raw(`DELETE FROM "${definition.tableName}"`))
     }
   })

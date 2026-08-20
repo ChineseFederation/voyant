@@ -19,12 +19,12 @@ import {
 } from "../../src/schema.js"
 import { type InquiryServiceError, inquiriesService } from "../../src/service/inquiries.js"
 import {
+  inquiryDepartureLink,
   inquiryMediaAssetLink,
-  inquiryOptionUnitLink,
   inquiryProductLink,
 } from "../../src/standard-links.js"
 
-const inquiryLinks = [inquiryProductLink, inquiryOptionUnitLink, inquiryMediaAssetLink]
+const inquiryLinks = [inquiryProductLink, inquiryDepartureLink, inquiryMediaAssetLink]
 
 const validTargetValidation = {
   validateTarget: async () => "valid" as const,
@@ -631,7 +631,7 @@ describe.skipIf(!DB_AVAILABLE)("inquiriesService", () => {
       },
       "user_1",
     )
-    const link = createLinkService(() => db, [inquiryProductLink, inquiryOptionUnitLink])
+    const link = createLinkService(() => db, [inquiryProductLink, inquiryDepartureLink])
     const input = {
       kind: "product" as const,
       targetId: "prod_atomic",
@@ -773,7 +773,7 @@ describe.skipIf(!DB_AVAILABLE)("inquiriesService", () => {
       },
       "user_1",
     )
-    const link = createLinkService(() => db, [inquiryProductLink, inquiryOptionUnitLink])
+    const link = createLinkService(() => db, [inquiryProductLink, inquiryDepartureLink])
     const target = await inquiriesService.addInquiryTarget(
       db,
       inquiry.id,
@@ -849,7 +849,7 @@ describe.skipIf(!DB_AVAILABLE)("inquiriesService", () => {
       ),
     ).rejects.toMatchObject({ code: "INQUIRY_TARGET_NOT_FOUND" })
 
-    const link = createLinkService(() => db, [inquiryProductLink, inquiryOptionUnitLink])
+    const link = createLinkService(() => db, [inquiryProductLink, inquiryDepartureLink])
     expect(await link.list(inquiryProductLink.tableName, { leftId: inquiry.id })).toEqual([])
     expect(
       await db

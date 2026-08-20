@@ -21,8 +21,8 @@ export {
 } from "./linkables.js"
 export type { RelationshipsRoutes } from "./routes/index.js"
 export {
+  inquiryDepartureLink,
   inquiryMediaAssetLink,
-  inquiryOptionUnitLink,
   inquiryProductLink,
 } from "./standard-links.js"
 

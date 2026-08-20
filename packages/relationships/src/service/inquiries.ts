@@ -65,8 +65,8 @@ import {
   people,
 } from "../schema.js"
 import {
+  inquiryDepartureLink,
   inquiryMediaAssetLink,
-  inquiryOptionUnitLink,
   inquiryProductLink,
 } from "../standard-links.js"
 import { paginate } from "./helpers.js"
@@ -180,8 +180,17 @@ function inquiryCreatedEventId(inquiryId: string) {
 
 const targetLinks = {
   product: inquiryProductLink,
-  option_unit: inquiryOptionUnitLink,
+  departure: inquiryDepartureLink,
 } as const
+
+/** Refusals that concern one target, not the Inquiry that carries it. */
+function isTargetRefusal(code: InquiryServiceErrorCode) {
+  return (
+    code === "INQUIRY_TARGET_NOT_FOUND" ||
+    code === "INQUIRY_TARGET_UNSUPPORTED" ||
+    code === "INQUIRY_TARGET_VALIDATION_UNAVAILABLE"
+  )
+}
 
 function targetLinkFor(kind: AddInquiryTargetInput["kind"]) {
   if (kind === "catalog_item" || kind === "trip") {
@@ -720,7 +729,10 @@ export const inquiriesService = {
       slaPolicy?: InquiryFirstResponseSlaPolicy
     },
   ) {
-    for (const target of input.targets) targetLinkFor(target.kind)
+    // Targets are attached best-effort. Storefront intake is a capture path: a
+    // reference the owner refuses is recorded against the Inquiry, never a
+    // reason to roll back the customer's submission ([#4838]).
+    const refusedTargets: { kind: string; targetId: string; reason: InquiryServiceErrorCode }[] = []
     return db.transaction(async (tx) => {
       const { targets, ...inquiryInput } = input
       const result = await this.createInquiry(
@@ -744,22 +756,31 @@ export const inquiriesService = {
       )
       if (!result.replayed) {
         for (const target of targets) {
-          await this.addInquiryTarget(
-            tx,
-            result.inquiry.id,
-            {
-              ...target,
-              snapshot: {
-                ...target.snapshot,
-                sourceChannel: context.channelId,
+          try {
+            await this.addInquiryTarget(
+              tx,
+              result.inquiry.id,
+              {
+                ...target,
+                snapshot: {
+                  ...target.snapshot,
+                  sourceChannel: context.channelId,
+                },
               },
-            },
-            context.actorId,
-            context.targetValidation,
-          )
+              context.actorId,
+              context.targetValidation,
+            )
+          } catch (error) {
+            if (!(error instanceof InquiryServiceError) || !isTargetRefusal(error.code)) throw error
+            refusedTargets.push({
+              kind: target.kind,
+              targetId: target.targetId,
+              reason: error.code,
+            })
+          }
         }
       }
-      return result
+      return { ...result, refusedTargets }
     })
   },
 
@@ -833,13 +854,9 @@ export const inquiriesService = {
     requireActor(actorId)
     const definition = targetLinkFor(input.kind)
     const materializedKind = input.kind as InquiryMaterializedTargetKind
-    const expectedPrefix = definition.right.linkable.idPrefix
-    if (expectedPrefix && !input.targetId.startsWith(`${expectedPrefix}_`)) {
-      throw new InquiryServiceError(
-        "INQUIRY_TARGET_NOT_FOUND",
-        `Target id does not identify a ${input.kind}`,
-      )
-    }
+    // Existence is the owning module's call, not a guess from the id's shape.
+    // A prefix pre-check here duplicated `validateTarget` below and refused ids
+    // the owner would have resolved, so it is deliberately absent.
     return db.transaction(async (tx) => {
       const inquiry = await lockedInquiry(tx, inquiryId)
       if (inquiry.status === "closed" || inquiry.status === "converted") {

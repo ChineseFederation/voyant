@@ -79,7 +79,7 @@ const relationshipsIntakePersistence: PublicApiIntakePersistence = {
       ...(data.optionUnitId
         ? [
             {
-              kind: "option_unit" as const,
+              kind: "departure" as const,
               targetId: data.optionUnitId,
               snapshot: { title: "Departure" },
             },

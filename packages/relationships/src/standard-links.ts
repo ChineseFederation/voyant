@@ -14,7 +14,8 @@ export const inquiryProductLink = defineLink(
   },
 )
 
-export const inquiryOptionUnitLink = defineLink(
+/** The dated departure a customer asked about; Availability owns the slot. */
+export const inquiryDepartureLink = defineLink(
   { linkable: inquiryLinkable, isList: true },
   {
     linkable: departureLinkable,

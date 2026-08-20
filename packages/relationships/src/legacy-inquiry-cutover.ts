@@ -16,7 +16,7 @@ import {
   inquiryTargetSnapshots,
   people,
 } from "./schema.js"
-import { inquiryOptionUnitLink, inquiryProductLink } from "./standard-links.js"
+import { inquiryDepartureLink, inquiryProductLink } from "./standard-links.js"
 
 const BOOKING_SOURCE = "booking_inquiries"
 const SIGNAL_SOURCE = "customer_signals"
@@ -88,7 +88,7 @@ function signalConsentSnapshot(metadata: Record<string, unknown> | null) {
 async function ensureTarget(
   db: PostgresJsDatabase,
   authorities: readonly InquiryTargetAuthorityRuntime[],
-  input: { inquiryId: string; kind: "product" | "option_unit"; targetId: string },
+  input: { inquiryId: string; kind: "product" | "departure"; targetId: string },
 ) {
   const matches = authorities.filter((authority) => authority.kind === input.kind)
   const authority = matches[0]
@@ -97,8 +97,8 @@ async function ensureTarget(
   }
   const snapshot = await authority.resolveSnapshot(db, input.targetId)
   if (!snapshot) return { inserted: 0, issue: `${input.kind}:${input.targetId}:not_found` }
-  const definition = input.kind === "product" ? inquiryProductLink : inquiryOptionUnitLink
-  const link = createLinkService(() => db, [inquiryProductLink, inquiryOptionUnitLink])
+  const definition = input.kind === "product" ? inquiryProductLink : inquiryDepartureLink
+  const link = createLinkService(() => db, [inquiryProductLink, inquiryDepartureLink])
   const linked = await link.create(definition.tableName, input.inquiryId, input.targetId)
   const [stored] = await db
     .insert(inquiryTargetSnapshots)
@@ -137,7 +137,14 @@ async function reconcileTargets(
     sourceId: string
     inquiryId: string
     productId?: string | null
-    optionUnitId?: string | null
+    /**
+     * Legacy sources spell the departure differently: Booking Inquiries store
+     * `departureId`, Customer Signals store `optionUnitId` and document it as
+     * "the departure-equivalent". Both resolve through Availability's authority,
+     * and one that does not resolve becomes a reconciliation issue rather than a
+     * failed adoption.
+     */
+    departureId?: string | null
     extraIssues?: string[]
   },
 ) {
@@ -145,7 +152,7 @@ async function reconcileTargets(
   const issues = [...(input.extraIssues ?? [])]
   for (const target of [
     ...(input.productId ? [{ kind: "product" as const, targetId: input.productId }] : []),
-    ...(input.optionUnitId ? [{ kind: "option_unit" as const, targetId: input.optionUnitId }] : []),
+    ...(input.departureId ? [{ kind: "departure" as const, targetId: input.departureId }] : []),
   ]) {
     const result = await ensureTarget(db, authorities, { inquiryId: input.inquiryId, ...target })
     inserted += result.inserted
@@ -243,7 +250,7 @@ export async function adoptLegacyBookingInquiry(
       sourceId: row.id,
       inquiryId,
       productId: row.productId,
-      optionUnitId: row.departureId,
+      departureId: row.departureId,
     })
     return {
       migrated: provenance ? 1 : 0,
@@ -371,7 +378,7 @@ async function adoptSignalRow(
       sourceId: row.id,
       inquiryId,
       productId: row.productId,
-      optionUnitId: row.optionUnitId,
+      departureId: row.optionUnitId,
       extraIssues:
         row.status === "converted" && !row.resolvedBookingId
           ? ["booking_conversion:missing_booking_id"]
@@ -435,7 +442,7 @@ async function retryPendingSignals(
         sourceId: row.id,
         inquiryId: source.inquiryId,
         productId: row.productId,
-        optionUnitId: row.optionUnitId,
+        departureId: row.optionUnitId,
         extraIssues:
           row.status === "converted" && !row.resolvedBookingId
             ? ["booking_conversion:missing_booking_id"]
@@ -492,7 +499,7 @@ async function retryPendingBookings(
         sourceId: row.id,
         inquiryId: source.inquiryId,
         productId: row.productId,
-        optionUnitId: row.departureId,
+        departureId: row.departureId,
       }),
     )
     inserted += result.inserted

@@ -32,7 +32,7 @@ export const inquirySourceSchema = z.enum([
 ])
 
 /** Cross-module subjects an Inquiry can retain as immutable intake context. */
-export const inquiryTargetKindSchema = z.enum(["product", "option_unit", "catalog_item", "trip"])
+export const inquiryTargetKindSchema = z.enum(["product", "departure", "catalog_item", "trip"])
 
 export const inquiryTargetSnapshotSchema = z.object({
   title: z.string().trim().min(1).max(500),

@@ -49,6 +49,7 @@ import {
 } from "@voyant-travel/relationships-contracts/inquiry-target-authority/runtime-port"
 import { and, desc, eq, or, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
+import { resolveIntakeTargets } from "./inquiry-intake-targets.js"
 import { relationshipsInquiryOverdueJobRuntimePort } from "./inquiry-overdue-job-runtime-port.js"
 import type { InquiryFirstResponseSlaConfiguration } from "./inquiry-sla-policy.js"
 import {
@@ -555,25 +556,28 @@ export function createRelationshipsRuntimePortContribution(
             inquiry: historical,
           }
         }
-        const resolveSnapshot = async (kind: "product" | "option_unit", targetId: string) => {
-          const matching = authorities.filter((authority) => authority.kind === kind)
-          const authority = matching[0]
-          if (matching.length !== 1 || !authority?.resolveSnapshot) return null
-          return authority.resolveSnapshot(db, targetId)
-        }
-        const productSnapshot = await resolveSnapshot("product", input.productId)
-        if (!productSnapshot) throw new Error("Canonical Product inquiry target is unavailable")
-        const departureSnapshot = input.departureId
-          ? await resolveSnapshot("option_unit", input.departureId)
-          : null
-        if (input.departureId && !departureSnapshot) {
-          throw new Error("Canonical departure inquiry target is unavailable")
-        }
+        // A Booking Inquiry is a customer submission. If an owner cannot resolve
+        // the Product or departure it named, the submission is still recorded and
+        // the reference is retained for reconciliation.
+        const { targets: resolvedTargets, unresolved } = await resolveIntakeTargets(
+          db,
+          authorities,
+          [
+            { kind: "product", targetId: input.productId },
+            ...(input.departureId
+              ? [{ kind: "departure" as const, targetId: input.departureId }]
+              : []),
+          ],
+        )
+        const productSnapshot = resolvedTargets.find(
+          (target) => target.kind === "product",
+        )?.snapshot
         const name = [input.contact.firstName, input.contact.lastName].filter(Boolean).join(" ")
         const result = await relationshipsService.createPublicInquiry(
           db,
           {
-            subject: productSnapshot.title,
+            subject:
+              productSnapshot?.title ?? (input.message.trim().slice(0, 300) || "Product inquiry"),
             kind: "product",
             sourceRef: input.idempotencyKey,
             contactSnapshot: {
@@ -601,20 +605,10 @@ export function createRelationshipsRuntimePortContribution(
                   message: input.message,
                   status: "open",
                 } satisfies BookingInquiryCompatibilitySnapshot,
+                ...(unresolved.length ? { unresolvedTargets: unresolved } : {}),
               },
             },
-            targets: [
-              { kind: "product", targetId: input.productId, snapshot: productSnapshot },
-              ...(input.departureId && departureSnapshot
-                ? [
-                    {
-                      kind: "option_unit" as const,
-                      targetId: input.departureId,
-                      snapshot: departureSnapshot,
-                    },
-                  ]
-                : []),
-            ],
+            targets: resolvedTargets,
           },
           {
             actorId: `storefront:${input.channelId}`,

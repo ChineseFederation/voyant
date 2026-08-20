@@ -316,10 +316,11 @@ jobs:
     # against a hang rather than a budget the lane is already spending.
     #
     # Raised again to 30 for the same reason, with the arithmetic spelled out so
-    # the next person does not have to rediscover it: the lane now names 58
+    # the next person does not have to rediscover it: the lane now names 64
     # files, each paying its own process start and database setup, and the
-    # insurance work (voyant#4750, voyant#4756) added four. At 20 it was being
-    # cancelled mid-suite with every test passing — a budget, not a backstop.
+    # insurance work (voyant#4750, voyant#4756) added four while Inquiry
+    # management (voyant#4838) added six. At 20 it was being cancelled mid-suite
+    # with every test passing — a budget, not a backstop.
     # If this needs raising a third time, the answer is probably to stop giving
     # each file its own process rather than to add another ten minutes.
     timeout-minutes: 30
@@ -371,6 +372,18 @@ jobs:
                 tests/integration/organization-created-command.test.ts
               pnpm --filter @voyant-travel/relationships exec vitest run \
                 tests/integration/person-created-command.test.ts
+              pnpm --filter @voyant-travel/relationships exec vitest run \
+                tests/integration/inquiries.test.ts
+              pnpm --filter @voyant-travel/relationships exec vitest run \
+                tests/integration/inquiry-conversions.test.ts
+              pnpm --filter @voyant-travel/relationships exec vitest run \
+                tests/integration/legacy-inquiry-cutover.test.ts
+              pnpm --filter @voyant-travel/relationships exec vitest run \
+                tests/integration/customer-signals.test.ts
+              pnpm --filter @voyant-travel/relationships exec vitest run \
+                tests/integration/booking-inquiry-compatibility.test.ts
+              pnpm --filter @voyant-travel/bookings exec vitest run \
+                tests/integration/booking-inquiries.test.ts
               pnpm --filter @voyant-travel/framework-migrations exec vitest run \
                 src/deployment-runner.test.ts
               pnpm --filter @voyant-travel/catalog exec vitest run \

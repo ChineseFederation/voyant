@@ -1,4 +1,3 @@
-import type { PublicInquiryTargetInput } from "@voyant-travel/relationships-contracts"
 import type { InquiryTargetAuthorityRuntime } from "@voyant-travel/relationships-contracts/inquiry-target-authority/runtime-port"
 import type {
   PublicApiIntakeContext,
@@ -6,6 +5,7 @@ import type {
 } from "@voyant-travel/relationships-contracts/public-api-intake"
 import { and, eq } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
+import { resolveIntakeTargets } from "./inquiry-intake-targets.js"
 import { customerSignals } from "./schema.js"
 import { relationshipsService } from "./service/index.js"
 
@@ -27,22 +27,12 @@ export function createPublicApiIntakePersistence(
         throw new Error("Active channel context is required")
       }
       const authorities = await resolveAuthorities()
-      const targets: PublicInquiryTargetInput[] = []
-      for (const target of [
+      const { targets, unresolved } = await resolveIntakeTargets(db, authorities, [
         ...(data.productId ? [{ kind: "product" as const, targetId: data.productId }] : []),
-        ...(data.optionUnitId
-          ? [{ kind: "option_unit" as const, targetId: data.optionUnitId }]
-          : []),
-      ]) {
-        const matches = authorities.filter((authority) => authority.kind === target.kind)
-        const authority = matches[0]
-        if (matches.length !== 1 || !authority?.resolveSnapshot) {
-          throw new Error(`Canonical ${target.kind} Inquiry target authority is unavailable`)
-        }
-        const snapshot = await authority.resolveSnapshot(db, target.targetId)
-        if (!snapshot) throw new Error(`Canonical ${target.kind} Inquiry target was not found`)
-        targets.push({ ...target, snapshot })
-      }
+        // Legacy leads name this field for the option unit; it has always carried
+        // the departure-equivalent the customer picked.
+        ...(data.optionUnitId ? [{ kind: "departure" as const, targetId: data.optionUnitId }] : []),
+      ])
       const result = await relationshipsService.createPublicInquiry(
         db,
         {
@@ -54,7 +44,12 @@ export function createPublicApiIntakePersistence(
           sourceUrl: data.sourceUrl,
           locale: data.locale,
           tags: data.tags,
-          customFields: { relationships: { compatibilityPayload: data.payload } },
+          customFields: {
+            relationships: {
+              compatibilityPayload: data.payload,
+              ...(unresolved.length ? { unresolvedTargets: unresolved } : {}),
+            },
+          },
           consentSnapshot: data.consent,
           targets,
         },

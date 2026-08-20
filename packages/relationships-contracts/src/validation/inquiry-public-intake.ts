@@ -14,7 +14,7 @@ export const publicInquiryTargetSnapshotSchema = inquiryTargetSnapshotSchema.omi
 })
 
 export const publicInquiryTargetSchema = z.object({
-  kind: z.enum(["product", "option_unit"]),
+  kind: z.enum(["product", "departure"]),
   targetId: z.string().trim().min(1).max(500),
   snapshot: publicInquiryTargetSnapshotSchema,
 })

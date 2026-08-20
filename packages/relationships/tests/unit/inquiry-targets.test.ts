@@ -2,14 +2,14 @@ import { describe, expect, it, vi } from "vitest"
 
 import { type InquiryServiceError, inquiriesService } from "../../src/service/inquiries.js"
 import {
+  inquiryDepartureLink,
   inquiryMediaAssetLink,
-  inquiryOptionUnitLink,
   inquiryProductLink,
 } from "../../src/standard-links.js"
 
 describe("Inquiry targets", () => {
   it("allows the same owner target to be linked from multiple inquiries", () => {
-    for (const definition of [inquiryProductLink, inquiryOptionUnitLink, inquiryMediaAssetLink]) {
+    for (const definition of [inquiryProductLink, inquiryDepartureLink, inquiryMediaAssetLink]) {
       expect(definition.cardinality).toBe("many-to-many")
     }
   })

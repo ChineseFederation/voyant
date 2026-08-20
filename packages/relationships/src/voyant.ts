@@ -154,7 +154,7 @@ const inquiryTargetChangedPayloadSchema = {
     id: { type: "string" },
     actorId: { type: "string" },
     linkId: { type: "string" },
-    kind: { type: "string", enum: ["product", "option_unit"] },
+    kind: { type: "string", enum: ["product", "departure"] },
     targetId: { type: "string" },
     occurredAt: { type: "string", format: "date-time" },
   },
@@ -308,10 +308,10 @@ export const relationshipsVoyantModule = defineModule({
       export: "inquiryProductLink",
     },
     {
-      id: "@voyant-travel/relationships#link.inquiry-option-unit",
+      id: "@voyant-travel/relationships#link.inquiry-departure",
       kind: "definition",
       source: "@voyant-travel/relationships/standard-links",
-      export: "inquiryOptionUnitLink",
+      export: "inquiryDepartureLink",
     },
     {
       id: "@voyant-travel/relationships#link.inquiry-media-asset",

@@ -13,7 +13,7 @@ import {
   inquiryLegacySources,
   inquiryTargetSnapshots,
 } from "../../src/schema.js"
-import { inquiryOptionUnitLink, inquiryProductLink } from "../../src/standard-links.js"
+import { inquiryDepartureLink, inquiryProductLink } from "../../src/standard-links.js"
 
 const DB_AVAILABLE = Boolean(process.env.TEST_DATABASE_URL)
 const row: LegacyBookingInquiryRecord = {
@@ -65,7 +65,7 @@ describe.skipIf(!DB_AVAILABLE)("legacy Inquiry cutover", () => {
   beforeAll(async () => {
     const { createTestDb } = await import("@voyant-travel/db/test-utils")
     db = createTestDb()
-    for (const definition of [inquiryProductLink, inquiryOptionUnitLink]) {
+    for (const definition of [inquiryProductLink, inquiryDepartureLink]) {
       const ddl = generateLinkTableSql(definition)
       await db.execute(sql.raw(ddl.createTable))
       for (const index of ddl.indexes) await db.execute(sql.raw(index))
@@ -75,7 +75,7 @@ describe.skipIf(!DB_AVAILABLE)("legacy Inquiry cutover", () => {
   beforeEach(async () => {
     const { cleanupTestDb } = await import("@voyant-travel/db/test-utils")
     await cleanupTestDb(db)
-    for (const definition of [inquiryProductLink, inquiryOptionUnitLink]) {
+    for (const definition of [inquiryProductLink, inquiryDepartureLink]) {
       await db.execute(sql.raw(`DELETE FROM "${definition.tableName}"`))
     }
   })

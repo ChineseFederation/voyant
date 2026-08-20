@@ -10032,7 +10032,7 @@
                               "properties": {
                                 "kind": {
                                   "type": "string",
-                                  "enum": ["product", "option_unit", "catalog_item", "trip"]
+                                  "enum": ["product", "departure", "catalog_item", "trip"]
                                 },
                                 "targetId": {
                                   "type": "string",
@@ -10755,7 +10755,7 @@
                             "properties": {
                               "kind": {
                                 "type": "string",
-                                "enum": ["product", "option_unit", "catalog_item", "trip"]
+                                "enum": ["product", "departure", "catalog_item", "trip"]
                               },
                               "targetId": {
                                 "type": "string",
@@ -11218,7 +11218,7 @@
                             "properties": {
                               "kind": {
                                 "type": "string",
-                                "enum": ["product", "option_unit", "catalog_item", "trip"]
+                                "enum": ["product", "departure", "catalog_item", "trip"]
                               },
                               "targetId": {
                                 "type": "string",
@@ -11753,7 +11753,7 @@
                             "properties": {
                               "kind": {
                                 "type": "string",
-                                "enum": ["product", "option_unit", "catalog_item", "trip"]
+                                "enum": ["product", "departure", "catalog_item", "trip"]
                               },
                               "targetId": {
                                 "type": "string",
@@ -12452,7 +12452,7 @@
                             "properties": {
                               "kind": {
                                 "type": "string",
-                                "enum": ["product", "option_unit", "catalog_item", "trip"]
+                                "enum": ["product", "departure", "catalog_item", "trip"]
                               },
                               "targetId": {
                                 "type": "string",
@@ -13356,7 +13356,7 @@
                             "properties": {
                               "kind": {
                                 "type": "string",
-                                "enum": ["product", "option_unit", "catalog_item", "trip"]
+                                "enum": ["product", "departure", "catalog_item", "trip"]
                               },
                               "targetId": {
                                 "type": "string",
@@ -13914,7 +13914,7 @@
                             "properties": {
                               "kind": {
                                 "type": "string",
-                                "enum": ["product", "option_unit", "catalog_item", "trip"]
+                                "enum": ["product", "departure", "catalog_item", "trip"]
                               },
                               "targetId": {
                                 "type": "string",
@@ -14480,7 +14480,7 @@
                             "properties": {
                               "kind": {
                                 "type": "string",
-                                "enum": ["product", "option_unit", "catalog_item", "trip"]
+                                "enum": ["product", "departure", "catalog_item", "trip"]
                               },
                               "targetId": {
                                 "type": "string",
@@ -15033,7 +15033,7 @@
                             "properties": {
                               "kind": {
                                 "type": "string",
-                                "enum": ["product", "option_unit", "catalog_item", "trip"]
+                                "enum": ["product", "departure", "catalog_item", "trip"]
                               },
                               "targetId": {
                                 "type": "string",
@@ -15269,7 +15269,7 @@
                 "properties": {
                   "kind": {
                     "type": "string",
-                    "enum": ["product", "option_unit", "catalog_item", "trip"]
+                    "enum": ["product", "departure", "catalog_item", "trip"]
                   },
                   "targetId": {
                     "type": "string",
@@ -15329,7 +15329,7 @@
                       "properties": {
                         "kind": {
                           "type": "string",
-                          "enum": ["product", "option_unit", "catalog_item", "trip"]
+                          "enum": ["product", "departure", "catalog_item", "trip"]
                         },
                         "targetId": {
                           "type": "string",
@@ -16395,7 +16395,7 @@
                                 "properties": {
                                   "kind": {
                                     "type": "string",
-                                    "enum": ["product", "option_unit", "catalog_item", "trip"]
+                                    "enum": ["product", "departure", "catalog_item", "trip"]
                                   },
                                   "targetId": {
                                     "type": "string",
@@ -17120,7 +17120,7 @@
                             "properties": {
                               "kind": {
                                 "type": "string",
-                                "enum": ["product", "option_unit", "catalog_item", "trip"]
+                                "enum": ["product", "departure", "catalog_item", "trip"]
                               },
                               "targetId": {
                                 "type": "string",
@@ -17680,7 +17680,7 @@
                             "properties": {
                               "kind": {
                                 "type": "string",
-                                "enum": ["product", "option_unit", "catalog_item", "trip"]
+                                "enum": ["product", "departure", "catalog_item", "trip"]
                               },
                               "targetId": {
                                 "type": "string",

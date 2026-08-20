@@ -186,7 +186,7 @@
                       "properties": {
                         "kind": {
                           "type": "string",
-                          "enum": ["product", "option_unit"]
+                          "enum": ["product", "departure"]
                         },
                         "targetId": {
                           "type": "string",

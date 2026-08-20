@@ -38,7 +38,7 @@ export function createOperationsRuntimePortContribution(
   }
   return {
     [inquiryTargetAuthorityRuntimePort.id]: {
-      kind: "option_unit",
+      kind: "departure",
       targetExists: async (db, targetId) =>
         (await availabilityService.getSlotById(db as PostgresJsDatabase, targetId)) != null,
       resolveSnapshot: async (db, targetId) => {
