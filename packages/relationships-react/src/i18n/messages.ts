@@ -70,6 +70,7 @@ export type CrmUiMessages = {
     statusFilterLabel: string
     priorityFilterLabel: string
     kindFilterLabel: string
+    unknownOwner: string
     views: Record<
       "new" | "mine" | "unassigned" | "overdue" | "waiting" | "qualified" | "converted" | "closed",
       string
@@ -108,8 +109,19 @@ export type CrmUiMessages = {
       string
     >
     sources: Record<"storefront" | "phone" | "email" | "admin" | "import" | "api", string>
+    targetKinds: Record<"product" | "departure" | "catalog_item" | "trip", string>
+    activityTypes: Record<"call" | "email" | "meeting" | "task" | "follow_up" | "note", string>
   }
   inquiryDetail: {
+    targets: string
+    noTargets: string
+    addTarget: string
+    targetSearchPlaceholder: string
+    targetEmpty: string
+    removeTarget: string
+    targetInUse: string
+    targetAddFailed: string
+    unresolvedTargets: string
     attachments: string
     noAttachments: string
     chooseAttachment: string
@@ -119,7 +131,27 @@ export type CrmUiMessages = {
     back: string
     customerRequest: string
     context: string
+    noContext: string
+    brief: {
+      destinations: string
+      origin: string
+      dates: string
+      duration: string
+      nights: string
+      travellers: string
+      adults: string
+      children: string
+      rooms: string
+      budget: string
+      budgetPerPerson: string
+      budgetTotal: string
+      interests: string
+      notes: string
+      flexibility: Record<"exact" | "few_days" | "few_weeks" | "open", string>
+    }
     operations: string
+    assignment: string
+    resolution: string
     activityTimeline: string
     activitySubject: string
     activityType: string
@@ -150,6 +182,11 @@ export type CrmUiMessages = {
     close: string
     reopen: string
     internalSummary: string
+    owner: string
+    ownerUnassigned: string
+    ownerSearchPlaceholder: string
+    ownerEmpty: string
+    assignToMe: string
     ownerPlaceholder: string
     closeOutcome: string
     duplicateInquiryId: string
@@ -158,6 +195,7 @@ export type CrmUiMessages = {
     personLinked: string
     loadFailed: string
     proposalConversion: string
+    proposalAdvanced: string
     proposalPipeline: string
     proposalStage: string
     proposalOptional: string
@@ -183,6 +221,7 @@ export type CrmUiMessages = {
     bookingSessionRequiresProduct: string
     createBookingSession: string
     bookingSessionCreated: string
+    openBookingSession: string
     bookingSessionUnavailable: string
     bookingSessionFailed: string
     bookingSessionRefusals: Record<

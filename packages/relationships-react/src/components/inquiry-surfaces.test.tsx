@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest"
 import { CrmUiMessagesProvider } from "../i18n/index.js"
 import { buildInquiriesQueryString } from "../query-options.js"
 import { InquiryQueue, withInquiryStatus } from "./inquiry-queue.js"
+import { mergeSelectedProduct } from "./inquiry-targets-section.js"
 import { InquiryWorkspace } from "./inquiry-workspace.js"
 
 const inquiry: InquiryRecord = inquiryRecordSchema.parse({
@@ -248,5 +249,117 @@ describe("Inquiry operator surfaces", () => {
     expect(html).toContain("Este necesară o solicitare calificată cu un client asociat.")
     expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Creează propunere<\/button>/)
     expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Creează sesiune de rezervare<\/button>/)
+  })
+  // A greyed-out button that will not say why is a dead end. The reasons used to
+  // ride on `title`, which the shared Button suppresses with
+  // `disabled:pointer-events-none`, so nothing ever showed them (#4838).
+  it("states on the page why a lifecycle action is unavailable", () => {
+    const untriaged = inquiryRecordSchema.parse({
+      ...inquiry,
+      status: "new",
+      ownerId: null,
+      unassignedReason: null,
+      qualifiedAt: null,
+    })
+    const noOp = vi.fn().mockResolvedValue(undefined)
+    const html = renderToStaticMarkup(
+      <InquiryWorkspace
+        inquiry={untriaged}
+        onBack={noOp}
+        onUpdate={noOp}
+        onAssign={noOp}
+        onTransition={noOp}
+        onRecordFirstResponse={noOp}
+        onClose={noOp}
+        onReopen={noOp}
+        onConvertToProposal={refusedConversion}
+        onConvertToBookingSession={refusedBookingSession}
+      />,
+    )
+
+    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Mark triaged<\/button>/)
+    expect(html).toContain("Assign an owner or enter a reason for leaving this inquiry unassigned.")
+  })
+
+  it("names the owner instead of printing an owner id in the queue", () => {
+    const html = renderToStaticMarkup(
+      <InquiryQueue
+        inquiries={[inquiry]}
+        filters={{}}
+        onFiltersChange={() => undefined}
+        onInquiryOpen={() => undefined}
+        getInquiryHref={() => "/inquiries/inq_01"}
+        total={1}
+        limit={50}
+        offset={0}
+        onPageChange={() => undefined}
+        ownerNames={{ usr_sales: "Dana Ionescu" }}
+      />,
+    )
+
+    expect(html).toContain("Dana Ionescu")
+    expect(html).not.toContain("usr_sales")
+  })
+
+  // The utility title-cases every word, so a translated sentence such as
+  // "Waiting on customer" rendered as "Waiting On Customer".
+  it("does not title-case translated status labels", () => {
+    const waiting = inquiryRecordSchema.parse({ ...inquiry, status: "waiting_on_customer" })
+    const html = renderToStaticMarkup(
+      <InquiryQueue
+        inquiries={[waiting]}
+        filters={{}}
+        onFiltersChange={() => undefined}
+        onInquiryOpen={() => undefined}
+        getInquiryHref={() => "/inquiries/inq_01"}
+        total={1}
+        limit={50}
+        offset={0}
+        onPageChange={() => undefined}
+      />,
+    )
+
+    expect(html).toContain("Waiting on customer")
+    expect(html).not.toMatch(/class="[^"]*\bcapitalize\b/)
+  })
+
+  it("reads the travel brief as a brief, not as its JSON", () => {
+    const noOp = vi.fn().mockResolvedValue(undefined)
+    const html = renderToStaticMarkup(
+      <InquiryWorkspace
+        inquiry={inquiry}
+        onBack={noOp}
+        onUpdate={noOp}
+        onAssign={noOp}
+        onTransition={noOp}
+        onRecordFirstResponse={noOp}
+        onClose={noOp}
+        onReopen={noOp}
+        onConvertToProposal={refusedConversion}
+        onConvertToBookingSession={refusedBookingSession}
+      />,
+    )
+
+    expect(html).toContain("Destinations")
+    expect(html).toContain("Greece")
+    expect(html).toContain("2 adults, 2 children")
+    expect(html).not.toContain("durationNights")
+    expect(html).not.toContain("&quot;version&quot;")
+  })
+})
+
+describe("Inquiry target picker", () => {
+  const product = { id: "prod_1", name: "Maldives Dream Retreat" }
+
+  it("keeps the chosen product available when the search no longer returns it", () => {
+    expect(mergeSelectedProduct([], product)).toEqual([product])
+  })
+
+  it("does not duplicate a chosen product the search still returns", () => {
+    expect(mergeSelectedProduct([product], product)).toEqual([product])
+  })
+
+  it("passes the results through when nothing is chosen", () => {
+    expect(mergeSelectedProduct([product], null)).toEqual([product])
   })
 })

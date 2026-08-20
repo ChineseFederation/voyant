@@ -67,3 +67,24 @@ export function allowedInquiryTransitions(inquiry: InquiryRecord): InquiryStatus
   if (inquiry.status === "waiting_on_customer") return ["in_progress", "qualified"]
   return []
 }
+
+/**
+ * Target references intake kept but could not materialize as links.
+ *
+ * Storefront and legacy intake record a reference the owning module could not
+ * resolve rather than dropping the submission, so the operator sees what the
+ * customer actually named. Shape is validated loosely because it is provenance,
+ * not a contract: an unreadable entry is skipped, never rendered as `[object Object]`.
+ */
+export function unresolvedInquiryTargets(
+  inquiry: InquiryRecord,
+): { kind: string; targetId: string; reason?: string }[] {
+  const raw = inquiry.customFields?.relationships?.unresolvedTargets
+  if (!Array.isArray(raw)) return []
+  return raw.flatMap((entry) => {
+    if (!entry || typeof entry !== "object") return []
+    const { kind, targetId, reason } = entry as Record<string, unknown>
+    if (typeof kind !== "string" || typeof targetId !== "string") return []
+    return [{ kind, targetId, ...(typeof reason === "string" ? { reason } : {}) }]
+  })
+}

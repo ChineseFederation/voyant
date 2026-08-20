@@ -59,6 +59,11 @@ export interface InquiryQueueProps {
   onPageChange: (offset: number) => void
   isPending?: boolean
   error?: unknown
+  /**
+   * Display names for owner ids. Operators recognise colleagues by name; a
+   * `user_…` id in a queue column is a leaked implementation detail.
+   */
+  ownerNames?: Record<string, string>
 }
 
 const views = [
@@ -95,12 +100,15 @@ export function InquiryQueue({
   onPageChange,
   isPending,
   error,
+  ownerNames,
 }: InquiryQueueProps) {
   const i18n = useCrmUiI18nOrDefault()
   const messages = i18n.messages.inquiryQueue
   const labels = i18n.messages.inquiryLabels
   const patch = (next: Partial<InquiryQueueFilters>) => onFiltersChange({ ...filters, ...next })
   const page = inquiryPageState(total, limit, offset)
+  const ownerLabel = (ownerId: string | null) =>
+    ownerId ? (ownerNames?.[ownerId] ?? messages.unknownOwner) : "—"
 
   return (
     <div className="flex flex-col gap-5">
@@ -209,7 +217,7 @@ export function InquiryQueue({
                       >
                         {inquiry.subject}
                       </a>
-                      <div className="text-xs capitalize text-muted-foreground">
+                      <div className="text-xs text-muted-foreground">
                         {labels.kinds[inquiry.kind]} ·{" "}
                         {labels.sources[inquiry.source as keyof typeof labels.sources] ??
                           inquiry.source}
@@ -224,19 +232,14 @@ export function InquiryQueue({
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className="capitalize">
-                        {labels.statuses[inquiry.status]}
-                      </Badge>
+                      <Badge variant="outline">{labels.statuses[inquiry.status]}</Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge
-                        variant={inquiry.priority === "urgent" ? "destructive" : "secondary"}
-                        className="capitalize"
-                      >
+                      <Badge variant={inquiry.priority === "urgent" ? "destructive" : "secondary"}>
                         {labels.priorities[inquiry.priority as InquiryPriority] ?? inquiry.priority}
                       </Badge>
                     </TableCell>
-                    <TableCell>{inquiry.ownerId ?? "—"}</TableCell>
+                    <TableCell>{ownerLabel(inquiry.ownerId)}</TableCell>
                     <TableCell
                       className={
                         inquiry.nextActionAt && new Date(inquiry.nextActionAt) < new Date()
@@ -310,7 +313,7 @@ function FilterSelect({
       <SelectContent>
         <SelectItem value="all">{allLabel}</SelectItem>
         {values.map((item) => (
-          <SelectItem key={item} value={item} className="capitalize">
+          <SelectItem key={item} value={item}>
             {labels[item] ?? item}
           </SelectItem>
         ))}

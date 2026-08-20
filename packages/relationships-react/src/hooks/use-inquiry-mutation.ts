@@ -2,6 +2,7 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import {
+  type AddInquiryTargetInput,
   type AssignInquiryInput,
   type CloseInquiryInput,
   type CreateInquiryInput,
@@ -10,6 +11,7 @@ import {
   inquiryCreateResponseSchema,
   inquiryProposalConversionResultSchema,
   inquiryResponseSchema,
+  inquiryTargetResponseSchema,
   type RecordInquiryActivityInput,
   type ReopenInquiryInput,
   recordInquiryActivityResultSchema,
@@ -118,6 +120,31 @@ export function useInquiryMutation() {
   const recordFirstResponse = useMutation({
     mutationFn: ({ id }: { id: string }) => commit(id, "/record-first-response", {}),
     onSuccess: settle,
+  })
+  const invalidateInquiry = (id: string) => {
+    void queryClient.invalidateQueries({ queryKey: relationshipsQueryKeys.inquiry(id) })
+    void queryClient.invalidateQueries({ queryKey: relationshipsQueryKeys.inquiries() })
+  }
+  const addTarget = useMutation({
+    mutationFn: async ({ id, input }: { id: string; input: AddInquiryTargetInput }) => {
+      const { data } = await fetchWithValidation(
+        `${basePath}/${encodeURIComponent(id)}/targets`,
+        inquiryTargetResponseSchema,
+        client,
+        { method: "POST", body: JSON.stringify(input) },
+      )
+      return data
+    },
+    onSuccess: (_data, variables) => invalidateInquiry(variables.id),
+  })
+  const removeTarget = useMutation({
+    mutationFn: async ({ id, linkId }: { id: string; linkId: string }) => {
+      await client.fetcher(
+        `${client.baseUrl.replace(/\/$/, "")}${basePath}/${encodeURIComponent(id)}/targets/${encodeURIComponent(linkId)}`,
+        { method: "DELETE" },
+      )
+    },
+    onSuccess: (_data, variables) => invalidateInquiry(variables.id),
   })
   const uploadAttachment = useMutation({
     mutationFn: async ({ id, file, caption }: { id: string; file: File; caption?: string }) => {
@@ -229,6 +256,8 @@ export function useInquiryMutation() {
     uploadAttachment,
     updateAttachment,
     removeAttachment,
+    addTarget,
+    removeTarget,
     convertToProposal,
     convertToBookingSession,
     recordActivity,

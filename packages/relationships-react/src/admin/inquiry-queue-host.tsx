@@ -4,6 +4,7 @@ import { useAdminHref, useAdminNavigate } from "@voyant-travel/admin"
 import { useState } from "react"
 import { InquiryQueue, type InquiryQueueFilters } from "../components/inquiry-queue.js"
 import { useInquiries } from "../hooks/use-inquiries.js"
+import { useInquiryOwnerOptions } from "../hooks/use-inquiry-owner-options.js"
 
 export function InquiryQueueHost() {
   const navigate = useAdminNavigate()
@@ -12,8 +13,12 @@ export function InquiryQueueHost() {
   const [offset, setOffset] = useState(0)
   const limit = 50
   const query = useInquiries({ ...filters, limit, offset })
+  const ownerNames = Object.fromEntries(
+    (useInquiryOwnerOptions() ?? []).map((owner) => [owner.id, owner.name]),
+  )
   return (
     <InquiryQueue
+      ownerNames={ownerNames}
       inquiries={query.data?.data ?? []}
       filters={filters}
       onFiltersChange={(next) => {

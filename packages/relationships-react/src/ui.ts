@@ -1,11 +1,26 @@
 export { ActivitiesPage } from "./components/activities-page.js"
 export { CreateActivityDialog } from "./components/create-activity-dialog.js"
 export {
+  InquiryOwnerField,
+  type InquiryOwnerFieldProps,
+  type InquiryOwnerOption,
+} from "./components/inquiry-owner-field.js"
+export {
   InquiryQueue,
   type InquiryQueueFilters,
   type InquiryQueueProps,
   type InquirySavedView,
 } from "./components/inquiry-queue.js"
+export {
+  InquiryTargetsSection,
+  type InquiryTargetsSectionProps,
+  type InquiryUnresolvedTarget,
+  mergeSelectedProduct,
+} from "./components/inquiry-targets-section.js"
+export {
+  InquiryTravelBrief,
+  type InquiryTravelBriefProps,
+} from "./components/inquiry-travel-brief.js"
 export {
   InquiryWorkspace,
   type InquiryWorkspaceProps,

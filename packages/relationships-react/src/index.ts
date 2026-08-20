@@ -77,6 +77,11 @@ export { type UseInquiriesOptions, useInquiries } from "./hooks/use-inquiries.js
 export { useInquiry } from "./hooks/use-inquiry.js"
 export { useInquiryActivities } from "./hooks/use-inquiry-activities.js"
 export { useInquiryMutation } from "./hooks/use-inquiry-mutation.js"
+export { useInquiryOwnerOptions } from "./hooks/use-inquiry-owner-options.js"
+export {
+  type InquiryTargetProduct,
+  useInquiryTargetProducts,
+} from "./hooks/use-inquiry-target-products.js"
 export {
   type UseOrganizationOptions,
   useOrganization,

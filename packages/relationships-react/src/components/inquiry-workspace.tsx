@@ -27,7 +27,7 @@ import {
   Textarea,
 } from "@voyant-travel/ui/components"
 import { ArrowLeft, CalendarClock, UserRound } from "lucide-react"
-import { useState } from "react"
+import { type ReactNode, useRef, useState } from "react"
 import { useCrmUiI18nOrDefault } from "../i18n/index.js"
 import type {
   InquiryBookingSessionConversionOptions,
@@ -40,6 +40,8 @@ import type {
 } from "../inquiry-proposal-conversion.js"
 import { inquiryProposalConversionFailureKind } from "../inquiry-proposal-conversion.js"
 import { buildCloseInput, buildTransitionInput } from "../inquiry-ui-model.js"
+import { InquiryOwnerField, type InquiryOwnerOption } from "./inquiry-owner-field.js"
+import { InquiryTravelBrief } from "./inquiry-travel-brief.js"
 
 export interface InquiryWorkspaceProps {
   inquiry: InquiryRecord
@@ -71,6 +73,15 @@ export interface InquiryWorkspaceProps {
   activities?: InquiryActivityRecord[]
   onRecordActivity?: (input: RecordInquiryActivityInput) => Promise<unknown>
   isRecordingActivity?: boolean
+  /**
+   * Target management, supplied by the host so this component stays free of the
+   * Product read it would otherwise need.
+   */
+  targetsSection?: ReactNode
+  /** Colleagues an Inquiry can be assigned to. Falls back to the raw id field when absent. */
+  ownerOptions?: InquiryOwnerOption[]
+  /** Resolves a created Booking Session to a page the operator can open. */
+  getBookingSessionHref?: (bookingSessionId: string) => string
 }
 
 const closeOutcomes: InquiryCloseOutcome[] = [
@@ -120,6 +131,7 @@ export function InquiryWorkspace(props: InquiryWorkspaceProps) {
   const [activityDirection, setActivityDirection] = useState<"internal" | "inbound" | "outbound">(
     "internal",
   )
+  const attachmentInputRef = useRef<HTMLInputElement>(null)
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null)
   const [attachmentCaption, setAttachmentCaption] = useState("")
   const followUp = nextActionAt
@@ -136,6 +148,21 @@ export function InquiryWorkspace(props: InquiryWorkspaceProps) {
   const hasCustomer = Boolean(inquiry.personId || inquiry.organizationId)
   const canTriage = Boolean(inquiry.ownerId || inquiry.unassignedReason || unassignedReason.trim())
   const closeInput = buildCloseInput(closeOutcome, { duplicateOfInquiryId, note: closeNote })
+  /**
+   * Why the visible lifecycle actions are unavailable, in the operator's own
+   * terms. Only reasons that block an action offered for THIS status appear, so
+   * the list stays a next step rather than a list of rules.
+   */
+  const blockedReasons = [
+    ...(inquiry.status === "new" && !canTriage ? [messages.ownerRequired] : []),
+    ...(!canAdvanceWithFollowUp &&
+    ["triaged", "in_progress", "waiting_on_customer"].includes(inquiry.status)
+      ? [messages.followUpRequired]
+      : []),
+    ...(!hasCustomer && ["triaged", "in_progress", "waiting_on_customer"].includes(inquiry.status)
+      ? [messages.customerRequired]
+      : []),
+  ]
   const canConvert = inquiry.status === "qualified" && hasCustomer
   const convertToProposal = async () => {
     setConversionError(null)
@@ -191,65 +218,66 @@ export function InquiryWorkspace(props: InquiryWorkspaceProps) {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">{inquiry.subject}</h1>
+            {/* Deliberately not `capitalize`: these are translated sentences,
+                and the utility title-cases every word ("Waiting On Customer"). */}
             <div className="mt-2 flex gap-2">
-              <Badge variant="outline" className="capitalize">
-                {labels.statuses[inquiry.status]}
-              </Badge>
-              <Badge
-                variant={inquiry.priority === "urgent" ? "destructive" : "secondary"}
-                className="capitalize"
-              >
+              <Badge variant="outline">{labels.statuses[inquiry.status]}</Badge>
+              <Badge variant={inquiry.priority === "urgent" ? "destructive" : "secondary"}>
                 {labels.priorities[inquiry.priority as InquiryPriority] ?? inquiry.priority}
               </Badge>
-              <Badge variant="outline" className="capitalize">
-                {labels.kinds[inquiry.kind]}
-              </Badge>
+              <Badge variant="outline">{labels.kinds[inquiry.kind]}</Badge>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {inquiry.status === "new" ? (
-              <Button
-                variant="outline"
-                disabled={!canTriage}
-                title={!canTriage ? messages.ownerRequired : undefined}
-                onClick={() => transition("triaged")}
-              >
-                {messages.triage}
-              </Button>
-            ) : null}
-            {inquiry.status === "triaged" || inquiry.status === "waiting_on_customer" ? (
-              <Button
-                variant="outline"
-                disabled={!canAdvanceWithFollowUp}
-                title={!canAdvanceWithFollowUp ? messages.followUpRequired : undefined}
-                onClick={() => transition("in_progress")}
-              >
-                {inquiry.status === "waiting_on_customer"
-                  ? messages.returnToWork
-                  : messages.startWork}
-              </Button>
-            ) : null}
-            {inquiry.status === "in_progress" ? (
-              <Button
-                variant="outline"
-                disabled={!canAdvanceWithFollowUp}
-                title={!canAdvanceWithFollowUp ? messages.followUpRequired : undefined}
-                onClick={() => transition("waiting_on_customer")}
-              >
-                {messages.waitForCustomer}
-              </Button>
-            ) : null}
-            {["triaged", "in_progress", "waiting_on_customer"].includes(inquiry.status) ? (
-              <Button
-                disabled={!hasCustomer}
-                title={!hasCustomer ? messages.customerRequired : undefined}
-                onClick={() => transition("qualified")}
-              >
-                {messages.qualify}
-              </Button>
-            ) : null}
-            {inquiry.status === "closed" ? (
-              <Button onClick={() => void props.onReopen()}>{messages.reopen}</Button>
+          <div className="flex flex-col items-end gap-2">
+            <div className="flex flex-wrap gap-2">
+              {inquiry.status === "new" ? (
+                <Button
+                  variant="outline"
+                  disabled={!canTriage}
+                  onClick={() => transition("triaged")}
+                >
+                  {messages.triage}
+                </Button>
+              ) : null}
+              {inquiry.status === "triaged" || inquiry.status === "waiting_on_customer" ? (
+                <Button
+                  variant="outline"
+                  disabled={!canAdvanceWithFollowUp}
+                  onClick={() => transition("in_progress")}
+                >
+                  {inquiry.status === "waiting_on_customer"
+                    ? messages.returnToWork
+                    : messages.startWork}
+                </Button>
+              ) : null}
+              {inquiry.status === "in_progress" ? (
+                <Button
+                  variant="outline"
+                  disabled={!canAdvanceWithFollowUp}
+                  onClick={() => transition("waiting_on_customer")}
+                >
+                  {messages.waitForCustomer}
+                </Button>
+              ) : null}
+              {["triaged", "in_progress", "waiting_on_customer"].includes(inquiry.status) ? (
+                <Button disabled={!hasCustomer} onClick={() => transition("qualified")}>
+                  {messages.qualify}
+                </Button>
+              ) : null}
+              {inquiry.status === "closed" ? (
+                <Button onClick={() => void props.onReopen()}>{messages.reopen}</Button>
+              ) : null}
+            </div>
+            {/* A disabled button has to say why it is disabled. These reasons
+                used to ride on `title`, which the shared Button can never show:
+                its base class sets `disabled:pointer-events-none`, so the
+                tooltip never fires and a screen reader is told nothing. */}
+            {blockedReasons.length > 0 ? (
+              <ul className="max-w-sm text-right text-xs text-muted-foreground">
+                {blockedReasons.map((reason) => (
+                  <li key={reason}>{reason}</li>
+                ))}
+              </ul>
             ) : null}
           </div>
         </div>
@@ -257,6 +285,25 @@ export function InquiryWorkspace(props: InquiryWorkspaceProps) {
 
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="flex flex-col gap-4 lg:col-span-2">
+          {/* Order follows triage: what they asked, the detail behind it, what
+              it points at, what has happened since, then the paperwork. */}
+          <Card>
+            <CardHeader>
+              <CardTitle>{messages.customerRequest}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="whitespace-pre-wrap text-sm">{inquiry.customerMessage || "—"}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>{messages.context}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <InquiryTravelBrief brief={inquiry.travelBrief} />
+            </CardContent>
+          </Card>
+          {props.targetsSection}
           <Card>
             <CardHeader>
               <CardTitle>{messages.attachments}</CardTitle>
@@ -299,12 +346,35 @@ export function InquiryWorkspace(props: InquiryWorkspaceProps) {
                   ))}
                 </ul>
               )}
+              {/* The same hidden-input + Button shape the Media uploader uses,
+                  so the control reads as part of the product rather than as the
+                  browser's native "Choose File". */}
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => attachmentInputRef.current?.click()}
+                >
+                  {messages.chooseAttachment}
+                </Button>
+                {attachmentFile ? (
+                  <span className="truncate text-sm text-muted-foreground">
+                    {attachmentFile.name}
+                  </span>
+                ) : null}
+                <input
+                  ref={attachmentInputRef}
+                  type="file"
+                  className="hidden"
+                  aria-label={messages.chooseAttachment}
+                  onChange={(event) => {
+                    setAttachmentFile(event.currentTarget.files?.[0] ?? null)
+                    event.currentTarget.value = ""
+                  }}
+                />
+              </div>
               <Input
-                type="file"
-                aria-label={messages.chooseAttachment}
-                onChange={(event) => setAttachmentFile(event.currentTarget.files?.[0] ?? null)}
-              />
-              <Input
+                aria-label={messages.attachmentCaption}
                 value={attachmentCaption}
                 placeholder={messages.attachmentCaption}
                 onChange={(event) => setAttachmentCaption(event.currentTarget.value)}
@@ -324,14 +394,6 @@ export function InquiryWorkspace(props: InquiryWorkspaceProps) {
               >
                 {messages.uploadAttachment}
               </Button>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle>{messages.customerRequest}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="whitespace-pre-wrap text-sm">{inquiry.customerMessage || "—"}</p>
             </CardContent>
           </Card>
           <Card>
@@ -357,19 +419,33 @@ export function InquiryWorkspace(props: InquiryWorkspaceProps) {
                   ))}
                 </SelectContent>
               </Select>
-              {!canConvert || !bookingTargetLinkId ? (
-                <p className="text-xs text-muted-foreground">
-                  {messages.bookingSessionRequiresProduct}
-                </p>
-              ) : null}
               {bookingConversionError ? (
                 <p className="text-sm text-destructive" role="alert">
                   {bookingConversionError}
                 </p>
               ) : null}
               {createdBookingSessionId ? (
-                <p className="text-sm" role="status">
-                  {messages.bookingSessionCreated}: {createdBookingSessionId}
+                // Success replaces the requirement note rather than sitting under
+                // it. The session reference is support metadata, so it is shown
+                // as such — not as the answer to "what happened?".
+                <div role="status">
+                  <p className="text-sm font-medium">{messages.bookingSessionCreated}</p>
+                  {props.getBookingSessionHref ? (
+                    <a
+                      className="text-sm underline"
+                      href={props.getBookingSessionHref(createdBookingSessionId)}
+                    >
+                      {messages.openBookingSession}
+                    </a>
+                  ) : (
+                    <p className="font-mono text-xs text-muted-foreground">
+                      {createdBookingSessionId}
+                    </p>
+                  )}
+                </div>
+              ) : !canConvert || !bookingTargetLinkId ? (
+                <p className="text-xs text-muted-foreground">
+                  {messages.bookingSessionRequiresProduct}
                 </p>
               ) : null}
               <Button
@@ -384,18 +460,6 @@ export function InquiryWorkspace(props: InquiryWorkspaceProps) {
               >
                 {messages.createBookingSession}
               </Button>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle>{messages.context}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {inquiry.travelBrief ? (
-                <pre className="overflow-auto rounded-md bg-muted p-3 text-xs">
-                  {JSON.stringify(inquiry.travelBrief, null, 2)}
-                </pre>
-              ) : null}
             </CardContent>
           </Card>
           <Card>
@@ -422,7 +486,7 @@ export function InquiryWorkspace(props: InquiryWorkspaceProps) {
                       <SelectContent>
                         {activityTypes.map((type) => (
                           <SelectItem key={type} value={type}>
-                            {type.replaceAll("_", " ")}
+                            {labels.activityTypes[type]}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -492,7 +556,11 @@ export function InquiryWorkspace(props: InquiryWorkspaceProps) {
                           </span>
                         </div>
                         <div className="mt-1 flex gap-2">
-                          <Badge variant="outline">{activity.type.replaceAll("_", " ")}</Badge>
+                          <Badge variant="outline">
+                            {labels.activityTypes[
+                              activity.type as keyof typeof labels.activityTypes
+                            ] ?? activity.type}
+                          </Badge>
                           <Badge variant="secondary">
                             {direction === "inbound"
                               ? messages.activityInbound
@@ -561,28 +629,38 @@ export function InquiryWorkspace(props: InquiryWorkspaceProps) {
               <CardTitle>{messages.proposalConversion}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div>
-                <label className="text-sm font-medium" htmlFor="inquiry-proposal-pipeline">
-                  {messages.proposalPipeline}
-                </label>
-                <Input
-                  id="inquiry-proposal-pipeline"
-                  value={proposalPipelineId}
-                  placeholder={messages.proposalOptional}
-                  onChange={(event) => setProposalPipelineId(event.target.value)}
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium" htmlFor="inquiry-proposal-stage">
-                  {messages.proposalStage}
-                </label>
-                <Input
-                  id="inquiry-proposal-stage"
-                  value={proposalStageId}
-                  placeholder={messages.proposalOptional}
-                  onChange={(event) => setProposalStageId(event.target.value)}
-                />
-              </div>
+              {/* Both are optional overrides that take a pipeline/stage id, and
+                  the default is right for almost every conversion. Leading with
+                  them asked an agent to know an id to do the ordinary thing. */}
+              <details className="rounded-md border px-3 py-2">
+                <summary className="cursor-pointer text-sm font-medium">
+                  {messages.proposalAdvanced}
+                </summary>
+                <div className="mt-3 space-y-3">
+                  <div>
+                    <label className="text-sm font-medium" htmlFor="inquiry-proposal-pipeline">
+                      {messages.proposalPipeline}
+                    </label>
+                    <Input
+                      id="inquiry-proposal-pipeline"
+                      value={proposalPipelineId}
+                      placeholder={messages.proposalOptional}
+                      onChange={(event) => setProposalPipelineId(event.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium" htmlFor="inquiry-proposal-stage">
+                      {messages.proposalStage}
+                    </label>
+                    <Input
+                      id="inquiry-proposal-stage"
+                      value={proposalStageId}
+                      placeholder={messages.proposalOptional}
+                      onChange={(event) => setProposalStageId(event.target.value)}
+                    />
+                  </div>
+                </div>
+              </details>
               <label className="flex items-center gap-2 text-sm" htmlFor="keep-inquiry-open">
                 <input
                   id="keep-inquiry-open"
@@ -636,7 +714,7 @@ export function InquiryWorkspace(props: InquiryWorkspaceProps) {
           </Card>
           <Card>
             <CardHeader>
-              <CardTitle>{messages.operations}</CardTitle>
+              <CardTitle>{messages.assignment}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
               <div>
@@ -652,21 +730,32 @@ export function InquiryWorkspace(props: InquiryWorkspaceProps) {
                     : "—"}
                 </span>
               </div>
-              <div className="flex gap-2">
-                <Input
-                  aria-label={messages.ownerPlaceholder}
-                  placeholder={messages.ownerPlaceholder}
-                  value={ownerId}
-                  onChange={(event) => setOwnerId(event.target.value)}
+              {props.ownerOptions ? (
+                <InquiryOwnerField
+                  ownerId={inquiry.ownerId}
+                  options={props.ownerOptions}
+                  onAssign={props.onAssign}
                 />
-                <Button
-                  variant="outline"
-                  disabled={!ownerId.trim()}
-                  onClick={() => void props.onAssign(ownerId.trim())}
-                >
-                  {messages.assign}
-                </Button>
-              </div>
+              ) : (
+                // No colleague list is reachable (a deployment without the
+                // members endpoint). Keep the id field rather than removing the
+                // only way to assign.
+                <div className="flex gap-2">
+                  <Input
+                    aria-label={messages.ownerPlaceholder}
+                    placeholder={messages.ownerPlaceholder}
+                    value={ownerId}
+                    onChange={(event) => setOwnerId(event.target.value)}
+                  />
+                  <Button
+                    variant="outline"
+                    disabled={!ownerId.trim()}
+                    onClick={() => void props.onAssign(ownerId.trim())}
+                  >
+                    {messages.assign}
+                  </Button>
+                </div>
+              )}
               {!inquiry.ownerId ? (
                 <Input
                   aria-label={messages.unassignedReason}
