@@ -1,5 +1,16 @@
 # @voyant-travel/db
 
+## 0.123.1
+
+### Patch Changes
+
+- 22783e6: Add a deployment-wide MCP tool exposure policy with safe defaults, risk-level,
+  write, and sensitive-data controls, plus per-tool overrides. Enforce the policy
+  consistently in tool discovery and invocation, while keeping staff permissions
+  and OAuth scopes as hard upper bounds.
+- Updated dependencies [df5e03f]
+  - @voyant-travel/schema-kit@0.119.2
+
 ## 0.123.0
 
 ### Minor Changes

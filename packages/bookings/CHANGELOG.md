@@ -1,5 +1,21 @@
 # @voyant-travel/bookings
 
+## 0.250.3
+
+### Patch Changes
+
+- 22783e6: Add a deployment-wide MCP tool exposure policy with safe defaults, risk-level,
+  write, and sensitive-data controls, plus per-tool overrides. Enforce the policy
+  consistently in tool discovery and invocation, while keeping staff permissions
+  and OAuth scopes as hard upper bounds.
+- df5e03f: Add Buyer Account-owned Booking access grants, atomic authenticated Commit grants,
+  enumeration-safe Booking claim APIs, audited staff remediation, and an evidence-only
+  legacy backfill. Customer Booking authorization no longer treats matching contact
+  data as identity proof, while Business Buyer Accounts preserve multi-member access
+  and future reseller delegation remains a separate authority layer.
+- Updated dependencies [22783e6]
+  - @voyant-travel/db@0.123.1
+
 ## 0.250.2
 
 ### Patch Changes

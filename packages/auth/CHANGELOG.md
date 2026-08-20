@@ -1,5 +1,29 @@
 # @voyant-travel/auth
 
+## 0.153.7
+
+### Patch Changes
+
+- 22783e6: Add a deployment-wide MCP tool exposure policy with safe defaults, risk-level,
+  write, and sensitive-data controls, plus per-tool overrides. Enforce the policy
+  consistently in tool discovery and invocation, while keeping staff permissions
+  and OAuth scopes as hard upper bounds.
+- df5e03f: Add Buyer Account-owned Booking access grants, atomic authenticated Commit grants,
+  enumeration-safe Booking claim APIs, audited staff remediation, and an evidence-only
+  legacy backfill. Customer Booking authorization no longer treats matching contact
+  data as identity proof, while Business Buyer Accounts preserve multi-member access
+  and future reseller delegation remains a separate authority layer.
+- e73fa7b: Expand local staff full access through the access catalog, as managed
+  deployments already do. A resource declared `wildcard: "explicit-resource"` is
+  deliberately not satisfied by `*`, so returning the bare sentinel locked a
+  full-access self-hosted admin out of every one of them — team management among
+  them. An assigned permission set is still returned verbatim, so a deliberately
+  restricted member must still have the resource named.
+- Updated dependencies [22783e6]
+- Updated dependencies [df5e03f]
+  - @voyant-travel/db@0.123.1
+  - @voyant-travel/catalog@0.262.5
+
 ## 0.153.6
 
 ### Patch Changes

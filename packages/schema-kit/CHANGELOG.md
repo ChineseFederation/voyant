@@ -1,5 +1,15 @@
 # @voyant-travel/schema-kit
 
+## 0.119.2
+
+### Patch Changes
+
+- df5e03f: Add Buyer Account-owned Booking access grants, atomic authenticated Commit grants,
+  enumeration-safe Booking claim APIs, audited staff remediation, and an evidence-only
+  legacy backfill. Customer Booking authorization no longer treats matching contact
+  data as identity proof, while Business Buyer Accounts preserve multi-member access
+  and future reseller delegation remains a separate authority layer.
+
 ## 0.119.1
 
 ### Patch Changes
