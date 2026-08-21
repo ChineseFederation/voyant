@@ -1,5 +1,13 @@
 # @voyant-travel/operator-settings-react
 
+## 0.171.0
+
+### Patch Changes
+
+- cf92ab0: Add one-click MCP exposure policy presets for enabling every current tool or restoring the recommended low-risk, read-only baseline.
+  - @voyant-travel/finance-react@0.313.0
+  - @voyant-travel/admin-app@0.206.0
+
 ## 0.170.1
 
 ### Patch Changes

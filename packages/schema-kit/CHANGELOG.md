@@ -1,5 +1,15 @@
 # @voyant-travel/schema-kit
 
+## 0.119.3
+
+### Patch Changes
+
+- e3b63b5: Add the first-class Inquiry aggregate, lifecycle contracts and admin API for
+  capturing, assigning, triaging, working, closing and reopening agency customer
+  requests. Reserve `inquiry.created` for the Relationships-owned aggregate by
+  removing Commerce's unused, conflicting event authority.
+- 0646a63: Add the durable, idempotent Inquiry-to-Proposal conversion coordinator, persistence, admin API, runtime-port requirement, and transactional conversion event.
+
 ## 0.119.2
 
 ### Patch Changes

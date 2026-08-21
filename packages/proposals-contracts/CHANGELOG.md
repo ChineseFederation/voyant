@@ -1,5 +1,17 @@
 # @voyant-travel/proposals-contracts
 
+## 0.111.0
+
+### Minor Changes
+
+- ee1092f: Route legacy inquiry intake through the canonical Inquiry aggregate, retain read-compatible Booking inquiry projections, add a resumable provenance-preserving legacy cutover job, and retire the duplicated Proposals checkout-inquiry runtime surface.
+
+  See the [Proposals checkout-inquiry migration note](../docs/migrations/removed-proposals-checkout-inquiry.md) for removed exports and replacement paths.
+
+### Patch Changes
+
+- 3ad167f: Add the typed, replay-safe Proposal conversion provider for first-class Inquiries.
+
 ## 0.110.0
 
 ### Minor Changes

@@ -1,6 +1,6 @@
 {
   "name": "@voyant-travel/insurance",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Travel insurance module: applications, issued policies, insured persons, the insurer provider port, and the checkout ancillary source that fans out across connected insurers.",
   "license": "Apache-2.0",
   "type": "module",

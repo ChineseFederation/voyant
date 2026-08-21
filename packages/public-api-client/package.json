@@ -1,6 +1,6 @@
 {
   "name": "@voyant-travel/public-api-client",
-  "version": "0.297.0",
+  "version": "0.298.0",
   "description": "Typed client for the Voyant Public API. Generated from the published OpenAPI surface; a publishable key cannot see secret-only operations.",
   "license": "Apache-2.0",
   "repository": {

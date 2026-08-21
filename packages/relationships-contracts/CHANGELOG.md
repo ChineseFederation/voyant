@@ -1,5 +1,49 @@
 # @voyant-travel/relationships-contracts
 
+## 0.112.0
+
+### Minor Changes
+
+- 33cba53: Add the Catalog-owned Booking Session command port and the idempotent Inquiry
+  conversion coordinator, typed owner refusals, target-link selection, and
+  transactional conversion provenance.
+- e3b63b5: Add the first-class Inquiry aggregate, lifecycle contracts and admin API for
+  capturing, assigning, triaging, working, closing and reopening agency customer
+  requests. Reserve `inquiry.created` for the Relationships-owned aggregate by
+  removing Commerce's unused, conflicting event authority.
+- ee1092f: Route legacy inquiry intake through the canonical Inquiry aggregate, retain read-compatible Booking inquiry projections, add a resumable provenance-preserving legacy cutover job, and retire the duplicated Proposals checkout-inquiry runtime surface.
+
+  See the [Proposals checkout-inquiry migration note](../docs/migrations/removed-proposals-checkout-inquiry.md) for removed exports and replacement paths.
+
+- c23d099: Add Inquiry activity timelines, the canonical record-activity command, and read/update/qualify Inquiry tools.
+
+  Inquiry attachments remain deferred to the Storage/Media owner-link slice; this change does not create a parallel attachment store in Relationships.
+
+- 8311f44: Rename the materialized Inquiry target kind `option_unit` to `departure`, and stop
+  losing a storefront submission when a target cannot be resolved.
+
+  The kind named `option_unit` resolved an availability slot: its authority is the
+  Availability slot reader, its link is the departure linkable, and legacy Booking
+  Inquiries populate it from `departureId`. A caller passing a real option-unit id
+  was refused, and because the refusal escaped the intake transaction the guarded
+  public intake and the legacy Booking Inquiry adapter both answered 500 with the
+  customer's inquiry rolled back.
+
+  Target references are now resolved through their owning module before the write,
+  and any the owner cannot resolve are retained on the Inquiry as
+  `customFields.relationships.unresolvedTargets` instead of aborting the
+  submission. `addInquiryTarget` no longer pre-checks the id's prefix — existence
+  is the owning module's call through `validateTarget`, which the prefix guard
+  duplicated while refusing ids the owner would have resolved.
+
+- 0646a63: Add the durable, idempotent Inquiry-to-Proposal conversion coordinator, persistence, admin API, runtime-port requirement, and transactional conversion event.
+
+### Patch Changes
+
+- Updated dependencies [e3b63b5]
+- Updated dependencies [0646a63]
+  - @voyant-travel/schema-kit@0.119.3
+
 ## 0.111.2
 
 ### Patch Changes

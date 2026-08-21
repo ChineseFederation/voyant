@@ -1,6 +1,6 @@
 {
   "name": "@voyant-travel/schema-kit",
-  "version": "0.119.2",
+  "version": "0.119.3",
   "description": "Shared schema primitives for Voyant contract packages — TypeID validators and query-parameter coercion.",
   "license": "Apache-2.0",
   "type": "module",

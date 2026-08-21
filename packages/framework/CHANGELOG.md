@@ -1,5 +1,18 @@
 # @voyant-travel/framework
 
+## 0.85.0
+
+### Patch Changes
+
+- Updated dependencies [33cba53]
+- Updated dependencies [73a3ca3]
+- Updated dependencies [4126ba4]
+  - @voyant-travel/hono@0.145.0
+  - @voyant-travel/operator-standard@0.21.91
+  - @voyant-travel/cruises@0.240.7
+  - @voyant-travel/voyant-connect-adapter@0.40.0
+  - @voyant-travel/action-ledger@0.115.22
+
 ## 0.84.4
 
 ### Patch Changes

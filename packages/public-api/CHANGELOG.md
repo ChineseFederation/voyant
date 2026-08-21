@@ -1,5 +1,38 @@
 # @voyant-travel/public-api
 
+## 0.267.0
+
+### Minor Changes
+
+- ee1092f: Route legacy inquiry intake through the canonical Inquiry aggregate, retain read-compatible Booking inquiry projections, add a resumable provenance-preserving legacy cutover job, and retire the duplicated Proposals checkout-inquiry runtime surface.
+
+  See the [Proposals checkout-inquiry migration note](../docs/migrations/removed-proposals-checkout-inquiry.md) for removed exports and replacement paths.
+
+### Patch Changes
+
+- Updated dependencies [33cba53]
+- Updated dependencies [e3b63b5]
+- Updated dependencies [ee1092f]
+- Updated dependencies [c23d099]
+- Updated dependencies [8311f44]
+- Updated dependencies [73a3ca3]
+- Updated dependencies [2f038a2]
+- Updated dependencies [0646a63]
+  - @voyant-travel/catalog@0.263.0
+  - @voyant-travel/hono@0.145.0
+  - @voyant-travel/relationships@0.135.0
+  - @voyant-travel/relationships-contracts@0.112.0
+  - @voyant-travel/schema-kit@0.119.3
+  - @voyant-travel/commerce@0.56.3
+  - @voyant-travel/bookings@0.251.0
+  - @voyant-travel/auth@0.153.8
+  - @voyant-travel/cruises@0.240.7
+  - @voyant-travel/flights@0.240.6
+  - @voyant-travel/legal@0.256.0
+  - @voyant-travel/action-ledger@0.115.22
+  - @voyant-travel/finance@0.262.5
+  - @voyant-travel/identity@0.237.3
+
 ## 0.266.2
 
 ### Patch Changes
