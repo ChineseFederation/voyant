@@ -187,6 +187,10 @@ interface McpMessages {
   policyRisk: string
   policyRiskDescription: string
   policyCriticalNote: string
+  policyPresets: string
+  policyPresetsDescription: string
+  enableAll: string
+  useRecommended: string
   savePolicy: string
   savingPolicy: string
   policySaved: string
@@ -279,6 +283,11 @@ const en: McpMessages = {
   policyRiskDescription: "Low risk is the recommended baseline.",
   policyCriticalNote:
     "Critical and package-restricted tools always require an explicit per-tool enable.",
+  policyPresets: "Policy presets",
+  policyPresetsDescription:
+    "Enable all includes every current tool, including writes, sensitive data, and critical or restricted tools. Review the draft below, then save it.",
+  enableAll: "Enable all",
+  useRecommended: "Recommended baseline",
   savePolicy: "Save policy",
   savingPolicy: "Saving…",
   policySaved: "Policy saved. Connected assistants use it on their next request.",
@@ -372,6 +381,11 @@ const ro: McpMessages = {
   policyRiskDescription: "Riscul scazut este baza recomandata.",
   policyCriticalNote:
     "Toolurile critice si restrictionate de pachet necesita intotdeauna activare individuala.",
+  policyPresets: "Preseturi de politica",
+  policyPresetsDescription:
+    "Activarea completa include toate toolurile curente, inclusiv scrieri, date sensibile si tooluri critice sau restrictionate. Verifica schita de mai jos, apoi salveaz-o.",
+  enableAll: "Activeaza tot",
+  useRecommended: "Configuratie recomandata",
   savePolicy: "Salveaza politica",
   savingPolicy: "Se salveaza…",
   policySaved: "Politica a fost salvata. Asistentii o folosesc la urmatoarea cerere.",
@@ -420,4 +434,24 @@ export function isMcpToolExposed(tool: McpManifestTool, policy: McpExposurePolic
   if (override === "allow") return true
   if (tool.deploymentRisk === "critical" || !tool.exposure.remoteSafe) return false
   return policy.allowedRiskLevels.includes(tool.deploymentRisk)
+}
+
+/** Draft that explicitly exposes every tool currently present in the manifest. */
+export function enableAllMcpTools(tools: McpManifestTool[]): McpExposurePolicy {
+  return {
+    allowedRiskLevels: ["low", "medium", "high", "critical"],
+    allowWrites: true,
+    allowSensitiveData: true,
+    toolOverrides: Object.fromEntries(tools.map((tool) => [tool.capabilityId, "allow"])),
+  }
+}
+
+/** Recommended deployment baseline: remote-safe, low-risk, non-sensitive reads only. */
+export function recommendedMcpPolicy(): McpExposurePolicy {
+  return {
+    allowedRiskLevels: ["low"],
+    allowWrites: false,
+    allowSensitiveData: false,
+    toolOverrides: {},
+  }
 }

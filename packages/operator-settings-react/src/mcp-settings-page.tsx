@@ -33,6 +33,7 @@ import { type ReactNode, useEffect, useMemo, useState } from "react"
 import { listMcpConnectors, revokeMcpConnector } from "./mcp-connectors.js"
 import {
   buildMcpClientConfigs,
+  enableAllMcpTools,
   filterMcpTools,
   isMcpToolExposed,
   MCP_TOKEN_PLACEHOLDER,
@@ -42,6 +43,7 @@ import {
   type McpManifest,
   type McpToolRisk,
   mcpRiskLabel,
+  recommendedMcpPolicy,
   resolveMcpEndpoint,
   useMcpMessages,
 } from "./mcp-ui.js"
@@ -252,6 +254,36 @@ export function McpSettingsPage() {
         <CardContent className="flex flex-col gap-5">
           {policyDraft ? (
             <>
+              <div className="flex flex-col gap-3">
+                <div>
+                  <p className="text-sm font-medium">{t.policyPresets}</p>
+                  <p className="text-sm text-muted-foreground">{t.policyPresetsDescription}</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    disabled={savePolicy.isPending || tools.length === 0}
+                    onClick={() => {
+                      setPolicySaved(false)
+                      setPolicyDraft(enableAllMcpTools(tools))
+                    }}
+                  >
+                    {t.enableAll}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={savePolicy.isPending}
+                    onClick={() => {
+                      setPolicySaved(false)
+                      setPolicyDraft(recommendedMcpPolicy())
+                    }}
+                  >
+                    {t.useRecommended}
+                  </Button>
+                </div>
+              </div>
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <p className="text-sm font-medium">{t.policyWrites}</p>
