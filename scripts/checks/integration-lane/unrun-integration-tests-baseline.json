@@ -1,7 +1,7 @@
 {
   "$comment": [
     "Integration test files no CI lane runs. Issue #4251.",
-    "The set may only SHRINK — a file with no entry here may not start running",
+    "The set may only SHRINK \u2014 a file with no entry here may not start running",
     "nowhere. Add a new file to the db-integration lane in .github/workflows/ci.yml",
     "instead of adding it here. Never regenerate to clear a failure."
   ],
@@ -100,7 +100,6 @@
     "packages/proposals/tests/integration/proposal-versions.test.ts",
     "packages/proposals/tests/integration/proposals.test.ts",
     "packages/public-api/tests/integration/customer-business-onboarding-runtime.test.ts",
-    "packages/public-api/tests/integration/customer-buyer-authorization.test.ts",
     "packages/public-api/tests/integration/departures-rate-plan-selection.test.ts",
     "packages/public-api/tests/integration/departures-remaining-capacity.test.ts",
     "packages/public-api/tests/integration/public-routes.test.ts",
