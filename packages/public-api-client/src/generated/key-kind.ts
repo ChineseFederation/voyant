@@ -50,6 +50,8 @@ export type PublishablePath =
   | "/v1/public/cruises/ships/{key}"
   | "/v1/public/cruises/ships/{key}/effective"
   | "/v1/public/cruises/{slug}"
+  | "/v1/public/customer-portal/booking-claims"
+  | "/v1/public/customer-portal/booking-claims/{claimId}/confirm"
   | "/v1/public/customer-portal/bookings"
   | "/v1/public/customer-portal/bookings/{bookingId}"
   | "/v1/public/customer-portal/bookings/{bookingId}/billing-contact"

@@ -39,8 +39,24 @@ const DB_AVAILABLE = Boolean(process.env.TEST_DATABASE_URL)
 const ACCESS = {
   actorKind: "anonymous" as const,
   capability: "bcap_postgres_booking_session_capability_1234567890",
-  storefront: { channelId: "chan_pg" },
+  publicApiOrigin: { channelId: "chan_pg" },
 }
+/**
+ * A customer acts as a Buyer Account, not as a bare principal. A personal
+ * account's id is `personal:<principal>` by construction, and the Session rules
+ * check that pairing rather than trusting either half on its own.
+ */
+function customerAccess(principalId: string, extra: { capability?: string } = {}) {
+  return {
+    actorKind: "customer" as const,
+    principalId,
+    buyerAccountId: `personal:${principalId}`,
+    buyerAccountKind: "personal" as const,
+    publicApiOrigin: ACCESS.publicApiOrigin,
+    ...extra,
+  }
+}
+
 const REQUIREMENTS = inMemoryBookingRequirements()
 const PRICING = {
   currency: "EUR",
@@ -405,22 +421,12 @@ describe.skipIf(!DB_AVAILABLE)("Booking Session v1 PostgreSQL invariants", () =>
       module.adoptSession(
         created.session.id,
         { expectedRevision: 1, idempotencyKey: "postgres_adopt_one" },
-        {
-          actorKind: "customer",
-          principalId: "customer_pg_1",
-          capability: ACCESS.capability,
-          storefront: ACCESS.storefront,
-        },
+        customerAccess("customer_pg_1", { capability: ACCESS.capability }),
       ),
       module.adoptSession(
         created.session.id,
         { expectedRevision: 1, idempotencyKey: "postgres_adopt_two" },
-        {
-          actorKind: "customer",
-          principalId: "customer_pg_2",
-          capability: ACCESS.capability,
-          storefront: ACCESS.storefront,
-        },
+        customerAccess("customer_pg_2", { capability: ACCESS.capability }),
       ),
     ])
     expect([first.kind, second.kind].sort()).toEqual(["rejected", "session_adopted"])
@@ -430,6 +436,8 @@ describe.skipIf(!DB_AVAILABLE)("Booking Session v1 PostgreSQL invariants", () =>
       expect.objectContaining({
         actorKind: "customer",
         ownerPrincipalId: winningPrincipal,
+        ownerBuyerAccountId: `personal:${winningPrincipal}`,
+        ownerBuyerAccountKind: "personal",
         capabilityHash: null,
         capabilityScopes: [],
         channelId: "chan_pg",
@@ -441,11 +449,7 @@ describe.skipIf(!DB_AVAILABLE)("Booking Session v1 PostgreSQL invariants", () =>
       error: { kind: "not_authorized" },
     })
     await expect(
-      module.resumeSession(created.session.id, {
-        actorKind: "customer",
-        principalId: winningPrincipal,
-        storefront: ACCESS.storefront,
-      }),
+      module.resumeSession(created.session.id, customerAccess(winningPrincipal)),
     ).resolves.toMatchObject({ kind: "session_resumed", session: { redaction: "none" } })
     await expect(db.select().from(bookingSessionAuditEventsTable)).resolves.toEqual([
       expect.objectContaining({ action: "adopt", principalId: winningPrincipal }),

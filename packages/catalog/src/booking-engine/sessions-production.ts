@@ -1,5 +1,7 @@
 // agent-quality: file-size exception -- owner: catalog; the production Session
 // runtime centralizes the atomic commit ports and shared selection boundary.
+
+import { grantBookingCustomerAccess } from "@voyant-travel/bookings/customer-access"
 import type { BookingsRelationshipsRuntime } from "@voyant-travel/bookings/runtime-port"
 import {
   createSourcedBookingCommitment,
@@ -39,6 +41,7 @@ import {
 import { createRouteActionRegistry } from "@voyant-travel/tools"
 import { and, eq } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
+import type { PersonalBuyerPersonRuntime } from "../personal-buyer-person-runtime-port.js"
 import { catalogSourcedEntriesTable } from "../schema-sourced-entries.js"
 import { captureSnapshot } from "../services/snapshot-service.js"
 import type { PricingBasis } from "../snapshot/schema.js"
@@ -96,6 +99,7 @@ export interface ProductionBookingSessionModuleDeps {
     | undefined
     | Promise<BookingSessionCompositeHandler | undefined>
   relationships?: BookingsRelationshipsRuntime
+  personalBuyerPerson?: PersonalBuyerPersonRuntime
   financeRuntime?: FinanceServiceRuntime
   payments?: Omit<ProductionBookingSessionPaymentDeps, "db" | "financeRuntime">
   /** Host-bound product analytics. Absent means unbound — see `./analytics.ts`. */
@@ -824,6 +828,26 @@ async function commitOwnedBookingInTransaction(
         invocation: { idempotencyKey },
       }),
     runtime: deps.financeRuntime,
+    async grantCustomerAccess(tx, grant) {
+      const result = await grantBookingCustomerAccess(tx, {
+        bookingId: grant.bookingId,
+        buyerAccount: {
+          id: grant.buyerAccountId,
+          kind: grant.buyerAccountKind,
+        },
+        role: "owner",
+        source: "authenticated_commit",
+        proofRef: grant.proofRef,
+        grantedByPrincipalId: grant.grantedByPrincipalId,
+        grantedByMembershipId: grant.grantedByMembershipId,
+        grantedByMembershipRole: grant.grantedByMembershipRole,
+        idempotencyKey: grant.idempotencyKey,
+        now: input.now,
+      })
+      if (result.status === "idempotency_conflict" || result.status === "not_found") {
+        throw new Error(`booking_customer_access_${result.status}`)
+      }
+    },
     async readBookingSummary(db, bookingId) {
       const [row] = await db
         .select({ bookingNumber: bookingsRef.bookingNumber, status: bookingsRef.status })
@@ -833,17 +857,38 @@ async function commitOwnedBookingInTransaction(
       return row ? { bookingNumber: row.bookingNumber, status: row.status } : null
     },
   })
+  // Which Buyer Account this Commit grants ownership to. The Session's own is
+  // authoritative, but a Session created by the previous release does not have
+  // one — see the legacy branch in `isOwnedBy`. Authorization has already
+  // established that this caller owns the Session and that their Buyer Account
+  // context is well-formed, so falling back to the caller's account grants the
+  // Booking to the person who just paid for it rather than leaving them to
+  // claim their own Booking afterwards.
+  const grantAccount = commitGrantAccount(input)
   const result = await runtime.createFromSession({
     db: tx,
     sessionId: input.session.id,
     quoteId: input.quote.id,
     caller: { personId: billing.personId ?? undefined },
-    ...(input.session.publicApiOrigin ? { storefront: input.session.publicApiOrigin } : {}),
+    ...(input.session.publicApiOrigin ? { publicApiOrigin: input.session.publicApiOrigin } : {}),
     // The public contract scopes Commit idempotency to a Session. Finance's
     // action-ledger scope is principal-wide, so preserve the Session boundary
     // when crossing into that command protocol.
     idempotencyKey: `${input.session.id}:${input.idempotencyKey}`,
-    userId: input.access.actorKind === "staff" ? input.access.principalId : undefined,
+    userId:
+      input.access.actorKind === "staff" || input.access.actorKind === "customer"
+        ? input.access.principalId
+        : undefined,
+    ...(grantAccount
+      ? {
+          customerAccess: {
+            buyerAccountId: grantAccount.id,
+            buyerAccountKind: grantAccount.kind,
+            ...(input.access.membershipId ? { membershipId: input.access.membershipId } : {}),
+            ...(input.access.membershipRole ? { membershipRole: input.access.membershipRole } : {}),
+          },
+        }
+      : {}),
   })
   if (result.status !== "ok") throw new Error(`booking_session_commit_${result.reason}`)
   const allocations = await tx
@@ -851,6 +896,19 @@ async function commitOwnedBookingInTransaction(
     .from(bookingAllocationsRef)
     .where(eq(bookingAllocationsRef.bookingId, result.bookingId))
   return { bookingId: result.bookingId, allocationIds: allocations.map((row) => row.id) }
+}
+
+/** See the call site: Session first, caller second, nothing for a non-customer. */
+function commitGrantAccount(
+  input: Pick<CommitOwnedBookingInput, "session" | "access">,
+): { id: string; kind: "personal" | "business" } | null {
+  if (input.access.actorKind !== "customer") return null
+  if (input.session.ownerBuyerAccountId && input.session.ownerBuyerAccountKind) {
+    return { id: input.session.ownerBuyerAccountId, kind: input.session.ownerBuyerAccountKind }
+  }
+  const id = input.access.buyerAccountId?.trim()
+  const kind = input.access.buyerAccountKind
+  return id && kind ? { id, kind } : null
 }
 
 async function resolveBilling(
@@ -862,19 +920,45 @@ async function resolveBilling(
   if (input.access.actorKind === "staff" && input.access.staffBookingAuthority?.admitted) {
     if (contact.personId || contact.organizationId) return contact
   }
+  if (input.access.actorKind === "customer") {
+    if (input.access.buyerAccountKind === "personal") {
+      let personId = input.access.relationshipPersonId?.trim()
+      // The authenticated identity-to-Person link is authority. Never fall
+      // through to contact matching: a matching email or phone is evidence
+      // about a contact point, not proof that this account owns that Person.
+      if (!personId && deps.personalBuyerPerson && deps.relationships) {
+        const principalId = input.access.principalId?.trim()
+        if (!principalId) return null
+        const ensured = await deps.personalBuyerPerson.ensurePersonalBuyerPerson(tx, {
+          userId: principalId,
+          createPerson: (profile) =>
+            deps.relationships!.createPersonWithoutContactMatch(tx, {
+              ...profile,
+              source: "customer-buyer-account",
+              sourceRef: principalId,
+            }),
+        })
+        personId = ensured?.id
+      }
+      return personId ? { ...contact, personId, organizationId: null } : null
+    }
+    if (input.access.buyerAccountKind === "business") {
+      const organizationId = input.access.relationshipOrganizationId?.trim()
+      return organizationId ? { ...contact, personId: null, organizationId } : null
+    }
+    return null
+  }
   // Authentication identifies the actor, not the buyer. In particular, a
-  // staff user id must never be persisted as the Booking's CRM person id.
-  const personId = await deps.relationships?.upsertPersonFromContact(
-    tx,
-    {
-      firstName: contact.contactFirstName,
-      lastName: contact.contactLastName,
-      email: contact.contactEmail,
-      phone: contact.contactPhone,
-      preferredLanguage: null,
-    },
-    { source: "booking-session-v1", sourceRef: input.session.id },
-  )
+  // staff user id must never be persisted as the Booking's CRM person id. A
+  // true guest gets a fresh/provisional relationship row through this path;
+  // authenticated customers were resolved exclusively from trusted links
+  // above.
+  const personId = await deps.relationships?.createPersonWithoutContactMatch(tx, {
+    firstName: contact.contactFirstName?.trim() || "Guest",
+    lastName: contact.contactLastName?.trim() || "",
+    source: "booking-session-v1-guest",
+    sourceRef: input.session.id,
+  })
   return personId ? { ...contact, personId: personId.id, organizationId: null } : null
 }
 

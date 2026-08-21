@@ -1971,6 +1971,678 @@
         "x-voyant-surface": "admin"
       }
     },
+    "/v1/admin/bookings/{bookingId}/customer-access": {
+      "get": {
+        "x-voyant-api-id": "@voyant-travel/bookings#api.admin",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": true,
+            "name": "bookingId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Booking customer access",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "bookingId": {
+                            "type": "string"
+                          },
+                          "buyerAccountId": {
+                            "type": "string"
+                          },
+                          "buyerAccountKind": {
+                            "type": "string",
+                            "enum": ["personal", "business"]
+                          },
+                          "role": {
+                            "type": "string",
+                            "enum": ["owner"]
+                          },
+                          "source": {
+                            "type": "string",
+                            "enum": [
+                              "authenticated_commit",
+                              "verified_booking_claim",
+                              "staff_grant",
+                              "legacy_session_backfill"
+                            ]
+                          },
+                          "proofRef": {
+                            "type": ["string", "null"]
+                          },
+                          "grantedByPrincipalId": {
+                            "type": ["string", "null"]
+                          },
+                          "grantedByMembershipId": {
+                            "type": ["string", "null"]
+                          },
+                          "grantedByMembershipRole": {
+                            "type": ["string", "null"]
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "updatedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "revokedAt": {
+                            "type": ["string", "null"],
+                            "format": "date-time"
+                          },
+                          "revokedByPrincipalId": {
+                            "type": ["string", "null"]
+                          },
+                          "revocationReason": {
+                            "type": ["string", "null"]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "bookingId",
+                          "buyerAccountId",
+                          "buyerAccountKind",
+                          "role",
+                          "source",
+                          "proofRef",
+                          "grantedByPrincipalId",
+                          "grantedByMembershipId",
+                          "grantedByMembershipRole",
+                          "createdAt",
+                          "updatedAt",
+                          "revokedAt",
+                          "revokedByPrincipalId",
+                          "revocationReason"
+                        ]
+                      }
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing booking-customer-access:read",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Booking not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getAdminBookingsByBookingIdCustomerAccess",
+        "summary": "GET /v1/admin/bookings/{bookingId}/customer-access",
+        "tags": ["bookings"],
+        "x-voyant-module": "bookings",
+        "x-voyant-surface": "admin"
+      },
+      "post": {
+        "x-voyant-api-id": "@voyant-travel/bookings#api.admin",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": true,
+            "name": "bookingId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "required": true,
+            "name": "idempotency-key",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "Customer access grant",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "buyerAccountId": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 255
+                  },
+                  "buyerAccountKind": {
+                    "type": "string",
+                    "enum": ["personal", "business"]
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500
+                  }
+                },
+                "required": ["buyerAccountId", "buyerAccountKind", "reason"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The existing customer access grant",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "bookingId": {
+                          "type": "string"
+                        },
+                        "buyerAccountId": {
+                          "type": "string"
+                        },
+                        "buyerAccountKind": {
+                          "type": "string",
+                          "enum": ["personal", "business"]
+                        },
+                        "role": {
+                          "type": "string",
+                          "enum": ["owner"]
+                        },
+                        "source": {
+                          "type": "string",
+                          "enum": [
+                            "authenticated_commit",
+                            "verified_booking_claim",
+                            "staff_grant",
+                            "legacy_session_backfill"
+                          ]
+                        },
+                        "proofRef": {
+                          "type": ["string", "null"]
+                        },
+                        "grantedByPrincipalId": {
+                          "type": ["string", "null"]
+                        },
+                        "grantedByMembershipId": {
+                          "type": ["string", "null"]
+                        },
+                        "grantedByMembershipRole": {
+                          "type": ["string", "null"]
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "updatedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "revokedAt": {
+                          "type": ["string", "null"],
+                          "format": "date-time"
+                        },
+                        "revokedByPrincipalId": {
+                          "type": ["string", "null"]
+                        },
+                        "revocationReason": {
+                          "type": ["string", "null"]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "bookingId",
+                        "buyerAccountId",
+                        "buyerAccountKind",
+                        "role",
+                        "source",
+                        "proofRef",
+                        "grantedByPrincipalId",
+                        "grantedByMembershipId",
+                        "grantedByMembershipRole",
+                        "createdAt",
+                        "updatedAt",
+                        "revokedAt",
+                        "revokedByPrincipalId",
+                        "revocationReason"
+                      ]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "The customer access grant",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "bookingId": {
+                          "type": "string"
+                        },
+                        "buyerAccountId": {
+                          "type": "string"
+                        },
+                        "buyerAccountKind": {
+                          "type": "string",
+                          "enum": ["personal", "business"]
+                        },
+                        "role": {
+                          "type": "string",
+                          "enum": ["owner"]
+                        },
+                        "source": {
+                          "type": "string",
+                          "enum": [
+                            "authenticated_commit",
+                            "verified_booking_claim",
+                            "staff_grant",
+                            "legacy_session_backfill"
+                          ]
+                        },
+                        "proofRef": {
+                          "type": ["string", "null"]
+                        },
+                        "grantedByPrincipalId": {
+                          "type": ["string", "null"]
+                        },
+                        "grantedByMembershipId": {
+                          "type": ["string", "null"]
+                        },
+                        "grantedByMembershipRole": {
+                          "type": ["string", "null"]
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "updatedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "revokedAt": {
+                          "type": ["string", "null"],
+                          "format": "date-time"
+                        },
+                        "revokedByPrincipalId": {
+                          "type": ["string", "null"]
+                        },
+                        "revocationReason": {
+                          "type": ["string", "null"]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "bookingId",
+                        "buyerAccountId",
+                        "buyerAccountKind",
+                        "role",
+                        "source",
+                        "proofRef",
+                        "grantedByPrincipalId",
+                        "grantedByMembershipId",
+                        "grantedByMembershipRole",
+                        "createdAt",
+                        "updatedAt",
+                        "revokedAt",
+                        "revokedByPrincipalId",
+                        "revocationReason"
+                      ]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing booking-customer-access:write",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Booking not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Idempotency conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postAdminBookingsByBookingIdCustomerAccess",
+        "summary": "POST /v1/admin/bookings/{bookingId}/customer-access",
+        "tags": ["bookings"],
+        "x-voyant-module": "bookings",
+        "x-voyant-surface": "admin"
+      }
+    },
+    "/v1/admin/bookings/{bookingId}/customer-access/{grantId}": {
+      "delete": {
+        "x-voyant-api-id": "@voyant-travel/bookings#api.admin",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": true,
+            "name": "bookingId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": true,
+            "name": "grantId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "required": true,
+            "name": "idempotency-key",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "Customer access revocation",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500
+                  }
+                },
+                "required": ["reason"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The revoked customer access grant",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "bookingId": {
+                          "type": "string"
+                        },
+                        "buyerAccountId": {
+                          "type": "string"
+                        },
+                        "buyerAccountKind": {
+                          "type": "string",
+                          "enum": ["personal", "business"]
+                        },
+                        "role": {
+                          "type": "string",
+                          "enum": ["owner"]
+                        },
+                        "source": {
+                          "type": "string",
+                          "enum": [
+                            "authenticated_commit",
+                            "verified_booking_claim",
+                            "staff_grant",
+                            "legacy_session_backfill"
+                          ]
+                        },
+                        "proofRef": {
+                          "type": ["string", "null"]
+                        },
+                        "grantedByPrincipalId": {
+                          "type": ["string", "null"]
+                        },
+                        "grantedByMembershipId": {
+                          "type": ["string", "null"]
+                        },
+                        "grantedByMembershipRole": {
+                          "type": ["string", "null"]
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "updatedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "revokedAt": {
+                          "type": ["string", "null"],
+                          "format": "date-time"
+                        },
+                        "revokedByPrincipalId": {
+                          "type": ["string", "null"]
+                        },
+                        "revocationReason": {
+                          "type": ["string", "null"]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "bookingId",
+                        "buyerAccountId",
+                        "buyerAccountKind",
+                        "role",
+                        "source",
+                        "proofRef",
+                        "grantedByPrincipalId",
+                        "grantedByMembershipId",
+                        "grantedByMembershipRole",
+                        "createdAt",
+                        "updatedAt",
+                        "revokedAt",
+                        "revokedByPrincipalId",
+                        "revocationReason"
+                      ]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing booking-customer-access:write",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Customer access grant not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Idempotency conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "deleteAdminBookingsByBookingIdCustomerAccessByGrantId",
+        "summary": "DELETE /v1/admin/bookings/{bookingId}/customer-access/{grantId}",
+        "tags": ["bookings"],
+        "x-voyant-module": "bookings",
+        "x-voyant-surface": "admin"
+      }
+    },
     "/v1/admin/bookings/inquiries": {
       "get": {
         "x-voyant-api-id": "@voyant-travel/bookings#api.admin",

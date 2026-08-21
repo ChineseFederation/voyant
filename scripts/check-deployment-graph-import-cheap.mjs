@@ -41,7 +41,11 @@ const ALLOWED_EXTERNAL_IMPORT_PATTERNS = [
 ]
 const ALLOWED_PACKAGE_MANIFEST_IMPORT_PATTERNS = [
   /\/ports$/,
-  /\/runtime-port$/,
+  // A package with more than one seam names them, so the contract subpath is
+  // `<seam>-runtime-port` rather than the bare `runtime-port` a single-seam
+  // package can use. Both are the same kind of thing — a `definePort` contract
+  // and its types — and a manifest has to name the port it provides or requires.
+  /\/[^/]*runtime-port$/,
   /\/[^/]+-manifest$/,
 ]
 

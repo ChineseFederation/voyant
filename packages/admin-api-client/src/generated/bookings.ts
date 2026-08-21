@@ -157,6 +157,41 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  "/v1/admin/bookings/{bookingId}/customer-access": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/admin/bookings/{bookingId}/customer-access */
+    get: operations["getAdminBookingsByBookingIdCustomerAccess"]
+    put?: never
+    /** POST /v1/admin/bookings/{bookingId}/customer-access */
+    post: operations["postAdminBookingsByBookingIdCustomerAccess"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/admin/bookings/{bookingId}/customer-access/{grantId}": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post?: never
+    /** DELETE /v1/admin/bookings/{bookingId}/customer-access/{grantId} */
+    delete: operations["deleteAdminBookingsByBookingIdCustomerAccessByGrantId"]
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   "/v1/admin/bookings/inquiries": {
     parameters: {
       query?: never
@@ -1783,6 +1818,325 @@ export interface operations {
         }
         content: {
           "application/json": components["schemas"]["BookingAmendmentApplyConflictResponse"]
+        }
+      }
+    }
+  }
+  getAdminBookingsByBookingIdCustomerAccess: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        bookingId: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Booking customer access */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              bookingId: string
+              buyerAccountId: string
+              /** @enum {string} */
+              buyerAccountKind: "personal" | "business"
+              /** @enum {string} */
+              role: "owner"
+              /** @enum {string} */
+              source:
+                | "authenticated_commit"
+                | "verified_booking_claim"
+                | "staff_grant"
+                | "legacy_session_backfill"
+              proofRef: string | null
+              grantedByPrincipalId: string | null
+              grantedByMembershipId: string | null
+              grantedByMembershipRole: string | null
+              /** Format: date-time */
+              createdAt: string
+              /** Format: date-time */
+              updatedAt: string
+              /** Format: date-time */
+              revokedAt: string | null
+              revokedByPrincipalId: string | null
+              revocationReason: string | null
+            }[]
+          }
+        }
+      }
+      /** @description Missing booking-customer-access:read */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Booking not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  postAdminBookingsByBookingIdCustomerAccess: {
+    parameters: {
+      query?: never
+      header: {
+        "idempotency-key": string
+      }
+      path: {
+        bookingId: string
+      }
+      cookie?: never
+    }
+    /** @description Customer access grant */
+    requestBody: {
+      content: {
+        "application/json": {
+          buyerAccountId: string
+          /** @enum {string} */
+          buyerAccountKind: "personal" | "business"
+          reason: string
+        }
+      }
+    }
+    responses: {
+      /** @description The existing customer access grant */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              bookingId: string
+              buyerAccountId: string
+              /** @enum {string} */
+              buyerAccountKind: "personal" | "business"
+              /** @enum {string} */
+              role: "owner"
+              /** @enum {string} */
+              source:
+                | "authenticated_commit"
+                | "verified_booking_claim"
+                | "staff_grant"
+                | "legacy_session_backfill"
+              proofRef: string | null
+              grantedByPrincipalId: string | null
+              grantedByMembershipId: string | null
+              grantedByMembershipRole: string | null
+              /** Format: date-time */
+              createdAt: string
+              /** Format: date-time */
+              updatedAt: string
+              /** Format: date-time */
+              revokedAt: string | null
+              revokedByPrincipalId: string | null
+              revocationReason: string | null
+            }
+          }
+        }
+      }
+      /** @description The customer access grant */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              bookingId: string
+              buyerAccountId: string
+              /** @enum {string} */
+              buyerAccountKind: "personal" | "business"
+              /** @enum {string} */
+              role: "owner"
+              /** @enum {string} */
+              source:
+                | "authenticated_commit"
+                | "verified_booking_claim"
+                | "staff_grant"
+                | "legacy_session_backfill"
+              proofRef: string | null
+              grantedByPrincipalId: string | null
+              grantedByMembershipId: string | null
+              grantedByMembershipRole: string | null
+              /** Format: date-time */
+              createdAt: string
+              /** Format: date-time */
+              updatedAt: string
+              /** Format: date-time */
+              revokedAt: string | null
+              revokedByPrincipalId: string | null
+              revocationReason: string | null
+            }
+          }
+        }
+      }
+      /** @description Invalid request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Missing booking-customer-access:write */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Booking not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Idempotency conflict */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+    }
+  }
+  deleteAdminBookingsByBookingIdCustomerAccessByGrantId: {
+    parameters: {
+      query?: never
+      header: {
+        "idempotency-key": string
+      }
+      path: {
+        bookingId: string
+        grantId: string
+      }
+      cookie?: never
+    }
+    /** @description Customer access revocation */
+    requestBody: {
+      content: {
+        "application/json": {
+          reason: string
+        }
+      }
+    }
+    responses: {
+      /** @description The revoked customer access grant */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              id: string
+              bookingId: string
+              buyerAccountId: string
+              /** @enum {string} */
+              buyerAccountKind: "personal" | "business"
+              /** @enum {string} */
+              role: "owner"
+              /** @enum {string} */
+              source:
+                | "authenticated_commit"
+                | "verified_booking_claim"
+                | "staff_grant"
+                | "legacy_session_backfill"
+              proofRef: string | null
+              grantedByPrincipalId: string | null
+              grantedByMembershipId: string | null
+              grantedByMembershipRole: string | null
+              /** Format: date-time */
+              createdAt: string
+              /** Format: date-time */
+              updatedAt: string
+              /** Format: date-time */
+              revokedAt: string | null
+              revokedByPrincipalId: string | null
+              revocationReason: string | null
+            }
+          }
+        }
+      }
+      /** @description Invalid request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Missing booking-customer-access:write */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Customer access grant not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
+        }
+      }
+      /** @description Idempotency conflict */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            error: string
+          }
         }
       }
     }

@@ -2388,6 +2388,40 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  "/v1/public/customer-portal/booking-claims": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** POST /v1/public/customer-portal/booking-claims */
+    post: operations["postPublicCustomerPortalBookingClaims"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  "/v1/public/customer-portal/booking-claims/{claimId}/confirm": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** POST /v1/public/customer-portal/booking-claims/{claimId}/confirm */
+    post: operations["postPublicCustomerPortalBookingClaimsByClaimIdConfirm"]
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   "/v1/public/customer-portal/me": {
     parameters: {
       query?: never
@@ -16256,6 +16290,102 @@ export interface operations {
           [name: string]: unknown
         }
         content?: never
+      }
+    }
+  }
+  postPublicCustomerPortalBookingClaims: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          bookingReference: string
+          /** @enum {string} */
+          channel?: "email" | "sms"
+          idempotencyKey: string
+        }
+      }
+    }
+    responses: {
+      /** @description The booking claim request was accepted without disclosing reference eligibility */
+      202: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              claimId: string
+              /** @enum {string} */
+              deliveryStatus: "accepted"
+            }
+          }
+        }
+      }
+      /** @description Too many booking-claim attempts */
+      429: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            /** @enum {string} */
+            error: "Too Many Requests"
+            /** @enum {string} */
+            code: "rate_limited"
+          }
+        }
+      }
+    }
+  }
+  postPublicCustomerPortalBookingClaimsByClaimIdConfirm: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        claimId: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          code: string
+          idempotencyKey: string
+        }
+      }
+    }
+    responses: {
+      /** @description The booking-specific customer access grant was created or replayed */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            data: {
+              /** @enum {string} */
+              status: "granted" | "replayed"
+              grantId: string
+            }
+          }
+        }
+      }
+      /** @description The claim is invalid, expired, mismatched, or already consumed elsewhere */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          "application/json": {
+            /** @enum {string} */
+            error: "invalid_or_expired"
+          }
+        }
       }
     }
   }

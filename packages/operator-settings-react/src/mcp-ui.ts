@@ -7,6 +7,21 @@ export const MCP_ENDPOINT_PATH = "/v1/admin/mcp"
 export const MCP_TOKEN_PLACEHOLDER = "voy_your_api_token"
 
 export type McpToolRisk = "low" | "medium" | "high" | "critical"
+export type McpToolOverride = "allow" | "deny"
+
+export interface McpExposurePolicy {
+  allowedRiskLevels: McpToolRisk[]
+  allowWrites: boolean
+  allowSensitiveData: boolean
+  toolOverrides: Record<string, McpToolOverride>
+}
+
+export interface McpToolExposure {
+  enabled: boolean
+  sensitive: boolean
+  remoteSafe: boolean
+  reason: string
+}
 
 /** One entry of `GET /v1/admin/mcp/manifest`, narrowed to what this page renders. */
 export interface McpManifestTool {
@@ -19,11 +34,13 @@ export interface McpManifestTool {
   audience?: { allowed?: string[] }
   annotations?: { readOnlyHint?: boolean }
   actionPolicy?: { approval?: "never" | "conditional" | "required" }
+  exposure: McpToolExposure
 }
 
 export interface McpManifest {
   version: string
   serverInfo: { name: string; version: string }
+  policy: McpExposurePolicy
   tools: McpManifestTool[]
 }
 
@@ -161,6 +178,26 @@ interface McpMessages {
   riskCritical: string
   loadFailed: string
   retry: string
+  policyTitle: string
+  policyDescription: string
+  policyWrites: string
+  policyWritesDescription: string
+  policySensitive: string
+  policySensitiveDescription: string
+  policyRisk: string
+  policyRiskDescription: string
+  policyCriticalNote: string
+  policyPresets: string
+  policyPresetsDescription: string
+  enableAll: string
+  useRecommended: string
+  savePolicy: string
+  savingPolicy: string
+  policySaved: string
+  policySaveFailed: string
+  exposed: string
+  blocked: string
+  useDefault: string
 }
 
 const en: McpMessages = {
@@ -235,6 +272,29 @@ const en: McpMessages = {
   riskCritical: "Critical risk",
   loadFailed: "Could not load the MCP tool list.",
   retry: "Try again",
+  policyTitle: "MCP exposure policy",
+  policyDescription:
+    "Choose the maximum tool surface any connected assistant may use. User permissions and OAuth scopes still apply.",
+  policyWrites: "Allow tools that change data",
+  policyWritesDescription: "Write tools remain subject to their normal approval rules.",
+  policySensitive: "Allow tools that access sensitive or personal data",
+  policySensitiveDescription: "The risk policy and per-tool choices still apply.",
+  policyRisk: "Automatically expose remote-safe tools at these risk levels",
+  policyRiskDescription: "Low risk is the recommended baseline.",
+  policyCriticalNote:
+    "Critical and package-restricted tools always require an explicit per-tool enable.",
+  policyPresets: "Policy presets",
+  policyPresetsDescription:
+    "Enable all includes every current tool, including writes, sensitive data, and critical or restricted tools. Review the draft below, then save it.",
+  enableAll: "Enable all",
+  useRecommended: "Recommended baseline",
+  savePolicy: "Save policy",
+  savingPolicy: "Saving…",
+  policySaved: "Policy saved. Connected assistants use it on their next request.",
+  policySaveFailed: "Could not save the MCP exposure policy.",
+  exposed: "Exposed",
+  blocked: "Blocked",
+  useDefault: "Use policy default",
 }
 
 const ro: McpMessages = {
@@ -309,6 +369,30 @@ const ro: McpMessages = {
   riskCritical: "Risc critic",
   loadFailed: "Lista de tooluri MCP nu a putut fi incarcata.",
   retry: "Incearca din nou",
+  policyTitle: "Politica de expunere MCP",
+  policyDescription:
+    "Alege suprafata maxima de tooluri disponibila asistentilor conectati. Permisiunile utilizatorului si scope-urile OAuth se aplica in continuare.",
+  policyWrites: "Permite tooluri care modifica date",
+  policyWritesDescription:
+    "Toolurile de scriere respecta in continuare regulile normale de aprobare.",
+  policySensitive: "Permite tooluri cu date sensibile sau personale",
+  policySensitiveDescription: "Politica de risc si alegerile individuale se aplica in continuare.",
+  policyRisk: "Expune automat toolurile remote-safe la aceste niveluri de risc",
+  policyRiskDescription: "Riscul scazut este baza recomandata.",
+  policyCriticalNote:
+    "Toolurile critice si restrictionate de pachet necesita intotdeauna activare individuala.",
+  policyPresets: "Preseturi de politica",
+  policyPresetsDescription:
+    "Activarea completa include toate toolurile curente, inclusiv scrieri, date sensibile si tooluri critice sau restrictionate. Verifica schita de mai jos, apoi salveaz-o.",
+  enableAll: "Activeaza tot",
+  useRecommended: "Configuratie recomandata",
+  savePolicy: "Salveaza politica",
+  savingPolicy: "Se salveaza…",
+  policySaved: "Politica a fost salvata. Asistentii o folosesc la urmatoarea cerere.",
+  policySaveFailed: "Politica de expunere MCP nu a putut fi salvata.",
+  exposed: "Expus",
+  blocked: "Blocat",
+  useDefault: "Foloseste politica implicita",
 }
 
 export function useMcpMessages(): McpMessages {
@@ -339,4 +423,35 @@ export function filterMcpTools(tools: McpManifestTool[], query: string): McpMani
       .toLowerCase()
       .includes(needle),
   )
+}
+
+/** Mirror the server policy evaluator so unsaved controls preview the effective result. */
+export function isMcpToolExposed(tool: McpManifestTool, policy: McpExposurePolicy): boolean {
+  const override = policy.toolOverrides[tool.capabilityId]
+  if (override === "deny") return false
+  if (!tool.annotations?.readOnlyHint && !policy.allowWrites) return false
+  if (tool.exposure.sensitive && !policy.allowSensitiveData) return false
+  if (override === "allow") return true
+  if (tool.deploymentRisk === "critical" || !tool.exposure.remoteSafe) return false
+  return policy.allowedRiskLevels.includes(tool.deploymentRisk)
+}
+
+/** Draft that explicitly exposes every tool currently present in the manifest. */
+export function enableAllMcpTools(tools: McpManifestTool[]): McpExposurePolicy {
+  return {
+    allowedRiskLevels: ["low", "medium", "high", "critical"],
+    allowWrites: true,
+    allowSensitiveData: true,
+    toolOverrides: Object.fromEntries(tools.map((tool) => [tool.capabilityId, "allow"])),
+  }
+}
+
+/** Recommended deployment baseline: remote-safe, low-risk, non-sensitive reads only. */
+export function recommendedMcpPolicy(): McpExposurePolicy {
+  return {
+    allowedRiskLevels: ["low"],
+    allowWrites: false,
+    allowSensitiveData: false,
+    toolOverrides: {},
+  }
 }

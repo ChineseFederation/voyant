@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest"
 import {
   buildMcpClientConfigs,
+  enableAllMcpTools,
   filterMcpTools,
+  isMcpToolExposed,
   MCP_TOKEN_PLACEHOLDER,
   type McpManifestTool,
+  recommendedMcpPolicy,
   resolveMcpEndpoint,
 } from "./mcp-ui.js"
 
@@ -69,6 +72,8 @@ describe("mcp tool filtering", () => {
       description: "List bookings",
       requiredScopes: ["bookings:read"],
       deploymentRisk: "low",
+      annotations: { readOnlyHint: true },
+      exposure: { enabled: true, sensitive: false, remoteSafe: true, reason: "enabled" },
     },
     {
       capabilityId: "@voyant-travel/operator-settings#tool.update",
@@ -77,6 +82,13 @@ describe("mcp tool filtering", () => {
       description: "Update settings",
       requiredScopes: ["settings:write"],
       deploymentRisk: "high",
+      annotations: { readOnlyHint: false },
+      exposure: {
+        enabled: false,
+        sensitive: false,
+        remoteSafe: false,
+        reason: "writes-disabled",
+      },
     },
   ]
 
@@ -90,5 +102,51 @@ describe("mcp tool filtering", () => {
       "update_operator_settings",
     ])
     expect(filterMcpTools(tools, "nothing")).toEqual([])
+  })
+
+  it("previews risk, write and per-tool policy decisions", () => {
+    const base = {
+      allowedRiskLevels: ["low" as const],
+      allowWrites: false,
+      allowSensitiveData: false,
+      toolOverrides: {},
+    }
+    expect(isMcpToolExposed(tools[0]!, base)).toBe(true)
+    expect(isMcpToolExposed(tools[1]!, base)).toBe(false)
+    expect(
+      isMcpToolExposed(tools[1]!, {
+        ...base,
+        allowWrites: true,
+        toolOverrides: { "@voyant-travel/operator-settings#tool.update": "allow" },
+      }),
+    ).toBe(true)
+  })
+
+  it("builds an enable-all draft for every current tool", () => {
+    const policy = enableAllMcpTools(tools)
+
+    expect(policy).toEqual({
+      allowedRiskLevels: ["low", "medium", "high", "critical"],
+      allowWrites: true,
+      allowSensitiveData: true,
+      toolOverrides: {
+        "@voyant-travel/bookings#tool.list": "allow",
+        "@voyant-travel/operator-settings#tool.update": "allow",
+      },
+    })
+    expect(tools.every((tool) => isMcpToolExposed(tool, policy))).toBe(true)
+  })
+
+  it("builds the recommended low-risk read-only baseline", () => {
+    const policy = recommendedMcpPolicy()
+
+    expect(policy).toEqual({
+      allowedRiskLevels: ["low"],
+      allowWrites: false,
+      allowSensitiveData: false,
+      toolOverrides: {},
+    })
+    expect(isMcpToolExposed(tools[0]!, policy)).toBe(true)
+    expect(isMcpToolExposed(tools[1]!, policy)).toBe(false)
   })
 })

@@ -524,6 +524,19 @@ export function createRelationshipsRuntimePortContribution(
     } satisfies RelationshipsBookingEnrichmentDatabaseRuntime,
     [bookingsRelationshipsRuntimePort.id]: {
       loadPersonTravelSnapshot: (...args) => relationshipsService.loadPersonTravelSnapshot(...args),
+      async createPersonWithoutContactMatch(db, input) {
+        const person = await relationshipsService.createPerson(db, {
+          firstName: input.firstName,
+          lastName: input.lastName,
+          source: input.source,
+          sourceRef: input.sourceRef,
+          status: "active",
+          tags: [],
+          website: null,
+        })
+        if (!person) throw new Error("Failed to create personal Buyer Account Person")
+        return { id: person.id }
+      },
       upsertPersonFromContact: (...args) => relationshipsService.upsertPersonFromContact(...args),
       getPersonById: (...args) => relationshipsService.getPersonById(...args),
       getOrganizationById: (...args) => relationshipsService.getOrganizationById(...args),

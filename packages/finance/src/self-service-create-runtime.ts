@@ -35,6 +35,19 @@ export interface SelfServiceCreateRuntimeDeps {
     idempotencyKey: string,
   ): Parameters<typeof executeFinanceSelfServiceBookingCreateCommand>[0]["admitted"]
   runtime?: FinanceServiceRuntime
+  grantCustomerAccess?(
+    tx: PostgresJsDatabase,
+    input: {
+      bookingId: string
+      buyerAccountId: string
+      buyerAccountKind: "personal" | "business"
+      grantedByPrincipalId: string
+      grantedByMembershipId?: string
+      grantedByMembershipRole?: string
+      idempotencyKey: string
+      proofRef: string
+    },
+  ): Promise<void>
   /**
    * Read the persisted booking's reference and status. Used after the command
    * so an idempotent replay reports the ORIGINAL booking's number rather than
@@ -55,7 +68,7 @@ export function createSelfServiceCreateRuntime(deps: SelfServiceCreateRuntimeDep
       quoteId: string
       caller: { personId?: string; verifiedEmail?: string; verifiedPhone?: string }
       /** Required by public callers; omitted by trusted staff workflows. */
-      storefront?: { channelId: string }
+      publicApiOrigin?: { channelId: string }
       idempotencyKey: string
       /** Proves the caller holds the anonymous Session. */
       sessionCapability?: string
@@ -66,6 +79,12 @@ export function createSelfServiceCreateRuntime(deps: SelfServiceCreateRuntimeDep
       guestChallengeId?: string
       /** The authenticated customer's user id, when they have an account. */
       userId?: string
+      customerAccess?: {
+        buyerAccountId: string
+        buyerAccountKind: "personal" | "business"
+        membershipId?: string
+        membershipRole?: string
+      }
       consumeSources?(tx: PostgresJsDatabase, bookingId: string): Promise<void>
     }) {
       const source = await deps.resolveSource()
@@ -103,7 +122,7 @@ export function createSelfServiceCreateRuntime(deps: SelfServiceCreateRuntimeDep
         commandInput: {
           ...resolved.command,
           bookingNumber,
-          ...(input.storefront ? { publicApiOrigin: input.storefront } : {}),
+          ...(input.publicApiOrigin ? { publicApiOrigin: input.publicApiOrigin } : {}),
         } as never,
         admitted: deps.admit("customer", input.idempotencyKey),
         ...(deps.runtime ? { runtime: deps.runtime } : {}),
@@ -113,6 +132,22 @@ export function createSelfServiceCreateRuntime(deps: SelfServiceCreateRuntimeDep
             quoteId: input.quoteId,
             bookingId,
           })
+          if (input.customerAccess && input.userId) {
+            await deps.grantCustomerAccess?.(tx, {
+              bookingId,
+              buyerAccountId: input.customerAccess.buyerAccountId,
+              buyerAccountKind: input.customerAccess.buyerAccountKind,
+              grantedByPrincipalId: input.userId,
+              ...(input.customerAccess.membershipId
+                ? { grantedByMembershipId: input.customerAccess.membershipId }
+                : {}),
+              ...(input.customerAccess.membershipRole
+                ? { grantedByMembershipRole: input.customerAccess.membershipRole }
+                : {}),
+              idempotencyKey: `${input.idempotencyKey}:customer-access`,
+              proofRef: input.sessionId,
+            })
+          }
           await input.consumeSources?.(tx, bookingId)
         },
       })

@@ -1,5 +1,14 @@
 # @voyant-travel/operator-settings-react
 
+## 0.170.1
+
+### Patch Changes
+
+- 22783e6: Add a deployment-wide MCP tool exposure policy with safe defaults, risk-level,
+  write, and sensitive-data controls, plus per-tool overrides. Enforce the policy
+  consistently in tool discovery and invocation, while keeping staff permissions
+  and OAuth scopes as hard upper bounds.
+
 ## 0.170.0
 
 ### Patch Changes

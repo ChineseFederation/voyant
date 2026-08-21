@@ -74,6 +74,31 @@ export const manifest = { requires: [runtimePort] }
     assert.match(result.stdout, /check-deployment-graph-import-cheap: OK/)
   })
 
+  it("allows a named seam's runtime port contract import from package manifests", async () => {
+    const root = await createFixture({
+      "voyant.ts": `import { personalBuyerPersonRuntimePort } from "@voyant-travel/catalog/personal-buyer-person-runtime-port"
+export const manifest = { provides: [personalBuyerPersonRuntimePort] }
+`,
+    })
+
+    const result = await runChecker(root, "package:voyant.ts")
+
+    assert.match(result.stdout, /check-deployment-graph-import-cheap: OK/)
+  })
+
+  it("rejects a subpath that ends in port without being a runtime port contract", async () => {
+    const root = await createFixture({
+      "voyant.ts": `import { runtime } from "@voyant-travel/catalog/booking-session-port"
+export const manifest = { requires: [runtime] }
+`,
+    })
+
+    await assert.rejects(runChecker(root, "package:voyant.ts"), (error) => {
+      assert.match(error.stderr, /@voyant-travel\/catalog\/booking-session-port/)
+      return true
+    })
+  })
+
   it("rejects transitive route imports from graph declarations", async () => {
     const root = await createFixture({
       "manifest.ts": `import { routes } from "./routes"

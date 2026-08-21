@@ -1,3 +1,4 @@
+// agent-quality: file-size exception -- owner: catalog; Booking Session route declarations and handlers remain co-located to preserve route order, shared admission, and generated OpenAPI behavior.
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi"
 import {
   offerPreviewOutcomeV1,
@@ -412,7 +413,7 @@ export function createBookingSessionRoutes(options: BookingSessionRoutesOptions)
   const routes = new OpenAPIHono<Env>({ defaultHook: openApiValidationHook })
   if (options.actorKind === "anonymous") {
     routes.use("*", async (c, next) => {
-      if (!activeStorefront(c)) {
+      if (!activePublicApiOrigin(c)) {
         return c.json(
           {
             error: "Active storefront channel context is required.",
@@ -640,11 +641,11 @@ function resolveAccess(
   // The anonymous middleware has already rejected a missing/inactive binding.
   // Re-read the trusted Hono variable here so no custom access resolver can
   // substitute body or session-state storefront identifiers.
-  const storefront = activeStorefront(c as Context<Env>)
-  return { ...resolved, ...(storefront ? { storefront } : {}) }
+  const publicApiOrigin = activePublicApiOrigin(c as Context<Env>)
+  return { ...resolved, ...(publicApiOrigin ? { publicApiOrigin } : {}) }
 }
 
-function activeStorefront(c: Context<Env>) {
+function activePublicApiOrigin(c: Context<Env>) {
   const publicChannel = c.get("publicChannel")
   const channelId = publicChannel?.channelId.trim() ?? ""
   if (!channelId || publicChannel?.channelStatus !== "active") {
@@ -698,16 +699,46 @@ export function createBookingSessionApiModule(options: {
           realm?: unknown
           userId?: unknown
           organizationId?: unknown
+          buyerAccountId?: unknown
+          buyerAccountKind?: unknown
+          relationshipPersonId?: unknown
+          authOrganizationId?: unknown
+          relationshipOrganizationId?: unknown
+          buyerMembershipId?: unknown
+          buyerMembershipRole?: unknown
         }
         const capability = readAnonymousCapability(c)
         if (vars.actor === "customer" && vars.realm === "customer") {
           const principalId = typeof vars.userId === "string" ? vars.userId.trim() : ""
           const organizationId =
             typeof vars.organizationId === "string" ? vars.organizationId.trim() : ""
+          const buyerAccountId =
+            typeof vars.buyerAccountId === "string" ? vars.buyerAccountId.trim() : ""
+          const buyerAccountKind =
+            vars.buyerAccountKind === "personal" || vars.buyerAccountKind === "business"
+              ? vars.buyerAccountKind
+              : undefined
           return {
             actorKind: "customer",
             ...(principalId ? { principalId } : {}),
             ...(organizationId ? { organizationId } : {}),
+            ...(buyerAccountId ? { buyerAccountId } : {}),
+            ...(buyerAccountKind ? { buyerAccountKind } : {}),
+            ...(typeof vars.relationshipPersonId === "string"
+              ? { relationshipPersonId: vars.relationshipPersonId }
+              : {}),
+            ...(typeof vars.authOrganizationId === "string"
+              ? { authOrganizationId: vars.authOrganizationId }
+              : {}),
+            ...(typeof vars.relationshipOrganizationId === "string"
+              ? { relationshipOrganizationId: vars.relationshipOrganizationId }
+              : {}),
+            ...(typeof vars.buyerMembershipId === "string"
+              ? { membershipId: vars.buyerMembershipId }
+              : {}),
+            ...(typeof vars.buyerMembershipRole === "string"
+              ? { membershipRole: vars.buyerMembershipRole }
+              : {}),
             ...(capability ? { capability } : {}),
           }
         }

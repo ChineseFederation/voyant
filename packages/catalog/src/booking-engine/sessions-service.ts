@@ -76,6 +76,8 @@ export interface BookingSessionInternalRecord {
   actorKind: BookingSessionActorKindV1
   ownerPrincipalId?: string
   ownerOrganizationId?: string
+  ownerBuyerAccountId?: string
+  ownerBuyerAccountKind?: "personal" | "business"
   /** Immutable server-derived public-surface provenance. Never serialized. */
   publicApiOrigin?: { channelId: string }
   /**
@@ -656,9 +658,16 @@ export interface BookingSessionAccessContext {
   actorKind: BookingSessionActorKindV1
   principalId?: string
   organizationId?: string
+  buyerAccountId?: string
+  buyerAccountKind?: "personal" | "business"
+  relationshipPersonId?: string
+  authOrganizationId?: string
+  relationshipOrganizationId?: string
+  membershipId?: string
+  membershipRole?: string
   capability?: string
   /** Trusted request context resolved by the public transport, never session state. */
-  storefront?: { channelId: string }
+  publicApiOrigin?: { channelId: string }
   sessionTtlMs?: number
   staffAuthority?: { admitted: true; reason: string }
   /** Additional Finance + Bookings authority for operator booking details. */
@@ -925,6 +934,9 @@ export function createBookingSessionModule(
     if (access.actorKind !== "anonymous" && !access.principalId?.trim()) {
       return { kind: "rejected", error: { kind: "not_authorized" } }
     }
+    if (access.actorKind === "customer" && !isValidCustomerBuyerContext(access)) {
+      return { kind: "rejected", error: { kind: "not_authorized" } }
+    }
     if (access.actorKind === "staff" && !access.staffAuthority?.admitted) {
       return { kind: "rejected", error: { kind: "not_authorized" } }
     }
@@ -941,9 +953,17 @@ export function createBookingSessionModule(
       : await bookingSessionCreateIdempotencyKey(input.idempotencyKey, access, capabilityHash)
     const createRequestFingerprint = await stableFingerprint({
       actorKind: access.actorKind,
-      principalId: access.actorKind === "anonymous" ? undefined : access.principalId,
-      organizationId: access.actorKind === "anonymous" ? undefined : access.organizationId,
-      publicApiOrigin: access.actorKind === "staff" ? undefined : access.storefront,
+      principalId:
+        access.actorKind === "anonymous" || access.actorKind === "customer"
+          ? undefined
+          : access.principalId,
+      organizationId:
+        access.actorKind === "anonymous" || access.actorKind === "customer"
+          ? undefined
+          : access.organizationId,
+      buyerAccountId: access.actorKind === "customer" ? access.buyerAccountId : undefined,
+      buyerAccountKind: access.actorKind === "customer" ? access.buyerAccountKind : undefined,
+      publicApiOrigin: access.actorKind === "staff" ? undefined : access.publicApiOrigin,
       capabilityHash,
       capabilityScopes,
       target: input.target,
@@ -988,7 +1008,9 @@ export function createBookingSessionModule(
       actorKind: access.actorKind,
       ownerPrincipalId: access.actorKind === "anonymous" ? undefined : access.principalId,
       ownerOrganizationId: access.actorKind === "anonymous" ? undefined : access.organizationId,
-      publicApiOrigin: access.actorKind === "staff" ? undefined : access.storefront,
+      ownerBuyerAccountId: access.actorKind === "customer" ? access.buyerAccountId : undefined,
+      ownerBuyerAccountKind: access.actorKind === "customer" ? access.buyerAccountKind : undefined,
+      publicApiOrigin: access.actorKind === "staff" ? undefined : access.publicApiOrigin,
       scope,
       state: "active",
       revision: 1,
@@ -1088,7 +1110,7 @@ export function createBookingSessionModule(
       return repository.withSessionTransaction(sessionId, async (tx) => {
         const session = await loadSession(sessionId)
         if (!session) return { kind: "rejected", error: { kind: "session_expired" } }
-        if (access.actorKind !== "customer" || !access.principalId?.trim()) {
+        if (access.actorKind !== "customer" || !isValidCustomerBuyerContext(access)) {
           return { kind: "rejected", error: { kind: "not_authorized" } }
         }
         if (session.actorKind !== "anonymous") {
@@ -1123,8 +1145,10 @@ export function createBookingSessionModule(
         if (revisionRejected) return completeAndReturn(repository, claim.id, revisionRejected)
 
         session.actorKind = "customer"
-        session.ownerPrincipalId = access.principalId.trim()
+        session.ownerPrincipalId = access.principalId!.trim()
         session.ownerOrganizationId = access.organizationId?.trim() || undefined
+        session.ownerBuyerAccountId = access.buyerAccountId?.trim() || undefined
+        session.ownerBuyerAccountKind = access.buyerAccountKind
         session.capabilityHash = undefined
         session.capabilityScopes = []
         session.revision += 1
@@ -2254,6 +2278,8 @@ export function createBookingSessionModule(
           session.capabilityScopes = []
           session.ownerPrincipalId = undefined
           session.ownerOrganizationId = undefined
+          session.ownerBuyerAccountId = undefined
+          session.ownerBuyerAccountKind = undefined
           session.publicApiOrigin = undefined
           session.purgedAt = at
           session.revision += 1
@@ -3373,6 +3399,9 @@ async function authorizeSessionAccess(
       ? null
       : { kind: "rejected", error: { kind: "not_authorized" } }
   }
+  if (access.actorKind === "customer" && !isValidCustomerBuyerContext(access)) {
+    return { kind: "rejected", error: { kind: "not_authorized" } }
+  }
   if (session.actorKind === "anonymous") {
     const capabilityRejected = await authorizeAnonymousCapability(session, access, action)
     if (capabilityRejected) return capabilityRejected
@@ -3384,13 +3413,34 @@ async function authorizeSessionAccess(
   return authorizePublicApiOrigin(session, access)
 }
 
+function isValidCustomerBuyerContext(access: BookingSessionAccessContext): boolean {
+  if (access.actorKind !== "customer") return false
+  const principalId = access.principalId?.trim()
+  const buyerAccountId = access.buyerAccountId?.trim()
+  if (!principalId || !buyerAccountId) return false
+  if (access.buyerAccountKind === "personal") {
+    return buyerAccountId === `personal:${principalId}`
+  }
+  if (access.buyerAccountKind === "business") {
+    const authOrganizationId = access.authOrganizationId?.trim()
+    return Boolean(
+      authOrganizationId &&
+        buyerAccountId === `business:${authOrganizationId}` &&
+        access.relationshipOrganizationId?.trim() &&
+        access.membershipId?.trim() &&
+        access.membershipRole?.trim(),
+    )
+  }
+  return false
+}
+
 function authorizePublicApiOrigin(
   session: BookingSessionInternalRecord,
   access: BookingSessionAccessContext,
 ): BookingSessionOutcomeV1 | null {
   if (access.actorKind !== "anonymous" && access.actorKind !== "customer") return null
   const pinned = session.publicApiOrigin
-  const current = access.storefront
+  const current = access.publicApiOrigin
   return pinned && current && pinned.channelId === current.channelId
     ? null
     : { kind: "rejected", error: { kind: "not_authorized" } }
@@ -3400,6 +3450,31 @@ function isOwnedBy(
   session: BookingSessionInternalRecord,
   access: BookingSessionAccessContext,
 ): boolean {
+  if (session.actorKind === "customer") {
+    // A customer Session created by the previous release has no Buyer Account:
+    // the column is new and nullable, and nothing backfills it. Requiring one
+    // outright would reject resume, update, quote, hold, commit AND the adopt
+    // path that would otherwise repair it, so every checkout in flight at the
+    // moment of the upgrade would break for the rest of its TTL.
+    //
+    // For those rows fall back to the rule they were created under — the owning
+    // principal, and the owning organization when the Session pinned one. That
+    // grants no authority the previous release did not already grant, and the
+    // fallback drains on its own as legacy Sessions expire.
+    if (!session.ownerBuyerAccountId) {
+      return Boolean(
+        access.actorKind === "customer" &&
+          session.ownerPrincipalId &&
+          access.principalId === session.ownerPrincipalId &&
+          (!session.ownerOrganizationId || session.ownerOrganizationId === access.organizationId),
+      )
+    }
+    return Boolean(
+      access.actorKind === "customer" &&
+        access.buyerAccountId === session.ownerBuyerAccountId &&
+        access.buyerAccountKind === session.ownerBuyerAccountKind,
+    )
+  }
   return Boolean(
     access.actorKind === session.actorKind &&
       session.ownerPrincipalId &&
@@ -3452,10 +3527,18 @@ export async function bookingSessionCreateIdempotencyKey(
   return stableFingerprint({
     key: idempotencyKey,
     actorKind: access.actorKind,
-    principalId: access.actorKind === "anonymous" ? null : (access.principalId ?? null),
-    organizationId: access.actorKind === "anonymous" ? null : (access.organizationId ?? null),
+    principalId:
+      access.actorKind === "anonymous" || access.actorKind === "customer"
+        ? null
+        : (access.principalId ?? null),
+    organizationId:
+      access.actorKind === "anonymous" || access.actorKind === "customer"
+        ? null
+        : (access.organizationId ?? null),
+    buyerAccountId: access.actorKind === "customer" ? (access.buyerAccountId ?? null) : null,
+    buyerAccountKind: access.actorKind === "customer" ? (access.buyerAccountKind ?? null) : null,
     capabilityHash: capabilityHash ?? null,
-    publicApiOrigin: access.actorKind === "staff" ? null : (access.storefront ?? null),
+    publicApiOrigin: access.actorKind === "staff" ? null : (access.publicApiOrigin ?? null),
   })
 }
 

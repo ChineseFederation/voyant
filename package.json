@@ -133,6 +133,7 @@
     "deps:unused": "pnpm -r exec npx --yes depcheck --json || true",
     "db:build": "turbo run build --filter=\"@voyant-travel/db\"",
     "db:migrate": "pnpm -C apps/operator db:migrate",
+    "backfill:booking-customer-access": "pnpm -C apps/operator backfill:booking-customer-access",
     "action-ledger:booking-drift:plan": "tsx scripts/action-ledger-booking-drift-plan.ts",
     "tb:deploy": "cd tinybird && tb --cloud deploy",
     "verify:migration-identity": "node --test scripts/tests/migration-identity.test.mjs && npx tsx scripts/checks/migrations/index.mjs",

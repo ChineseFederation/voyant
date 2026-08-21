@@ -8,7 +8,7 @@ import type { Reporter } from "@voyant-travel/hono/observability"
 import type { ToolContext, ToolRegistry } from "@voyant-travel/tools"
 import type { AccessCatalog } from "@voyant-travel/types/api-keys"
 import type { Context } from "hono"
-
+import type { McpExposurePolicyStore } from "./exposure-policy-store.js"
 import type { McpRateLimitOptions } from "./rate-limit.js"
 
 export interface McpServerInfo {
@@ -51,6 +51,8 @@ export interface McpApiRoutesOptions {
    * tune the window, limits, key derivation, or backing store.
    */
   rateLimit?: McpRateLimitOptions | false
+  /** Deployment-wide tool exposure ceiling, loaded for every MCP request. */
+  exposurePolicyStore?: McpExposurePolicyStore
 }
 
 export interface GraphMcpApiRoutesOptions {
@@ -70,6 +72,8 @@ export interface GraphMcpApiRoutesOptions {
   responseBudgetBytes?: number
   /** Per-key rate limiting for the JSON-RPC endpoint. See {@link McpApiRoutesOptions.rateLimit}. */
   rateLimit?: McpRateLimitOptions | false
+  /** Deployment-wide tool exposure ceiling, loaded for every MCP request. */
+  exposurePolicyStore?: McpExposurePolicyStore
 }
 
 export type GraphMcpRuntime = VoyantGraphRuntime

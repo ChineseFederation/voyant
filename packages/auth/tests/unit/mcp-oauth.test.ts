@@ -36,7 +36,7 @@ const catalog: AccessCatalog = {
       description: "",
       wildcard: "allow",
       actions: [
-        // Not remote-safe: withheld even from a full-access operator.
+        // Deployment policy, rather than OAuth, decides remote exposure.
         { action: "read", label: "", description: "" },
         { action: "delete", label: "", description: "", sensitive: true, remoteSafe: true },
       ],
@@ -47,14 +47,14 @@ const catalog: AccessCatalog = {
 const fullAccess = ["*"]
 
 describe("resolveMcpGrantScopes", () => {
-  it("gives a read-only connector only remote-safe read actions", () => {
+  it("gives a read-only connector every read action held by its operator", () => {
     expect(
       resolveMcpGrantScopes({
         staffScopes: fullAccess,
         grantedOAuthScopes: [MCP_OAUTH_SCOPE_READ],
         accessCatalog: catalog,
       }),
-    ).toEqual(["bookings:read"])
+    ).toEqual(["bookings:read", "settings:read"])
   })
 
   it("adds mutations only when the grant includes mcp:write", () => {
@@ -64,7 +64,7 @@ describe("resolveMcpGrantScopes", () => {
         grantedOAuthScopes: [MCP_OAUTH_SCOPE_READ, MCP_OAUTH_SCOPE_WRITE],
         accessCatalog: catalog,
       }),
-    ).toEqual(["bookings:read", "bookings:write"])
+    ).toEqual(["bookings:read", "bookings:write", "settings:delete", "settings:read"])
   })
 
   it("never exceeds the approving staff member's own permissions", () => {
@@ -77,15 +77,15 @@ describe("resolveMcpGrantScopes", () => {
     ).toEqual(["bookings:read"])
   })
 
-  it("withholds sensitive and non-remote-safe actions from a full-access operator", () => {
+  it("leaves sensitive and remote-safe decisions to deployment policy", () => {
     const resolved = resolveMcpGrantScopes({
       staffScopes: fullAccess,
       grantedOAuthScopes: [MCP_OAUTH_SCOPE_READ, MCP_OAUTH_SCOPE_WRITE],
       accessCatalog: catalog,
     })
 
-    expect(resolved).not.toContain("settings:delete")
-    expect(resolved).not.toContain("settings:read")
+    expect(resolved).toContain("settings:delete")
+    expect(resolved).toContain("settings:read")
   })
 
   it("returns nothing when the token carries no MCP scope", () => {

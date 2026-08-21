@@ -1,4 +1,14 @@
+import {
+  type PersonalBuyerPersonRuntime,
+  personalBuyerPersonRuntimePort,
+} from "@voyant-travel/catalog/personal-buyer-person-runtime-port"
 import type { VoyantRuntimeHostPrimitives } from "@voyant-travel/core"
+import {
+  customerAuthPersonalBuyerAccount,
+  customerAuthProfilesTable,
+  customerAuthUser,
+} from "@voyant-travel/db/schema/iam"
+import { and, eq, exists, isNull } from "drizzle-orm"
 import { cloudAdminMembersConfigFromRevalidate } from "./cloud-broker.js"
 import {
   type IdentityAccessRuntimeProvider,
@@ -139,9 +149,69 @@ export function createAuthRuntimePortContribution(
       ),
   })
 
+  const personalBuyerPerson: PersonalBuyerPersonRuntime = {
+    async ensurePersonalBuyerPerson(tx, input) {
+      const [identity] = await tx
+        .select({
+          relationshipPersonId: customerAuthUser.relationshipPersonId,
+          name: customerAuthUser.name,
+          emailVerified: customerAuthUser.emailVerified,
+          phoneVerified: customerAuthUser.phoneNumberVerified,
+          firstName: customerAuthProfilesTable.firstName,
+          lastName: customerAuthProfilesTable.lastName,
+          personalRevokedAt: customerAuthPersonalBuyerAccount.revokedAt,
+        })
+        .from(customerAuthUser)
+        .innerJoin(
+          customerAuthPersonalBuyerAccount,
+          eq(customerAuthPersonalBuyerAccount.userId, customerAuthUser.id),
+        )
+        .leftJoin(customerAuthProfilesTable, eq(customerAuthProfilesTable.id, customerAuthUser.id))
+        .where(eq(customerAuthUser.id, input.userId))
+        .limit(1)
+      if (
+        !identity ||
+        identity.personalRevokedAt ||
+        (!identity.emailVerified && !identity.phoneVerified)
+      ) {
+        return null
+      }
+      if (identity.relationshipPersonId) return { id: identity.relationshipPersonId }
+
+      const nameParts = identity.name.trim().split(/\s+/)
+      const created = await input.createPerson({
+        firstName: identity.firstName?.trim() || nameParts[0] || "Customer",
+        lastName: identity.lastName?.trim() || nameParts.slice(1).join(" "),
+      })
+      const activePersonalAccount = tx
+        .select({ userId: customerAuthPersonalBuyerAccount.userId })
+        .from(customerAuthPersonalBuyerAccount)
+        .where(
+          and(
+            eq(customerAuthPersonalBuyerAccount.userId, input.userId),
+            isNull(customerAuthPersonalBuyerAccount.revokedAt),
+          ),
+        )
+      const [claimed] = await tx
+        .update(customerAuthUser)
+        .set({ relationshipPersonId: created.id, updatedAt: new Date() })
+        .where(
+          and(
+            eq(customerAuthUser.id, input.userId),
+            isNull(customerAuthUser.relationshipPersonId),
+            exists(activePersonalAccount),
+          ),
+        )
+        .returning()
+      if (!claimed) throw new Error("personal_buyer_person_claim_raced")
+      return created
+    },
+  }
+
   return {
     [identityAccessRuntimePort.id]: identityAccess,
     [teamManagementRuntimePort.id]: teamManagement,
     [publicApiRuntimePort.id]: publicApi,
+    [personalBuyerPersonRuntimePort.id]: personalBuyerPerson,
   }
 }

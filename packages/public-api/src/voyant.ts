@@ -358,6 +358,28 @@ export const publicApiCustomerPortalVoyantModule = defineModule({
   })),
   actions: [
     {
+      id: "@voyant-travel/public-api#action.claim-booking-customer-access",
+      version: "v1",
+      kind: "execute",
+      targetType: "booking-customer-access",
+      resource: "public-api",
+      action: "write",
+      requiredScopes: ["public-api:write"],
+      risk: "high",
+      ledger: "required",
+      approval: "never",
+      reversible: true,
+      allowedActorTypes: ["customer"],
+      availability: { status: "available" },
+      effectBoundary: "local",
+      targetLifecycle: "existing",
+      durability: {
+        strategy: "transactional",
+        testReference: "packages/public-api/tests/integration/customer-booking-claims.test.ts",
+      },
+      from: { routes: ["@voyant-travel/public-api#customer-portal.api"] },
+    },
+    {
       id: "@voyant-travel/public-api#action.inspect-my-customer-portal",
       version: "v1",
       kind: "sensitive-read",

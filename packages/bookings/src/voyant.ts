@@ -33,6 +33,7 @@ import { bookingsVoyantAdmin } from "./voyant-admin.js"
 import {
   bookingCancelledPayloadSchema,
   bookingConfirmedPayloadSchema,
+  bookingCustomerAccessLifecyclePayloadSchema,
   bookingInquiryCreatedPayloadSchema,
   bookingLifecyclePayloadSchema,
   bookingRefundedPayloadSchema,
@@ -437,6 +438,22 @@ export const bookingsVoyantModule = defineModule({
   jobs: [],
   events: [
     {
+      id: "@voyant-travel/bookings#event.booking.customer-access-granted",
+      eventType: "booking.customer_access.granted",
+      version: "1.0.0",
+      payloadSchema: bookingCustomerAccessLifecyclePayloadSchema,
+      visibility: "internal",
+      audit: { sourceModule: "bookings", category: "domain" },
+    },
+    {
+      id: "@voyant-travel/bookings#event.booking.customer-access-revoked",
+      eventType: "booking.customer_access.revoked",
+      version: "1.0.0",
+      payloadSchema: bookingCustomerAccessLifecyclePayloadSchema,
+      visibility: "internal",
+      audit: { sourceModule: "bookings", category: "domain" },
+    },
+    {
       id: "@voyant-travel/bookings#event.booking.confirmed",
       eventType: "booking.confirmed",
       version: "1.0.0",
@@ -505,6 +522,10 @@ export const bookingsVoyantModule = defineModule({
             action: "read",
             label: "Read bookings",
             description: "Read booking records and non-sensitive booking state.",
+            // Remote assistants may inspect the same non-PII booking surface
+            // available to the approving staff member. Booking mutations and
+            // customer data remain sensitive and are withheld from MCP grants.
+            remoteSafe: true,
           },
           {
             action: "write",
@@ -532,6 +553,28 @@ export const bookingsVoyantModule = defineModule({
             label: "Read booking PII",
             description:
               "Read personally-identifiable traveller fields on bookings. Never granted by a wildcard.",
+            sensitive: true,
+          },
+        ],
+      },
+      {
+        id: "@voyant-travel/bookings#access.booking-customer-access",
+        resource: "booking-customer-access",
+        label: "Booking customer access",
+        description:
+          "Explicit customer Buyer Account grants for Bookings. Ordinary booking permissions do not include this authority.",
+        wildcard: "explicit-resource",
+        actions: [
+          {
+            action: "read",
+            label: "Read Booking customer access",
+            description: "Inspect active and revoked customer access grants for a Booking.",
+            sensitive: true,
+          },
+          {
+            action: "write",
+            label: "Manage Booking customer access",
+            description: "Grant or revoke customer Buyer Account access to a Booking.",
             sensitive: true,
           },
         ],

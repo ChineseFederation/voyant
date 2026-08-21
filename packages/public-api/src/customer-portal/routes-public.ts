@@ -1,16 +1,31 @@
 // agent-quality: file-size exception -- owner: customer-portal; the OpenAPI route definitions and their handlers stay co-located (one app instance) until a dedicated split preserves behavior and tests.
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi"
-import type { ModuleContainer } from "@voyant-travel/core"
 import {
+  type ActionLedgerRequestContextValues,
+  appendActionLedgerMutation,
+} from "@voyant-travel/action-ledger"
+import type { ModuleContainer } from "@voyant-travel/core"
+import type { AnyDrizzleDb } from "@voyant-travel/db"
+import {
+  clientIpKey,
+  enforceRateLimit,
   ForbiddenApiError,
   openApiValidationHook,
   requireCustomerBuyerContext,
   requireCustomerIdentityContext,
   requirePersonalCustomerBuyerContext,
 } from "@voyant-travel/hono"
+import { resolveRateLimitStore } from "@voyant-travel/hono/middleware"
+import {
+  buildCustomerVerificationSenders,
+  type CustomerVerificationRoutesOptions,
+  type CustomerVerificationSenders,
+  PUBLIC_API_VERIFICATION_SENDERS_CONTAINER_KEY,
+} from "@voyant-travel/identity/verification"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { Context } from "hono"
 
+import { confirmCustomerBookingClaim, startCustomerBookingClaim } from "./booking-claims.js"
 import {
   buildPublicCustomerPortalRouteRuntime,
   CUSTOMER_PORTAL_ROUTE_RUNTIME_CONTAINER_KEY,
@@ -89,6 +104,36 @@ const bookingBillingContactEnvelopeSchema = z.object({
 const documentIdParamSchema = z.object({ id: z.string() })
 const companionIdParamSchema = z.object({ companionId: z.string() })
 const bookingIdParamSchema = z.object({ bookingId: z.string() })
+const bookingClaimIdParamSchema = z.object({ claimId: z.string().trim().min(1) })
+
+const startBookingClaimSchema = z.object({
+  bookingReference: z.string().trim().min(1).max(100),
+  channel: z.enum(["email", "sms"]).optional(),
+  idempotencyKey: z.string().trim().min(1).max(255),
+})
+const confirmBookingClaimSchema = z.object({
+  code: z
+    .string()
+    .trim()
+    .regex(/^\d{4,8}$/),
+  idempotencyKey: z.string().trim().min(1).max(255),
+})
+const bookingClaimStartEnvelopeSchema = z.object({
+  data: z.object({
+    claimId: z.string(),
+    deliveryStatus: z.literal("accepted"),
+  }),
+})
+const bookingClaimConfirmEnvelopeSchema = z.object({
+  data: z.object({ status: z.enum(["granted", "replayed"]), grantId: z.string() }),
+})
+const bookingClaimInvalidEnvelopeSchema = z.object({
+  error: z.literal("invalid_or_expired"),
+})
+const rateLimitedEnvelopeSchema = z.object({
+  error: z.literal("Too Many Requests"),
+  code: z.literal("rate_limited"),
+})
 
 const getMeRoute = createRoute({
   method: "get",
@@ -424,11 +469,134 @@ const getBookingBillingContactRoute = createRoute({
   },
 })
 
-export interface PublicCustomerPortalRouteOptions {
+const startBookingClaimRoute = createRoute({
+  method: "post",
+  path: "/booking-claims",
+  request: {
+    body: {
+      required: true,
+      content: { "application/json": { schema: startBookingClaimSchema } },
+    },
+  },
+  responses: {
+    202: {
+      description:
+        "The booking claim request was accepted without disclosing reference eligibility",
+      content: { "application/json": { schema: bookingClaimStartEnvelopeSchema } },
+    },
+    429: {
+      description: "Too many booking-claim attempts",
+      content: { "application/json": { schema: rateLimitedEnvelopeSchema } },
+    },
+  },
+})
+
+const confirmBookingClaimRoute = createRoute({
+  method: "post",
+  path: "/booking-claims/{claimId}/confirm",
+  request: {
+    params: bookingClaimIdParamSchema,
+    body: {
+      required: true,
+      content: { "application/json": { schema: confirmBookingClaimSchema } },
+    },
+  },
+  responses: {
+    200: {
+      description: "The booking-specific customer access grant was created or replayed",
+      content: { "application/json": { schema: bookingClaimConfirmEnvelopeSchema } },
+    },
+    409: {
+      description: "The claim is invalid, expired, mismatched, or already consumed elsewhere",
+      content: { "application/json": { schema: bookingClaimInvalidEnvelopeSchema } },
+    },
+  },
+})
+
+export interface PublicCustomerPortalRouteOptions extends CustomerVerificationRoutesOptions {
   resolveDocumentDownloadUrl?: (
     bindings: unknown,
     storageKey: string,
   ) => Promise<string | null> | string | null
+}
+
+function claimActionLedgerContext(c: Context<Env>): ActionLedgerRequestContextValues {
+  const vars = c.var as Record<string, unknown>
+  return {
+    userId: (vars.userId as string | undefined) ?? null,
+    sessionId: (vars.sessionId as string | undefined) ?? null,
+    apiTokenId: ((vars.apiTokenId ?? vars.apiKeyId) as string | undefined) ?? null,
+    callerType: (vars.callerType as string | undefined) ?? "session",
+    actor: (vars.actor as string | undefined) ?? "customer",
+    isInternalRequest: (vars.isInternalRequest as boolean | undefined) ?? false,
+    organizationId: null,
+    correlationId: c.req.header("x-correlation-id") ?? c.req.header("x-request-id") ?? null,
+  }
+}
+
+function forwardRateLimitHeaders(c: Context<Env>, limited: Response) {
+  for (const header of ["retry-after", "x-ratelimit-limit", "x-ratelimit-remaining"]) {
+    const value = limited.headers.get(header)
+    if (value !== null) c.header(header, value)
+  }
+}
+
+async function enforceBookingClaimStartLimits(
+  c: Context<Env>,
+  userId: string,
+  buyerAccountId: string,
+  bookingReference: string,
+) {
+  const referenceKey = `${buyerAccountId}:${bookingReference.trim().toLocaleUpperCase("en-US")}`
+  return (
+    (await enforceRateLimit(c, {
+      bucket: "customer-booking-claim:account-reference-minute",
+      max: 3,
+      windowSeconds: 60,
+      clientKey: () => referenceKey,
+    })) ??
+    (await enforceRateLimit(c, {
+      bucket: "customer-booking-claim:identity-hour",
+      max: 20,
+      windowSeconds: 60 * 60,
+      clientKey: () => userId,
+    })) ??
+    (await enforceRateLimit(c, {
+      bucket: "customer-booking-claim:account-hour",
+      max: 20,
+      windowSeconds: 60 * 60,
+      clientKey: () => buyerAccountId,
+    })) ??
+    (await enforceRateLimit(c, {
+      bucket: "customer-booking-claim:ip-hour",
+      max: 40,
+      windowSeconds: 60 * 60,
+      clientKey: clientIpKey,
+    }))
+  )
+}
+
+async function allowBookingClaimDestination(
+  c: Context<Env>,
+  channel: "email" | "sms",
+  destination: string,
+): Promise<boolean> {
+  const normalized = channel === "email" ? destination.trim().toLowerCase() : destination.trim()
+  const store = resolveRateLimitStore(c)
+  try {
+    const cooldown = await store.limit(
+      `lim:customer-booking-claim:${channel}:destination-cooldown:${normalized}`,
+      { max: 1, windowSeconds: 30 },
+    )
+    if (!cooldown.allowed) return false
+    const hourly = await store.limit(
+      `lim:customer-booking-claim:${channel}:destination-hour:${normalized}`,
+      { max: channel === "sms" ? 5 : 10, windowSeconds: 60 * 60 },
+    )
+    return hourly.allowed
+  } catch {
+    return true
+  }
 }
 
 export function createPublicCustomerPortalRoutes(options: PublicCustomerPortalRouteOptions = {}) {
@@ -442,6 +610,18 @@ export function createPublicCustomerPortalRoutes(options: PublicCustomerPortalRo
   const resolveDocumentDownloadUrl = (c: Context<Env>, storageKey: string) =>
     getRuntime(c).resolveDocumentDownloadUrl?.(storageKey) ?? null
 
+  const resolveClaimSenders = (c: Context<Env>): CustomerVerificationSenders => {
+    try {
+      return (
+        c.var.container?.resolve<CustomerVerificationSenders>(
+          PUBLIC_API_VERIFICATION_SENDERS_CONTAINER_KEY,
+        ) ?? buildCustomerVerificationSenders(c.env, options)
+      )
+    } catch {
+      return buildCustomerVerificationSenders(c.env, options)
+    }
+  }
+
   // `.openapi()` legs are declared first: `OpenAPIHono#get`/`#post`/etc return
   // the base `Hono` type (honojs/middleware#637), so any plain `.get()`/`.post()`
   // leg (and the `.route()` mount) must follow the annotated legs. Static paths
@@ -449,6 +629,67 @@ export function createPublicCustomerPortalRoutes(options: PublicCustomerPortalRo
   // before `/companions/{companionId}`; `/me/documents/{id}/set-primary` is
   // distinct from the `/me/documents/{id}` legs).
   return new OpenAPIHono<Env>({ defaultHook: openApiValidationHook })
+    .openapi(startBookingClaimRoute, async (c) => {
+      const buyer = requireCustomerBuyerContext(c)
+      const body = c.req.valid("json")
+      const limited = await enforceBookingClaimStartLimits(
+        c,
+        buyer.userId,
+        buyer.buyerAccountId,
+        body.bookingReference,
+      )
+      if (limited) {
+        forwardRateLimitHeaders(c, limited)
+        return c.json({ error: "Too Many Requests" as const, code: "rate_limited" as const }, 429)
+      }
+      const result = await startCustomerBookingClaim(c.get("db"), buyer, body, {
+        ...options,
+        senders: resolveClaimSenders(c),
+        allowDestination: (channel, destination) =>
+          allowBookingClaimDestination(c, channel, destination),
+      })
+      return c.json({ data: { claimId: result.claimId, deliveryStatus: "accepted" as const } }, 202)
+    })
+    .openapi(confirmBookingClaimRoute, async (c) => {
+      const buyer = requireCustomerBuyerContext(c)
+      const result = await confirmCustomerBookingClaim(
+        c.get("db"),
+        buyer,
+        c.req.valid("param").claimId,
+        c.req.valid("json"),
+        {
+          now: options.now,
+          completionAudit: {
+            async append(tx, audit) {
+              await appendActionLedgerMutation(tx as AnyDrizzleDb, {
+                context: claimActionLedgerContext(c),
+                actionName: "booking.customer_access.claim",
+                actionVersion: "v1",
+                actionKind: "create",
+                evaluatedRisk: "high",
+                targetType: "booking_customer_access",
+                targetId: audit.grantId,
+                routeOrToolName: "public-api.customer-portal.booking-claim.confirm",
+                capabilityId: "@voyant-travel/public-api#action.claim-booking-customer-access",
+                capabilityVersion: "v1",
+                authorizationSource: "customer-session-buyer-account-and-booking-proof",
+                idempotencyScope: `booking-customer-access-claim:${audit.claimId}`,
+                idempotencyKey: audit.idempotencyKey,
+                idempotencyFingerprint: audit.requestFingerprint,
+                mutationDetail: {
+                  summary: "Claimed customer access to one Booking",
+                  reversalKind: "compensate",
+                },
+              })
+            },
+          },
+        },
+      )
+      if (result.status === "granted" || result.status === "replayed") {
+        return c.json({ data: result }, 200)
+      }
+      return c.json({ error: "invalid_or_expired" as const }, 409)
+    })
     .openapi(getMeRoute, async (c) => {
       const userId = requireCustomerIdentityContext(c).userId
 

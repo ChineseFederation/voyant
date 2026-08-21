@@ -1,6 +1,6 @@
 {
   "name": "@voyant-travel/catalog",
-  "version": "0.262.4",
+  "version": "0.262.5",
   "license": "Apache-2.0",
   "type": "module",
   "exports": {
@@ -61,6 +61,7 @@
     "./inquiry/ports": "./src/inquiry/ports.ts",
     "./composite-booking-session-runtime-port": "./src/composite-booking-session-runtime-port.ts",
     "./inquiry-booking-session-runtime-port": "./src/inquiry-booking-session-runtime-port.ts",
+    "./personal-buyer-person-runtime-port": "./src/personal-buyer-person-runtime-port.ts",
     "./booking-session-maintenance-job": "./src/booking-session-maintenance-job.ts",
     "./reindex-job": "./src/reindex-job.ts",
     "./sources-sync-job": "./src/sources-sync-job.ts",
@@ -401,6 +402,11 @@
         "types": "./dist/composite-booking-session-runtime-port.d.ts",
         "import": "./dist/composite-booking-session-runtime-port.js",
         "default": "./dist/composite-booking-session-runtime-port.js"
+      },
+      "./personal-buyer-person-runtime-port": {
+        "types": "./dist/personal-buyer-person-runtime-port.d.ts",
+        "import": "./dist/personal-buyer-person-runtime-port.js",
+        "default": "./dist/personal-buyer-person-runtime-port.js"
       },
       "./booking-session-maintenance-job": {
         "types": "./dist/booking-session-maintenance-job.d.ts",

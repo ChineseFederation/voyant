@@ -74,14 +74,22 @@ describe("bookings deployment manifest", () => {
       expect.objectContaining({
         resource: "bookings",
         actions: expect.arrayContaining([
-          expect.objectContaining({ action: "read" }),
-          expect.objectContaining({ action: "write" }),
+          expect.objectContaining({ action: "read", remoteSafe: true }),
+          expect.objectContaining({ action: "write", sensitive: true }),
         ]),
       }),
       expect.objectContaining({
         resource: "bookings-pii",
         wildcard: "explicit-resource",
         actions: [expect.objectContaining({ action: "read", sensitive: true })],
+      }),
+      expect.objectContaining({
+        resource: "booking-customer-access",
+        wildcard: "explicit-resource",
+        actions: [
+          expect.objectContaining({ action: "read", sensitive: true }),
+          expect.objectContaining({ action: "write", sensitive: true }),
+        ],
       }),
     ])
     expect(bookingsVoyantModule.tools).toEqual(

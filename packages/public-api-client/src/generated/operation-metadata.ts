@@ -638,6 +638,18 @@ export const publicApiOperations = {
     path: "/v1/public/cruises/sailings/{key}/quote",
     keyKind: "publishable",
   },
+  postPublicCustomerPortalBookingClaims: {
+    id: "postPublicCustomerPortalBookingClaims",
+    method: "POST",
+    path: "/v1/public/customer-portal/booking-claims",
+    keyKind: "publishable",
+  },
+  postPublicCustomerPortalBookingClaimsByClaimIdConfirm: {
+    id: "postPublicCustomerPortalBookingClaimsByClaimIdConfirm",
+    method: "POST",
+    path: "/v1/public/customer-portal/booking-claims/{claimId}/confirm",
+    keyKind: "publishable",
+  },
   postPublicCustomerPortalBootstrap: {
     id: "postPublicCustomerPortalBootstrap",
     method: "POST",

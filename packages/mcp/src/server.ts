@@ -1,3 +1,4 @@
+// agent-quality: file-size exception -- owner: mcp; transport composition stays centralized for one authorization surface.
 /**
  * The in-deployment MCP server (voyant#2792). Exposes a `@voyant-travel/tools`
  * `ToolRegistry` as a real Model Context Protocol server, mounted as a Hono
@@ -35,6 +36,13 @@ import type { Context } from "hono"
 
 import { buildAuthenticatedContext, callerPermissions, isAuthorized } from "./authorization.js"
 import {
+  DEFAULT_MCP_EXPOSURE_POLICY,
+  evaluateMcpToolExposure,
+  MCP_TOOL_RISKS,
+  normalizeMcpExposurePolicy,
+} from "./exposure-policy.js"
+import type { McpExposurePolicyStore } from "./exposure-policy-store.js"
+import {
   assertToolContextContribution,
   buildContributedContext,
   indexActionsByTool,
@@ -69,6 +77,14 @@ export type {
 } from "./types.js"
 
 const DEFAULT_SERVER_INFO: McpServerInfo = { name: "voyant-mcp", version: "0.1.0" }
+const unconfiguredPolicyStore: McpExposurePolicyStore = {
+  async load() {
+    return { ...DEFAULT_MCP_EXPOSURE_POLICY, toolOverrides: {} }
+  },
+  async save() {
+    throw new Error("MCP exposure policy persistence is not configured.")
+  },
+}
 const mcpAdminApiId = "@voyant-travel/mcp#api.admin"
 const getManifestRoute = createRoute({
   method: "get",
@@ -102,6 +118,30 @@ const callMcpRoute = createRoute({
     204: { description: "The MCP notification was accepted" },
   },
 })
+const policySchema = z.object({
+  allowedRiskLevels: z.array(z.enum(MCP_TOOL_RISKS)),
+  allowWrites: z.boolean(),
+  allowSensitiveData: z.boolean(),
+  toolOverrides: z.record(z.string(), z.enum(["allow", "deny"])),
+})
+const getPolicyRoute = createRoute({
+  method: "get",
+  path: "/policy",
+  operationId: "getMcpExposurePolicy",
+  "x-voyant-api-id": mcpAdminApiId,
+  responses: { 200: { description: "The deployment-wide MCP exposure policy." } },
+})
+const updatePolicyRoute = createRoute({
+  method: "put",
+  path: "/policy",
+  operationId: "updateMcpExposurePolicy",
+  "x-voyant-api-id": mcpAdminApiId,
+  request: { body: { required: true, content: { "application/json": { schema: policySchema } } } },
+  responses: {
+    200: { description: "The updated deployment-wide MCP exposure policy." },
+    403: { description: "Only an authenticated dashboard session may update the policy." },
+  },
+})
 
 /**
  * Build the MCP Hono sub-app. Mount at `/v1/admin/mcp`:
@@ -112,6 +152,8 @@ const callMcpRoute = createRoute({
 export function createMcpApiRoutes(options: McpApiRoutesOptions): OpenAPIHono {
   const { accessCatalog, registry, buildContext } = options
   const serverInfo = options.serverInfo ?? DEFAULT_SERVER_INFO
+  const exposurePolicyStore = options.exposurePolicyStore ?? unconfiguredPolicyStore
+  const exposurePolicyConfigured = options.exposurePolicyStore !== undefined
   const app = new OpenAPIHono()
 
   // Throttle the JSON-RPC endpoint per caller before it can reach dispatch, with
@@ -145,15 +187,48 @@ export function createMcpApiRoutes(options: McpApiRoutesOptions): OpenAPIHono {
   app.openapi(getManifestRoute, async (c) => {
     const permissions = callerPermissions(c)
     const ctx = await buildAuthenticatedContext(c, buildContext)
+    const policy = (await exposurePolicyStore.load(ctx.db)) ?? {
+      ...DEFAULT_MCP_EXPOSURE_POLICY,
+      toolOverrides: {},
+    }
     const tools = registry
       .list()
       .filter((tool) => isAuthorized(tool, permissions, accessCatalog, ctx.audience))
+      .map((tool) => ({
+        ...tool,
+        exposure: evaluateMcpToolExposure(tool, policy, accessCatalog),
+      }))
     observerFor(c, ctx).toolsList({
       payloadBytes: jsonByteLength(tools),
       toolCount: tools.length,
       caller: callerFromContext(ctx),
     })
-    return c.json({ version: TOOL_CONTRACT_VERSION, serverInfo, tools })
+    return c.json({ version: TOOL_CONTRACT_VERSION, serverInfo, policy, tools })
+  })
+
+  app.openapi(getPolicyRoute, async (c) => {
+    const ctx = await buildAuthenticatedContext(c, buildContext)
+    return c.json(
+      (await exposurePolicyStore.load(ctx.db)) ?? {
+        ...DEFAULT_MCP_EXPOSURE_POLICY,
+        toolOverrides: {},
+      },
+    )
+  })
+
+  app.openapi(updatePolicyRoute, async (c) => {
+    if ((c.var as { callerType?: unknown }).callerType !== "session") {
+      return c.json(
+        { error: "Only an authenticated dashboard session may update MCP policy." },
+        403,
+      )
+    }
+    const ctx = await buildAuthenticatedContext(c, buildContext)
+    const body = normalizeMcpExposurePolicy(c.req.valid("json"))
+    const userId = asRecord((c.var as { user?: unknown }).user)?.id
+    return c.json(
+      await exposurePolicyStore.save(ctx.db, body, typeof userId === "string" ? userId : undefined),
+    )
   })
 
   app.openapi(callMcpRoute, async (c) => {
@@ -162,13 +237,23 @@ export function createMcpApiRoutes(options: McpApiRoutesOptions): OpenAPIHono {
     const observer = observerFor(c, ctx)
     const requireActionPolicy = options.requireActionPolicies ?? false
     const budgetBytes = options.responseBudgetBytes ?? DEFAULT_RESPONSE_BUDGET_BYTES
+    const exposurePolicy = await exposurePolicyStore.load(ctx.db)
 
     // The caller's full authorized surface (canonical + alias names). Progressive
     // disclosure means only tier 0 is *registered* — but search / describe / call
     // and flat-name dispatch all consult this same map, so an unauthorized tool is
     // neither discoverable nor callable. Pruning at the index and dispatch layers,
     // not just the register loop, is the security property of the server.
-    const surface = collectAuthorizedTools(registry, permissions, accessCatalog, ctx.audience)
+    const surface = collectAuthorizedTools(
+      registry,
+      permissions,
+      accessCatalog,
+      ctx.audience,
+      (tool) =>
+        !exposurePolicyConfigured ||
+        exposurePolicy === undefined ||
+        evaluateMcpToolExposure(tool, exposurePolicy, accessCatalog).enabled,
+    )
 
     // Layered read projection (voyant#3932): the flat `get_*`/`list_*`/`search_*`
     // reads are folded into one `<domain>_query` tool per product area. Discovery
@@ -520,6 +605,7 @@ export async function createGraphMcpApiRoutes(
       ? { responseBudgetBytes: options.responseBudgetBytes }
       : {}),
     ...(options.rateLimit !== undefined ? { rateLimit: options.rateLimit } : {}),
+    ...(options.exposurePolicyStore ? { exposurePolicyStore: options.exposurePolicyStore } : {}),
     buildContext: (c) => buildContributedContext(c, options, contributions.values()),
   })
 }

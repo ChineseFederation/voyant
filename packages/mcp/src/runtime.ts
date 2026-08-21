@@ -10,6 +10,7 @@ import {
   type Visibility,
 } from "@voyant-travel/tools"
 import type { Context } from "hono"
+import { databaseMcpExposurePolicyStore } from "./exposure-policy-store.js"
 import { createGraphMcpApiRoutes } from "./server.js"
 
 /** Compose the package-selected MCP route from the selected graph runtime. */
@@ -20,6 +21,7 @@ export const createMcpVoyantRuntime = defineGraphRuntimeFactory(
       createGraphMcpApiRoutes({
         runtime: graph,
         buildContext: buildMcpBaseContext,
+        exposurePolicyStore: databaseMcpExposurePolicyStore,
         buildResources: () => ({
           ...runtimePorts,
           [TOOL_GRAPH_ACTIONS_RESOURCE]: graph.actions ?? [],

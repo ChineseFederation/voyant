@@ -1,3 +1,4 @@
+// agent-quality: file-size exception -- owner: catalog; this state-machine suite shares one authoritative Session harness across lifecycle, ownership, and concurrency scenarios.
 import {
   assertBookingLifecycleConformanceV1,
   bookingLifecycleConformanceScenariosV1,
@@ -33,7 +34,7 @@ const BASE_PRICING = {
 
 const TEST_CAPABILITY = `bcap_${"a".repeat(43)}`
 const PUBLIC_API_ACCESS = {
-  storefront: { channelId: "chan_public" },
+  publicApiOrigin: { channelId: "chan_public" },
 } as const
 const ANONYMOUS_ACCESS = {
   actorKind: "anonymous" as const,
@@ -1056,7 +1057,7 @@ describe("Booking Session v1 owned tracer", () => {
     if (created.kind !== "session_created") throw new Error("session not created")
 
     expect(harness.repository.sessions.get(created.session.id)?.publicApiOrigin).toEqual(
-      PUBLIC_API_ACCESS.storefront,
+      PUBLIC_API_ACCESS.publicApiOrigin,
     )
     expect(JSON.stringify(created)).not.toContain("sf_public")
     expect(JSON.stringify(created)).not.toContain("chan_public")
@@ -1084,7 +1085,7 @@ describe("Booking Session v1 owned tracer", () => {
     await expect(
       harness.module.resumeSession(created.session.id, {
         ...ANONYMOUS_ACCESS,
-        storefront: { channelId: "chan_other" },
+        publicApiOrigin: { channelId: "chan_other" },
       }),
     ).resolves.toMatchObject({ kind: "rejected", error: { kind: "not_authorized" } })
   })
@@ -1104,7 +1105,7 @@ describe("Booking Session v1 owned tracer", () => {
       harness.module.resumeSession(created.session.id, {
         actorKind: "anonymous",
         capability: `bcap_${"b".repeat(43)}`,
-        storefront: { channelId: "chan_other" },
+        publicApiOrigin: { channelId: "chan_other" },
       }),
     ).resolves.toMatchObject({ kind: "rejected", error: { kind: "capability_required" } })
 
@@ -1115,8 +1116,10 @@ describe("Booking Session v1 owned tracer", () => {
         {
           actorKind: "customer",
           principalId: "customer_1",
+          buyerAccountId: "personal:customer_1",
+          buyerAccountKind: "personal",
           capability: `bcap_${"b".repeat(43)}`,
-          storefront: { channelId: "chan_other" },
+          publicApiOrigin: { channelId: "chan_other" },
         },
       ),
     ).resolves.toMatchObject({ kind: "rejected", error: { kind: "capability_required" } })
@@ -2233,6 +2236,8 @@ describe("Booking Session v1 owned tracer", () => {
         {
           actorKind: "customer",
           principalId: "customer_1",
+          buyerAccountId: "personal:customer_1",
+          buyerAccountKind: "personal",
           capability: TEST_CAPABILITY,
           ...PUBLIC_API_ACCESS,
         },
@@ -2243,6 +2248,8 @@ describe("Booking Session v1 owned tracer", () => {
         {
           actorKind: "customer",
           principalId: "customer_2",
+          buyerAccountId: "personal:customer_2",
+          buyerAccountKind: "personal",
           capability: TEST_CAPABILITY,
           ...PUBLIC_API_ACCESS,
         },
@@ -2251,10 +2258,13 @@ describe("Booking Session v1 owned tracer", () => {
 
     expect([first.kind, second.kind].sort()).toEqual(["rejected", "session_adopted"])
     const winningPrincipal = first.kind === "session_adopted" ? "customer_1" : "customer_2"
+    const winningBuyerAccountId = `personal:${winningPrincipal}`
     expect(harness.repository.sessions.get(created.session.id)).toMatchObject({
       actorKind: "customer",
       ownerPrincipalId: winningPrincipal,
-      publicApiOrigin: PUBLIC_API_ACCESS.storefront,
+      ownerBuyerAccountId: winningBuyerAccountId,
+      ownerBuyerAccountKind: "personal",
+      publicApiOrigin: PUBLIC_API_ACCESS.publicApiOrigin,
       capabilityHash: undefined,
       capabilityScopes: [],
       revision: 2,
@@ -2266,6 +2276,8 @@ describe("Booking Session v1 owned tracer", () => {
       harness.module.resumeSession(created.session.id, {
         actorKind: "customer",
         principalId: winningPrincipal,
+        buyerAccountId: winningBuyerAccountId,
+        buyerAccountKind: "personal",
         ...PUBLIC_API_ACCESS,
       }),
     ).resolves.toMatchObject({
@@ -2275,6 +2287,86 @@ describe("Booking Session v1 owned tracer", () => {
     expect(
       [...harness.repository.auditEvents.values()].filter((event) => event.action === "adopt"),
     ).toHaveLength(1)
+  })
+
+  it("lets another active member resume a Session owned by the same business Buyer Account", async () => {
+    const harness = createHarness()
+    const firstMember = {
+      actorKind: "customer" as const,
+      principalId: "customer_member_1",
+      buyerAccountId: "business:auth_org_1",
+      buyerAccountKind: "business" as const,
+      authOrganizationId: "auth_org_1",
+      relationshipOrganizationId: "org_1",
+      membershipId: "membership_1",
+      membershipRole: "owner",
+      publicApiOrigin: { channelId: "chan_public" },
+    }
+    const created = await harness.module.createSession(
+      {
+        idempotencyKey: nextCreateKey("business_member_handoff"),
+        target: { kind: "product", productId: "prod_owned_1" },
+      },
+      firstMember,
+    )
+    if (created.kind !== "session_created") throw new Error("session not created")
+
+    await expect(
+      harness.module.resumeSession(created.session.id, {
+        ...firstMember,
+        principalId: "customer_member_2",
+        membershipId: "membership_2",
+        membershipRole: "member",
+      }),
+    ).resolves.toMatchObject({ kind: "session_resumed" })
+  })
+
+  it("scopes customer Session creation idempotency to the Business Buyer Account", async () => {
+    const harness = createHarness()
+    const firstMember = {
+      actorKind: "customer" as const,
+      principalId: "customer_member_1",
+      buyerAccountId: "business:auth_org_1",
+      buyerAccountKind: "business" as const,
+      authOrganizationId: "auth_org_1",
+      relationshipOrganizationId: "org_1",
+      membershipId: "membership_1",
+      membershipRole: "member",
+      publicApiOrigin: { channelId: "chan_public" },
+    }
+    const input = {
+      idempotencyKey: "business_shared_create",
+      target: { kind: "product" as const, productId: "prod_owned_1" },
+    }
+    const first = await harness.module.createSession(input, firstMember)
+    const replay = await harness.module.createSession(input, {
+      ...firstMember,
+      principalId: "customer_member_2",
+      membershipId: "membership_2",
+    })
+
+    expect(replay).toEqual(first)
+    expect(harness.repository.sessions.size).toBe(1)
+  })
+
+  it("rejects a customer-supplied Buyer Account that does not match trusted identity context", async () => {
+    const harness = createHarness()
+    await expect(
+      harness.module.createSession(
+        {
+          idempotencyKey: nextCreateKey("forged_buyer_account"),
+          target: { kind: "product", productId: "prod_owned_1" },
+        },
+        {
+          actorKind: "customer",
+          principalId: "customer_1",
+          buyerAccountId: "personal:someone_else",
+          buyerAccountKind: "personal",
+          ...PUBLIC_API_ACCESS,
+        },
+      ),
+    ).resolves.toEqual({ kind: "rejected", error: { kind: "not_authorized" } })
+    expect(harness.repository.sessions.size).toBe(0)
   })
 
   it("renews within policy while explicitly invalidating Quote and Hold authority", async () => {
@@ -2325,6 +2417,8 @@ describe("Booking Session v1 owned tracer", () => {
     const customerAccess = {
       actorKind: "customer" as const,
       principalId: "customer_purge_1",
+      buyerAccountId: "personal:customer_purge_1",
+      buyerAccountKind: "personal" as const,
       capability: TEST_CAPABILITY,
       ...PUBLIC_API_ACCESS,
     }
@@ -2397,6 +2491,12 @@ describe("Booking Session v1 owned tracer", () => {
       actorKind: "customer" as const,
       principalId: "customer_1",
       organizationId: "org_1",
+      buyerAccountId: "business:auth_org_1",
+      buyerAccountKind: "business" as const,
+      authOrganizationId: "auth_org_1",
+      relationshipOrganizationId: "org_1",
+      membershipId: "membership_1",
+      membershipRole: "owner",
       ...PUBLIC_API_ACCESS,
     }
     const created = await harness.module.createSession(
@@ -2429,6 +2529,8 @@ describe("Booking Session v1 owned tracer", () => {
       statePayload: {},
       ownerPrincipalId: undefined,
       ownerOrganizationId: undefined,
+      ownerBuyerAccountId: undefined,
+      ownerBuyerAccountKind: undefined,
       publicApiOrigin: undefined,
       purgedAt: expect.any(Date),
     })
@@ -2820,9 +2922,8 @@ function createPaymentHarness() {
     prepared: [] as CommitBookingSessionV1[],
     transfers,
     expirations,
-    ports: undefined as unknown as BookingSessionPaymentPorts,
   }
-  harness.ports = {
+  const ports: BookingSessionPaymentPorts = {
     async prepare({ commit }) {
       harness.prepareCalls += 1
       harness.prepared.push(commit)
@@ -2857,16 +2958,15 @@ function createPaymentHarness() {
       expirations.push(input)
     },
   }
-  return harness
+  return Object.assign(harness, { ports })
 }
 
 function createBankTransferHarness() {
   const harness = {
     prepareCalls: 0,
     establishCalls: 0,
-    ports: undefined as unknown as BookingSessionPaymentPorts,
   }
-  harness.ports = {
+  const ports: BookingSessionPaymentPorts = {
     async prepare({ commit }) {
       harness.prepareCalls += 1
       expect(commit.checkoutIntent).toBe("bank_transfer")
@@ -2891,7 +2991,7 @@ function createBankTransferHarness() {
     async transferToBooking() {},
     async expirePending() {},
   }
-  return harness
+  return Object.assign(harness, { ports })
 }
 
 /**
@@ -2991,7 +3091,7 @@ describe("Booking Session v1 authority under a publishable key", () => {
       harness.module.resumeSession(created.session.id, {
         actorKind: "anonymous",
         capability: TEST_CAPABILITY,
-        storefront: { channelId: "chan_other" },
+        publicApiOrigin: { channelId: "chan_other" },
       }),
     ).resolves.toMatchObject({ kind: "rejected", error: { kind: "not_authorized" } })
   })

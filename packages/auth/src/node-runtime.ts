@@ -31,9 +31,10 @@ import {
 } from "@voyant-travel/hono/middleware/error-boundary"
 import { getRequestId } from "@voyant-travel/hono/observability"
 import type { AccessCatalog } from "@voyant-travel/types/api-keys"
-import { verifyAccessToken } from "better-auth/oauth2"
+import { verifyJwsAccessToken } from "better-auth/oauth2"
 import { jwt } from "better-auth/plugins"
 import { and, eq, sql } from "drizzle-orm"
+import type { JSONWebKeySet } from "jose"
 
 /**
  * Discovery documents are fetched cross-origin by MCP clients before any
@@ -396,6 +397,12 @@ export function createOperatorAuthNodeRuntime<Env extends OperatorAuthNodeEnv>(
   runtimeOptions: CreateOperatorAuthNodeRuntimeOptions<Env>,
 ) {
   type AuthHonoEnv = { Bindings: Env; Variables: { db: VoyantDb } }
+
+  // Better Auth caches function-backed JWKS sources by object identity. Keep
+  // one key for this runtime so ordinary requests do not re-read the signing
+  // key table, while a token with a new `kid` still triggers the library's
+  // built-in refresh path.
+  const mcpJwksCacheKey = {}
 
   const openDatabase =
     runtimeOptions.openDatabase ??
@@ -1091,8 +1098,22 @@ export function createOperatorAuthNodeRuntime<Env extends OperatorAuthNodeEnv>(
     const baseUrl = getPublicApiBaseUrl(env)
     let claims: Record<string, unknown>
     try {
-      claims = (await verifyAccessToken(token, {
-        jwksUrl: `${baseUrl}/auth/admin/jwks`,
+      const betterAuth = buildAdminBetterAuth(env, db)
+      claims = (await verifyJwsAccessToken(token, {
+        // The authorization server and resource server are the same process.
+        // Read the public keys through Better Auth's in-process API instead of
+        // making the managed runtime call its own public hostname. That public
+        // loop can be rejected by the edge/origin boundary even though the
+        // externally published JWKS endpoint is healthy, which made every
+        // otherwise valid connector token fail closed to 401.
+        jwksFetch: async () => {
+          const response = await betterAuth.handler(
+            new Request(`${getAuthBaseUrl(env)}/auth/admin/jwks`),
+          )
+          if (!response.ok) throw new Error(`In-process JWKS request failed: ${response.status}`)
+          return (await response.json()) as JSONWebKeySet
+        },
+        jwksCacheKey: mcpJwksCacheKey,
         verifyOptions: {
           // The audience binds the token to the MCP resource specifically, so a
           // grant issued for another audience on this server cannot be replayed
@@ -1128,6 +1149,30 @@ export function createOperatorAuthNodeRuntime<Env extends OperatorAuthNodeEnv>(
       .where(and(eq(oauthConsentTable.clientId, clientId), eq(oauthConsentTable.userId, userId)))
       .limit(1)
     if (!consent) return null
+
+    // A managed release advances VOYANT_CLOUD_DEPLOYMENT_ID while preserving
+    // the tenant database and OAuth grants. The mirrored Cloud user link can
+    // therefore still name the previous deployment even though the member's
+    // access remains active. Session and API-token authentication already
+    // revalidate that link (which safely retargets deployment drift); MCP must
+    // do the same before resolveStaffAccess applies its deployment fence, or
+    // every connector starts returning 401 immediately after a rollout.
+    if (isVoyantCloudAuthMode(env)) {
+      const revalidateConfig = getCloudAuthRevalidateConfig(env)
+      if (!revalidateConfig) return null
+
+      try {
+        const revalidation = await revalidateVoyantCloudAdminAuthUser({
+          db: db as Parameters<typeof revalidateVoyantCloudAdminAuthUser>[0]["db"],
+          userId,
+          config: revalidateConfig,
+        })
+        if (!revalidation.ok) return null
+      } catch (error) {
+        console.error("[auth/mcp-token] Cloud revalidation failed:", error)
+        return null
+      }
+    }
 
     const staffAccess = await resolveStaffAccess({
       accessCatalog: runtimeOptions.accessCatalog,

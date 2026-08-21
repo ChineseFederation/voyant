@@ -136,6 +136,10 @@ export interface BookingsInventoryRuntime {
 
 export interface BookingsRelationshipsRuntime {
   loadPersonTravelSnapshot: ResolveBookingTravelSnapshot
+  createPersonWithoutContactMatch(
+    db: PostgresJsDatabase,
+    input: { firstName: string; lastName: string; source: string; sourceRef: string },
+  ): Promise<{ id: string }>
   upsertPersonFromContact(
     db: PostgresJsDatabase,
     contact: BookingPersonResolverContact,

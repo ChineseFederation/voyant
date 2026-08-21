@@ -21,6 +21,24 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  "/v1/admin/mcp/policy": {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** GET /v1/admin/mcp/policy */
+    get: operations["getMcpExposurePolicy"]
+    /** PUT /v1/admin/mcp/policy */
+    put: operations["updateMcpExposurePolicy"]
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   "/v1/admin/mcp": {
     parameters: {
       query?: never
@@ -61,6 +79,60 @@ export interface operations {
     responses: {
       /** @description The contract-versioned tools visible to the caller. */
       200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+    }
+  }
+  getMcpExposurePolicy: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description The deployment-wide MCP exposure policy. */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+    }
+  }
+  updateMcpExposurePolicy: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        "application/json": {
+          allowedRiskLevels: ("low" | "medium" | "high" | "critical")[]
+          allowWrites: boolean
+          allowSensitiveData: boolean
+          toolOverrides: {
+            [key: string]: "allow" | "deny"
+          }
+        }
+      }
+    }
+    responses: {
+      /** @description The updated deployment-wide MCP exposure policy. */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description Only an authenticated dashboard session may update the policy. */
+      403: {
         headers: {
           [name: string]: unknown
         }

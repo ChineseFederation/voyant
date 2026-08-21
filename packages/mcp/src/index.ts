@@ -1,3 +1,11 @@
+export {
+  DEFAULT_MCP_EXPOSURE_POLICY,
+  evaluateMcpToolExposure,
+  filterMcpToolsByExposurePolicy,
+  type McpExposurePolicy,
+  type McpToolExposure,
+  normalizeMcpExposurePolicy,
+} from "./exposure-policy.js"
 export { DEFAULT_EAGER_TOOL_NAMES } from "./meta-tools.js"
 export {
   createMcpRateLimiter,

@@ -134,6 +134,13 @@
       "when": 1787025600000,
       "tag": "20260814180000_retire_storefront_entity",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1787239800000,
+      "tag": "20260820153000_mcp_exposure_policy",
+      "breakpoints": true
     }
   ]
 }

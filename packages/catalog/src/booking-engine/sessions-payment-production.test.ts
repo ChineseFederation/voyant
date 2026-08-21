@@ -1,3 +1,4 @@
+// agent-quality: file-size exception -- owner: catalog; this integration-style suite keeps the payment-port scenarios beside their shared production harness until that harness has a dedicated test module.
 import { ANONYMOUS_STOREFRONT_USER_ID } from "@voyant-travel/core"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -265,7 +266,8 @@ describe("production Booking Session hosted-checkout initiation", () => {
     await prepare({
       locale: "en-GB",
       departureDate: null,
-      personId: "per_01k",
+      actorKind: "customer",
+      ownerBuyerAccountId: "personal:usr_shopper",
       mandate: { enabled: true, revision: "v3" },
     })
 
@@ -277,7 +279,8 @@ describe("production Booking Session hosted-checkout initiation", () => {
     await prepare({
       locale: "en-GB",
       departureDate: null,
-      personId: "per_01k",
+      actorKind: "customer",
+      ownerBuyerAccountId: "personal:usr_shopper",
       mandate: { enabled: false, revision: "v3" },
       contractAcceptedAt: "2026-08-12T09:00:00.000Z",
     })
@@ -301,7 +304,8 @@ describe("production Booking Session hosted-checkout initiation", () => {
     await prepare({
       locale: "en-GB",
       departureDate: null,
-      personId: "per_01k",
+      actorKind: "customer",
+      ownerBuyerAccountId: "personal:usr_shopper",
       mandate: { enabled: true, revision: "v3" },
       contractAcceptedAt: "2026-08-12T09:00:00.000Z",
     })
@@ -318,7 +322,8 @@ describe("production Booking Session hosted-checkout initiation", () => {
     await prepare({
       locale: "en-GB",
       departureDate: null,
-      personId: "per_01k",
+      actorKind: "customer",
+      ownerBuyerAccountId: "personal:usr_shopper",
       mandate: { enabled: true, revision: "v3" },
       contractAcceptedAt: "2026-08-12T09:00:00.000Z",
     })
@@ -326,13 +331,18 @@ describe("production Booking Session hosted-checkout initiation", () => {
     expect(startArgs().storeInstrument).not.toHaveProperty("offerShopperReselect")
   })
 
-  it("references the CRM person the buyer was identified as", async () => {
-    await prepare({ locale: "en-GB", departureDate: null, personId: "per_01k" })
+  it("references the authenticated Buyer Account with a qualified provider key", async () => {
+    await prepare({
+      locale: "en-GB",
+      departureDate: null,
+      actorKind: "customer",
+      ownerBuyerAccountId: "business:auth_org_1",
+    })
 
-    expect(startArgs().customerReference).toBe("per_01k")
+    expect(startArgs().customerReference).toBe("voyant-buyer-account:business:auth_org_1")
   })
 
-  it("falls back to the owning principal for a customer-actor Session", async () => {
+  it("does not treat the acting customer principal as a provider customer", async () => {
     await prepare({
       locale: "en-GB",
       departureDate: null,
@@ -340,7 +350,7 @@ describe("production Booking Session hosted-checkout initiation", () => {
       ownerPrincipalId: "usr_shopper",
     })
 
-    expect(startArgs().customerReference).toBe("usr_shopper")
+    expect(startArgs().customerReference).toBeUndefined()
   })
 
   it("does not reference the anonymous placeholder a guest Session owns", async () => {
@@ -1134,6 +1144,7 @@ async function prepare(input: {
   personId?: string
   actorKind?: string
   ownerPrincipalId?: string
+  ownerBuyerAccountId?: string
   omitContact?: boolean
   acceptedCheckoutHandoffs?: readonly ("redirect" | "embedded")[]
   refreshedCheckout?: Record<string, unknown>
@@ -1195,6 +1206,7 @@ async function prepare(input: {
       id: "bses_01k",
       actorKind: input.actorKind ?? "anonymous",
       ownerPrincipalId: input.ownerPrincipalId,
+      ownerBuyerAccountId: input.ownerBuyerAccountId,
       scope: { locale: input.locale, market: "default" },
       target: { kind: "product", productId: "prod_1" },
       expiresAt: new Date("2026-08-06T00:00:00Z"),

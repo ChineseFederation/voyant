@@ -363,6 +363,10 @@
         "../bookings/dist/cancellation-consequences.d.ts"
       ],
       "@voyant-travel/bookings/checkout-capability": ["../bookings/dist/checkout-capability.d.ts"],
+      "@voyant-travel/bookings/customer-access": ["../bookings/dist/customer-access.d.ts"],
+      "@voyant-travel/bookings/customer-access-claims": [
+        "../bookings/dist/customer-access-claims.d.ts"
+      ],
       "@voyant-travel/bookings/extensions/suppliers": [
         "../bookings/dist/extensions/suppliers.d.ts"
       ],
@@ -373,6 +377,9 @@
         "../bookings/dist/inquiry-intake-runtime-port.d.ts"
       ],
       "@voyant-travel/bookings/inquiry/ports": ["../bookings/dist/inquiry/ports.d.ts"],
+      "@voyant-travel/bookings/legacy-customer-access-backfill": [
+        "../bookings/dist/legacy-customer-access-backfill.d.ts"
+      ],
       "@voyant-travel/bookings/legacy-inquiry-read-runtime-port": [
         "../bookings/dist/legacy-inquiry-read-runtime-port.d.ts"
       ],
@@ -564,6 +571,9 @@
       "@voyant-travel/catalog/offers": ["../catalog/dist/offers/operator-routes.d.ts"],
       "@voyant-travel/catalog/overlay/resolver": ["../catalog/dist/overlay/resolver.d.ts"],
       "@voyant-travel/catalog/overlay/schema": ["../catalog/dist/overlay/schema.d.ts"],
+      "@voyant-travel/catalog/personal-buyer-person-runtime-port": [
+        "../catalog/dist/personal-buyer-person-runtime-port.d.ts"
+      ],
       "@voyant-travel/catalog/ports": ["../catalog/dist/runtime-contracts.d.ts"],
       "@voyant-travel/catalog/presentation-subjects": [
         "../catalog/dist/presentation-subjects.d.ts"
@@ -912,6 +922,7 @@
       ],
       "@voyant-travel/db/schema/iam/invitations": ["../db/dist/schema/iam/invitations.d.ts"],
       "@voyant-travel/db/schema/iam/kms": ["../db/dist/schema/iam/kms.d.ts"],
+      "@voyant-travel/db/schema/iam/mcp": ["../db/dist/schema/iam/mcp.d.ts"],
       "@voyant-travel/db/schema/iam/oauth_provider": ["../db/dist/schema/iam/oauth_provider.d.ts"],
       "@voyant-travel/db/schema/iam/public-api": ["../db/dist/schema/iam/public-api.d.ts"],
       "@voyant-travel/db/schema/iam/roles": ["../db/dist/schema/iam/roles.d.ts"],

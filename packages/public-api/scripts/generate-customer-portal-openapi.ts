@@ -20,6 +20,19 @@ import { publicCustomerPortalRoutes } from "../src/customer-portal/routes-public
 
 const PREFIX = "/v1/public/customer-portal"
 const MODULE = "public-api"
+/**
+ * This document is exactly one graph API bundle, which is what
+ * `scripts/check-openapi-authority.mjs` asserts operation by operation. So
+ * ownership is derivable here even though the generic comment below is right
+ * that it is not recoverable from a route definition in general.
+ *
+ * Carry-forward alone cannot hold that invariant: a newly added route has no
+ * committed operation to carry anything from, so it is born unstamped and the
+ * authority check fails on a document that is otherwise correct. Defaulting the
+ * two ownership keys makes the invariant true by construction instead.
+ */
+const API_ID = "@voyant-travel/public-api#customer-portal.api"
+const PACKAGE_NAME = "@voyant-travel/public-api"
 const artifactPath = resolve(import.meta.dirname, "..", "openapi/public-api/customer-portal.json")
 const artifact = JSON.parse(readFileSync(artifactPath, "utf8"))
 
@@ -91,6 +104,10 @@ for (const [path, item] of Object.entries(stamped.paths ?? {})) {
       if (routeDeclared[key] !== undefined) continue
       operation[key] = value
     }
+    // Lowest precedence: after the route and the committed document have had
+    // their say, anything still missing an owner gets this document's bundle.
+    operation["x-voyant-api-id"] ??= API_ID
+    operation["x-voyant-package-name"] ??= PACKAGE_NAME
   }
   paths[path] = item
 }

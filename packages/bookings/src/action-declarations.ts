@@ -207,6 +207,76 @@ export const BOOKING_ACTION_DECLARATIONS = {
       },
     },
   },
+  customerAccess: {
+    list: {
+      id: "booking-customer-access:list",
+      version: "v1",
+      resource: "booking_customer_access",
+      action: "read",
+      risk: "high",
+      ledgerPolicy: "required",
+      approvalPolicy: "none",
+      reversible: false,
+      allowedActorTypes: ["staff"],
+      requiredGrants: [{ resource: "booking-customer-access", action: "read" }],
+      graph: {
+        id: "@voyant-travel/bookings#action.list-booking-customer-access",
+        kind: "sensitive-read",
+        from: adminRouteBinding,
+        policy: "booking-customer-access-explicit-scope-v1",
+      },
+    },
+    grant: {
+      id: "booking-customer-access:grant",
+      version: "v1",
+      resource: "booking_customer_access",
+      action: "grant",
+      risk: "high",
+      ledgerPolicy: "required",
+      approvalPolicy: "none",
+      reversible: true,
+      allowedActorTypes: ["staff"],
+      requiredGrants: [{ resource: "booking-customer-access", action: "write" }],
+      graph: {
+        id: "@voyant-travel/bookings#action.grant-booking-customer-access",
+        kind: "execute",
+        from: adminRouteBinding,
+        commandTargetField: "bookingId",
+        targetLifecycle: "existing",
+        availability: { status: "available" },
+        effectBoundary: "local",
+        durability: {
+          strategy: "transactional",
+          testReference: "packages/bookings/tests/integration/customer-access.test.ts",
+        },
+      },
+    },
+    revoke: {
+      id: "booking-customer-access:revoke",
+      version: "v1",
+      resource: "booking_customer_access",
+      action: "revoke",
+      risk: "high",
+      ledgerPolicy: "required",
+      approvalPolicy: "none",
+      reversible: true,
+      allowedActorTypes: ["staff"],
+      requiredGrants: [{ resource: "booking-customer-access", action: "write" }],
+      graph: {
+        id: "@voyant-travel/bookings#action.revoke-booking-customer-access",
+        kind: "execute",
+        from: adminRouteBinding,
+        commandTargetField: "grantId",
+        targetLifecycle: "existing",
+        availability: { status: "available" },
+        effectBoundary: "local",
+        durability: {
+          strategy: "transactional",
+          testReference: "packages/bookings/tests/integration/customer-access.test.ts",
+        },
+      },
+    },
+  },
   amendments: {
     previewTravelerCorrection: {
       ...amendmentWriteCapability,
@@ -277,6 +347,7 @@ export const BOOKING_ACTION_DECLARATIONS = {
   piiRead: BookingActionDeclaration
   status: Record<string, BookingActionDeclaration>
   documents: Record<string, BookingActionDeclaration>
+  customerAccess: Record<string, BookingActionDeclaration>
   amendments: Record<string, BookingActionDeclaration>
 }
 
@@ -327,6 +398,12 @@ export const BOOKING_DOCUMENT_CAPABILITIES = {
   record: toCapabilityDefinition(BOOKING_ACTION_DECLARATIONS.documents.record),
 } as const
 
+export const BOOKING_CUSTOMER_ACCESS_CAPABILITIES = {
+  list: toCapabilityDefinition(BOOKING_ACTION_DECLARATIONS.customerAccess.list),
+  grant: toCapabilityDefinition(BOOKING_ACTION_DECLARATIONS.customerAccess.grant),
+  revoke: toCapabilityDefinition(BOOKING_ACTION_DECLARATIONS.customerAccess.revoke),
+} as const
+
 export const BOOKING_AMENDMENT_CAPABILITIES = {
   previewTravelerCorrection: toCapabilityDefinition(
     BOOKING_ACTION_DECLARATIONS.amendments.previewTravelerCorrection,
@@ -343,6 +420,7 @@ export const BOOKING_ACTION_LEDGER_CAPABILITIES = [
   BOOKING_PII_READ_CAPABILITY,
   ...Object.values(BOOKING_STATUS_CAPABILITIES),
   ...Object.values(BOOKING_DOCUMENT_CAPABILITIES),
+  ...Object.values(BOOKING_CUSTOMER_ACCESS_CAPABILITIES),
   ...Object.values(BOOKING_AMENDMENT_CAPABILITIES),
 ] as const
 
@@ -350,5 +428,6 @@ export const BOOKING_VOYANT_ACTIONS = [
   toVoyantAction(BOOKING_ACTION_DECLARATIONS.piiRead),
   ...Object.values(BOOKING_ACTION_DECLARATIONS.status).map(toVoyantAction),
   ...Object.values(BOOKING_ACTION_DECLARATIONS.documents).map(toVoyantAction),
+  ...Object.values(BOOKING_ACTION_DECLARATIONS.customerAccess).map(toVoyantAction),
   ...Object.values(BOOKING_ACTION_DECLARATIONS.amendments).map(toVoyantAction),
 ] as const

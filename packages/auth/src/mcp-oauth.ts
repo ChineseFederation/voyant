@@ -27,7 +27,7 @@ import {
 
 /** Lets the assistant read data the connecting staff member can read. */
 export const MCP_OAUTH_SCOPE_READ = "mcp:read"
-/** Additionally lets the assistant make changes, minus sensitive actions. */
+/** Additionally lets the assistant make changes admitted by deployment policy. */
 export const MCP_OAUTH_SCOPE_WRITE = "mcp:write"
 /** Standard OAuth scope for issuing a refresh token (keeps the connector alive). */
 export const MCP_OAUTH_SCOPE_OFFLINE = "offline_access"
@@ -103,11 +103,14 @@ export interface McpGrantScopeInput {
 /**
  * Resolve the Voyant catalog scopes an MCP request runs with.
  *
- * Three filters compose, all narrowing:
- * 1. the action must be marked remote-safe by its package (the same signal the
- *    remote app grant uses) and must not be sensitive;
- * 2. the approving staff member must actually hold it;
- * 3. a connector without `mcp:write` keeps only `read` actions.
+ * Two OAuth/RBAC filters compose, both narrowing:
+ * 1. the approving staff member must actually hold the action;
+ * 2. a connector without `mcp:write` keeps only `read` actions.
+ *
+ * Risk, remote-safe and sensitive-data admission are intentionally enforced by
+ * the deployment MCP exposure policy at discovery and dispatch. Keeping that
+ * decision there lets an operator deliberately expose an individual tool
+ * without OAuth silently removing the resource scope it needs.
  *
  * Returns an empty list when the token carries no MCP scope at all, which makes
  * an unscoped grant see an empty `tools/list` rather than everything.
@@ -124,8 +127,6 @@ export function resolveMcpGrantScopes(input: McpGrantScopeInput): string[] {
     .flatMap((resource) =>
       resource.actions
         .filter((action) => {
-          if (action.sensitive) return false
-          if (!(resource.remoteSafe || action.remoteSafe)) return false
           if (!allowMutations && action.action !== READ_ACTION) return false
           return hasApiKeyPermission(permissions, resource.resource, action.action, accessCatalog)
         })

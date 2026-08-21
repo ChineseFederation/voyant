@@ -56,6 +56,13 @@ const ALLOWLIST = new Map<string, { rationale: string }>([
       ] as const,
   ),
   [
+    "@voyant-travel/bookings:booking/customer-access",
+    {
+      rationale:
+        "Granting or revoking a Buyer Account's access to a Booking is the authorization decision the rest of the customer plane trusts, and the staff endpoints exist so a human can remediate a claim that identity proof could not settle. An agent Tool would be a second, unproven path to the same authority.",
+    },
+  ],
+  [
     "@voyant-travel/catalog:catalog/booking-session/maintenance",
     {
       rationale:
@@ -88,6 +95,13 @@ const ALLOWLIST = new Map<string, { rationale: string }>([
     {
       rationale:
         "Effective publication preview is an admin validation surface for publication policy and is intentionally not a write Tool.",
+    },
+  ],
+  [
+    "@voyant-travel/mcp:mcp/policy",
+    {
+      rationale:
+        "The MCP exposure policy is the security boundary that decides which Tools an external assistant may see or call. It is intentionally dashboard-session only so an MCP client cannot widen its own authority.",
     },
   ],
 ])

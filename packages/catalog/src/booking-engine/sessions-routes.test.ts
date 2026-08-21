@@ -182,7 +182,7 @@ describe("Booking Session v1 routes", () => {
       expect.not.objectContaining({ storefront: expect.anything() }),
       expect.objectContaining({
         actorKind: "anonymous",
-        storefront: { channelId: "chan_public" },
+        publicApiOrigin: { channelId: "chan_public" },
       }),
     )
   })
@@ -353,7 +353,7 @@ describe("Booking Session v1 routes", () => {
     })
     expect(createSession.mock.calls[0]?.[1]).toMatchObject({
       actorKind: "anonymous",
-      storefront: { channelId: "chan_public" },
+      publicApiOrigin: { channelId: "chan_public" },
     })
     expect(createSession.mock.calls[1]?.[1]).toEqual({
       actorKind: "staff",

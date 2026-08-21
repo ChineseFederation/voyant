@@ -59,7 +59,7 @@ import type { BookingSessionAccessContext } from "./sessions-service.js"
 
 const PRODUCT_TARGET = { kind: "product", productId: "prod_selection" } as const
 const PUBLIC_API_ACCESS = {
-  storefront: { channelId: "chan_public" },
+  publicApiOrigin: { channelId: "chan_public" },
 } as const
 const TEST_CAPABILITY = `bcap_${"a".repeat(43)}`
 
@@ -946,8 +946,8 @@ describe("production Booking Session ports", () => {
   })
 
   it("commits a guest booking when email and phone are both optional", async () => {
-    const upsertPersonFromContact = vi.fn(async () => ({ id: "per_contactless_buyer" }))
-    const module = createCommittableProductionModule({}, undefined, upsertPersonFromContact)
+    const createPersonWithoutContactMatch = vi.fn(async () => ({ id: "per_contactless_buyer" }))
+    const module = createCommittableProductionModule({}, undefined, createPersonWithoutContactMatch)
     const access = {
       actorKind: "anonymous" as const,
       capability: TEST_CAPABILITY,
@@ -987,16 +987,12 @@ describe("production Booking Session ports", () => {
       kind: "commit_result",
       outcome: { kind: "committed", booking: { id: "book_committed" } },
     })
-    expect(upsertPersonFromContact).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({
-        firstName: "E2E",
-        lastName: "Final",
-        email: null,
-        phone: null,
-      }),
-      { source: "booking-session-v1", sourceRef: created.session.id },
-    )
+    expect(createPersonWithoutContactMatch).toHaveBeenCalledWith(expect.anything(), {
+      firstName: "E2E",
+      lastName: "Final",
+      source: "booking-session-v1-guest",
+      sourceRef: created.session.id,
+    })
   })
 
   it("returns incomplete_draft when the optional Relationships runtime is absent", async () => {
@@ -1055,9 +1051,9 @@ describe("production Booking Session ports", () => {
       {
         actorKind: "anonymous",
         capability: TEST_CAPABILITY,
-        storefront: { channelId: "chan_public" },
+        publicApiOrigin: { channelId: "chan_public" },
       } satisfies BookingSessionAccessContext,
-      { storefront: { channelId: "chan_public" } },
+      { publicApiOrigin: { channelId: "chan_public" } },
     ],
     [
       "staff",
@@ -1068,7 +1064,7 @@ describe("production Booking Session ports", () => {
       } satisfies BookingSessionAccessContext,
       {},
     ],
-  ])("passes only trusted %s storefront origin to Finance", async (_label, access, expected) => {
+  ])("passes only trusted %s public API origin to Finance", async (_label, access, expected) => {
     const module = createCommittableProductionModule()
     const created = await module.createSession(
       {
@@ -1119,7 +1115,9 @@ describe("production Booking Session ports", () => {
     })
     expect(financeCreate.createFromSession).toHaveBeenCalledWith(expect.objectContaining(expected))
     if (access.actorKind === "staff") {
-      expect(financeCreate.createFromSession.mock.calls[0]?.[0]).not.toHaveProperty("storefront")
+      expect(financeCreate.createFromSession.mock.calls[0]?.[0]).not.toHaveProperty(
+        "publicApiOrigin",
+      )
     }
   })
 
@@ -1200,7 +1198,8 @@ describe("production Booking Session ports", () => {
   })
 
   it("uses retained provenance when an adopted customer commits", async () => {
-    const module = createCommittableProductionModule()
+    const createPersonWithoutContactMatch = vi.fn(async () => ({ id: "per_contact_match" }))
+    const module = createCommittableProductionModule({}, undefined, createPersonWithoutContactMatch)
     const created = await module.createSession(committableCreateInput("create_adopted_customer"), {
       actorKind: "anonymous",
       capability: TEST_CAPABILITY,
@@ -1210,6 +1209,9 @@ describe("production Booking Session ports", () => {
     const customerAccess = {
       actorKind: "customer" as const,
       principalId: "customer_1",
+      buyerAccountId: "personal:customer_1",
+      buyerAccountKind: "personal" as const,
+      relationshipPersonId: "per_customer_1",
       capability: TEST_CAPABILITY,
       ...PUBLIC_API_ACCESS,
     }
@@ -1240,11 +1242,134 @@ describe("production Booking Session ports", () => {
     )
 
     expect(financeCreate.createFromSession).toHaveBeenCalledWith(
-      expect.objectContaining({ storefront: PUBLIC_API_ACCESS.storefront }),
+      expect.objectContaining({
+        publicApiOrigin: PUBLIC_API_ACCESS.publicApiOrigin,
+        userId: "customer_1",
+        caller: { personId: "per_customer_1" },
+        customerAccess: {
+          buyerAccountId: "personal:customer_1",
+          buyerAccountKind: "personal",
+        },
+      }),
+    )
+    expect(createPersonWithoutContactMatch).not.toHaveBeenCalled()
+  })
+
+  it("creates and atomically links a fresh Person for an unlinked personal Buyer Account", async () => {
+    const createPersonWithoutContactMatch = vi.fn(async () => ({ id: "per_new_customer" }))
+    const ensurePersonalBuyerPerson = vi.fn(async (_tx, input) =>
+      input.createPerson({
+        firstName: "New",
+        lastName: "Customer",
+      }),
+    )
+    const module = createCommittableProductionModule({}, undefined, null, undefined, {
+      relationships: {
+        createPersonWithoutContactMatch,
+      } as never,
+      personalBuyerPerson: { ensurePersonalBuyerPerson },
+    })
+    const access = {
+      actorKind: "customer" as const,
+      principalId: "customer_without_person",
+      buyerAccountId: "personal:customer_without_person",
+      buyerAccountKind: "personal" as const,
+      ...PUBLIC_API_ACCESS,
+    }
+    const created = await module.createSession(
+      committableCreateInput("create_unlinked_personal_customer"),
+      access,
+    )
+    if (created.kind !== "session_created") throw new Error("session not created")
+    const prepared = await quoteAndHoldForCommit(
+      module,
+      created.session.id,
+      created.session.revision,
+      access,
+      "unlinked_personal_customer",
+    )
+
+    await module.commitSession(
+      created.session.id,
+      {
+        expectedRevision: created.session.revision,
+        quoteId: prepared.quoteId,
+        requirementsFingerprint: prepared.requirementsFingerprint,
+        holdId: prepared.holdId,
+        idempotencyKey: "commit_unlinked_personal_customer",
+      },
+      access,
+    )
+
+    expect(ensurePersonalBuyerPerson).toHaveBeenCalledOnce()
+    expect(createPersonWithoutContactMatch).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        firstName: "New",
+        lastName: "Customer",
+        source: "customer-buyer-account",
+        sourceRef: "customer_without_person",
+      }),
+    )
+    expect(financeCreate.createFromSession).toHaveBeenCalledWith(
+      expect.objectContaining({ caller: { personId: "per_new_customer" } }),
     )
   })
 
-  it("preserves pinned provenance when admitted staff commits a storefront session", async () => {
+  it("uses the trusted business Buyer Account organization without contact matching", async () => {
+    const createPersonWithoutContactMatch = vi.fn(async () => ({ id: "per_contact_match" }))
+    const module = createCommittableProductionModule({}, undefined, createPersonWithoutContactMatch)
+    const access = {
+      actorKind: "customer" as const,
+      principalId: "member_1",
+      buyerAccountId: "business:auth_org_1",
+      buyerAccountKind: "business" as const,
+      authOrganizationId: "auth_org_1",
+      relationshipOrganizationId: "org_1",
+      membershipId: "membership_1",
+      membershipRole: "member",
+      ...PUBLIC_API_ACCESS,
+    }
+    const created = await module.createSession(
+      committableCreateInput("create_business_customer"),
+      access,
+    )
+    if (created.kind !== "session_created") throw new Error("session not created")
+    const prepared = await quoteAndHoldForCommit(
+      module,
+      created.session.id,
+      created.session.revision,
+      access,
+      "business_customer",
+    )
+
+    await module.commitSession(
+      created.session.id,
+      {
+        expectedRevision: created.session.revision,
+        quoteId: prepared.quoteId,
+        requirementsFingerprint: prepared.requirementsFingerprint,
+        holdId: prepared.holdId,
+        idempotencyKey: "commit_business_customer",
+      },
+      access,
+    )
+
+    expect(financeCreate.createFromSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        caller: { personId: undefined },
+        customerAccess: {
+          buyerAccountId: "business:auth_org_1",
+          buyerAccountKind: "business",
+          membershipId: "membership_1",
+          membershipRole: "member",
+        },
+      }),
+    )
+    expect(createPersonWithoutContactMatch).not.toHaveBeenCalled()
+  })
+
+  it("preserves pinned provenance when admitted staff commits a public API session", async () => {
     const module = createCommittableProductionModule()
     const anonymousAccess = {
       actorKind: "anonymous" as const,
@@ -1281,7 +1406,7 @@ describe("production Booking Session ports", () => {
     )
 
     expect(financeCreate.createFromSession).toHaveBeenCalledWith(
-      expect.objectContaining({ storefront: PUBLIC_API_ACCESS.storefront }),
+      expect.objectContaining({ publicApiOrigin: PUBLIC_API_ACCESS.publicApiOrigin }),
     )
   })
 
@@ -1470,7 +1595,7 @@ describe("production Booking Session ports", () => {
   })
 
   it("holds the session's own party size when the caller names no quantity", async () => {
-    // voyant#4655: this is the storefront's request shape. It named no
+    // voyant#4655: this is the public API client's request shape. It named no
     // quantity, the server invented `1`, the capacity port expected the two
     // travelers the selection states, and the rejection asked for a retry that
     // could only be rejected the same way — forever.
@@ -1591,10 +1716,13 @@ describe("production Booking Session ports", () => {
 function createCommittableProductionModule(
   command: Record<string, unknown> = {},
   upstreamPayload?: Record<string, unknown>,
-  upsertPersonFromContact:
-    | NonNullable<ProductionBookingSessionModuleDeps["relationships"]>["upsertPersonFromContact"]
+  createPersonWithoutContactMatch:
+    | NonNullable<
+        ProductionBookingSessionModuleDeps["relationships"]
+      >["createPersonWithoutContactMatch"]
     | null = async () => ({ id: "per_buyer" }) as never,
   resolvePromotionEvaluator?: ProductionBookingSessionModuleDeps["resolvePromotionEvaluator"],
+  billingDeps?: Pick<ProductionBookingSessionModuleDeps, "relationships" | "personalBuyerPerson">,
 ) {
   const repository = createInMemoryBookingSessionRepository()
   const handlers = createOwnedBookingHandlerRegistry()
@@ -1635,7 +1763,14 @@ function createCommittableProductionModule(
     repository,
     resolveOwnedHandlers: () => handlers,
     resolveSourceRegistry: () => createSourceAdapterRegistry(),
-    ...(upsertPersonFromContact ? { relationships: { upsertPersonFromContact } as never } : {}),
+    ...(billingDeps?.relationships
+      ? { relationships: billingDeps.relationships }
+      : createPersonWithoutContactMatch
+        ? { relationships: { createPersonWithoutContactMatch } as never }
+        : {}),
+    ...(billingDeps?.personalBuyerPerson
+      ? { personalBuyerPerson: billingDeps.personalBuyerPerson }
+      : {}),
     ...(resolvePromotionEvaluator ? { resolvePromotionEvaluator } : {}),
   })
 }

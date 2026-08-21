@@ -364,18 +364,18 @@
         "../bookings/dist/cancellation-consequences.d.ts"
       ],
       "@voyant-travel/bookings/checkout-capability": ["../bookings/dist/checkout-capability.d.ts"],
+      "@voyant-travel/bookings/customer-access": ["../bookings/dist/customer-access.d.ts"],
+      "@voyant-travel/bookings/customer-access-claims": [
+        "../bookings/dist/customer-access-claims.d.ts"
+      ],
       "@voyant-travel/bookings/extensions/suppliers": [
         "../bookings/dist/extensions/suppliers.d.ts"
       ],
       "@voyant-travel/bookings/extras": ["../bookings/dist/extras.d.ts"],
       "@voyant-travel/bookings/extras/validation": ["../bookings/dist/extras/validation.d.ts"],
       "@voyant-travel/bookings/guest-booking-guard": ["../bookings/dist/guest-booking-guard.d.ts"],
-      "@voyant-travel/bookings/inquiry-intake-runtime-port": [
-        "../bookings/dist/inquiry-intake-runtime-port.d.ts"
-      ],
-      "@voyant-travel/bookings/inquiry/ports": ["../bookings/dist/inquiry/ports.d.ts"],
-      "@voyant-travel/bookings/legacy-inquiry-read-runtime-port": [
-        "../bookings/dist/legacy-inquiry-read-runtime-port.d.ts"
+      "@voyant-travel/bookings/legacy-customer-access-backfill": [
+        "../bookings/dist/legacy-customer-access-backfill.d.ts"
       ],
       "@voyant-travel/bookings/linkables": ["../bookings/dist/linkables.d.ts"],
       "@voyant-travel/bookings/pii": ["../bookings/dist/pii.d.ts"],
@@ -521,9 +521,6 @@
       "@voyant-travel/catalog/booking-engine/supplier-operations": [
         "../catalog/dist/booking-engine/supplier-operations.d.ts"
       ],
-      "@voyant-travel/catalog/booking-session-created-analytics-subscriber": [
-        "../catalog/dist/booking-session-created-analytics-subscriber.d.ts"
-      ],
       "@voyant-travel/catalog/booking-session-maintenance-job": [
         "../catalog/dist/booking-session-maintenance-job.d.ts"
       ],
@@ -558,13 +555,12 @@
       "@voyant-travel/catalog/indexer/typesense-provider": [
         "../catalog/dist/indexer/typesense-provider.d.ts"
       ],
-      "@voyant-travel/catalog/inquiry-booking-session-runtime-port": [
-        "../catalog/dist/inquiry-booking-session-runtime-port.d.ts"
-      ],
-      "@voyant-travel/catalog/inquiry/ports": ["../catalog/dist/inquiry/ports.d.ts"],
       "@voyant-travel/catalog/offers": ["../catalog/dist/offers/operator-routes.d.ts"],
       "@voyant-travel/catalog/overlay/resolver": ["../catalog/dist/overlay/resolver.d.ts"],
       "@voyant-travel/catalog/overlay/schema": ["../catalog/dist/overlay/schema.d.ts"],
+      "@voyant-travel/catalog/personal-buyer-person-runtime-port": [
+        "../catalog/dist/personal-buyer-person-runtime-port.d.ts"
+      ],
       "@voyant-travel/catalog/ports": ["../catalog/dist/runtime-contracts.d.ts"],
       "@voyant-travel/catalog/presentation-subjects": [
         "../catalog/dist/presentation-subjects.d.ts"
@@ -913,6 +909,7 @@
       ],
       "@voyant-travel/db/schema/iam/invitations": ["../db/dist/schema/iam/invitations.d.ts"],
       "@voyant-travel/db/schema/iam/kms": ["../db/dist/schema/iam/kms.d.ts"],
+      "@voyant-travel/db/schema/iam/mcp": ["../db/dist/schema/iam/mcp.d.ts"],
       "@voyant-travel/db/schema/iam/oauth_provider": ["../db/dist/schema/iam/oauth_provider.d.ts"],
       "@voyant-travel/db/schema/iam/public-api": ["../db/dist/schema/iam/public-api.d.ts"],
       "@voyant-travel/db/schema/iam/roles": ["../db/dist/schema/iam/roles.d.ts"],
@@ -1550,12 +1547,7 @@
       "@voyant-travel/media-react/query-keys": ["../media-react/dist/query-keys.d.ts"],
       "@voyant-travel/media-react/ui": ["../media-react/dist/ui.d.ts"],
       "@voyant-travel/media/graph-runtime": ["../media/dist/graph-runtime.d.ts"],
-      "@voyant-travel/media/linkables": ["../media/dist/linkables.d.ts"],
-      "@voyant-travel/media/prepared-attachment-cleanup-job": [
-        "../media/dist/prepared-attachment-cleanup-job.d.ts"
-      ],
       "@voyant-travel/media/routes": ["../media/dist/routes.d.ts"],
-      "@voyant-travel/media/runtime-contributor": ["../media/dist/runtime-contributor.d.ts"],
       "@voyant-travel/media/runtime-port": ["../media/dist/runtime-port.d.ts"],
       "@voyant-travel/media/schema": ["../media/dist/schema.d.ts"],
       "@voyant-travel/media/service": ["../media/dist/service.d.ts"],
@@ -1740,11 +1732,11 @@
       ],
       "@voyant-travel/proposals": ["../proposals/dist/index.d.ts"],
       "@voyant-travel/proposals-contracts": ["../proposals-contracts/dist/index.d.ts"],
-      "@voyant-travel/proposals-contracts/inquiry-conversion": [
-        "../proposals-contracts/dist/inquiry-conversion.d.ts"
+      "@voyant-travel/proposals-contracts/checkout-inquiry": [
+        "../proposals-contracts/dist/checkout-inquiry.d.ts"
       ],
-      "@voyant-travel/proposals-contracts/inquiry-conversion/runtime-port": [
-        "../proposals-contracts/dist/inquiry-conversion/runtime-port.d.ts"
+      "@voyant-travel/proposals-contracts/runtime-port": [
+        "../proposals-contracts/dist/checkout-inquiry.d.ts"
       ],
       "@voyant-travel/proposals-contracts/validation": [
         "../proposals-contracts/dist/validation.d.ts"
@@ -1908,12 +1900,6 @@
       "@voyant-travel/realtime/voyant": ["../realtime/dist/voyant.d.ts"],
       "@voyant-travel/relationships": ["../relationships/dist/index.d.ts"],
       "@voyant-travel/relationships-contracts": ["../relationships-contracts/dist/index.d.ts"],
-      "@voyant-travel/relationships-contracts/inquiry-navigation": [
-        "../relationships-contracts/dist/inquiry-navigation.d.ts"
-      ],
-      "@voyant-travel/relationships-contracts/inquiry-target-authority/runtime-port": [
-        "../relationships-contracts/dist/inquiry-target-authority/runtime-port.d.ts"
-      ],
       "@voyant-travel/relationships-contracts/public-api-intake": [
         "../relationships-contracts/dist/public-api-intake.d.ts"
       ],
@@ -1942,24 +1928,13 @@
         "../relationships/dist/booking-enrichment/subscriber-runtime.d.ts"
       ],
       "@voyant-travel/relationships/events": ["../relationships/dist/events.d.ts"],
-      "@voyant-travel/relationships/inquiry-overdue-job": [
-        "../relationships/dist/inquiry-overdue-job.d.ts"
-      ],
-      "@voyant-travel/relationships/legacy-inquiry-cutover": [
-        "../relationships/dist/legacy-inquiry-cutover.d.ts"
-      ],
-      "@voyant-travel/relationships/legacy-inquiry-cutover-job": [
-        "../relationships/dist/legacy-inquiry-cutover-job.d.ts"
-      ],
       "@voyant-travel/relationships/linkables": ["../relationships/dist/linkables.d.ts"],
-      "@voyant-travel/relationships/reporting": ["../relationships/dist/reporting.d.ts"],
       "@voyant-travel/relationships/routes": ["../relationships/dist/routes/index.d.ts"],
       "@voyant-travel/relationships/runtime-contributor": [
         "../relationships/dist/runtime-contributor.d.ts"
       ],
       "@voyant-travel/relationships/runtime-port": ["../relationships/dist/runtime-port.d.ts"],
       "@voyant-travel/relationships/schema": ["../relationships/dist/schema.d.ts"],
-      "@voyant-travel/relationships/standard-links": ["../relationships/dist/standard-links.d.ts"],
       "@voyant-travel/relationships/tools": ["../relationships/dist/mcp-runtime.d.ts"],
       "@voyant-travel/relationships/validation": ["../relationships/dist/validation.d.ts"],
       "@voyant-travel/relationships/voyant": ["../relationships/dist/voyant.d.ts"],
