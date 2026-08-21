@@ -20,6 +20,18 @@ const catalogSourceEventPayloadSchema = {
   additionalProperties: false,
 } as const
 
+export const catalogBookingSessionCreatedPayloadSchema = {
+  type: "object",
+  required: ["bookingSessionId", "scope", "market", "channel"],
+  properties: {
+    bookingSessionId: { type: "string" },
+    scope: { type: "string" },
+    market: { type: "string" },
+    channel: { const: "operator" },
+  },
+  additionalProperties: false,
+} as const
+
 export const catalogOverlayChangedPayloadSchema = {
   type: "object",
   required: [

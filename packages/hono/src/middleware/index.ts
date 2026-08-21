@@ -46,6 +46,13 @@ export {
   rateLimit,
   resolveRateLimitStore,
 } from "./rate-limit.js"
+export {
+  evaluateRequestPermission,
+  installRequestPermissionAuthorizer,
+  type RequestPermissionAuthorizer,
+  type RequestPermissionDecision,
+  requireAdditionalPermission,
+} from "./request-permission.js"
 export { isStaffRbacEnforced, requireActor } from "./require-actor.js"
 export { requirePermission } from "./require-permission.js"
 export {

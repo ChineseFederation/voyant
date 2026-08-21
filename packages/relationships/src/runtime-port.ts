@@ -3,6 +3,11 @@ import type { AnyDrizzleDb } from "@voyant-travel/db"
 
 import type { RelationshipsRouteRuntimeOptions } from "./route-runtime.js"
 
+export {
+  type RelationshipsInquiryOverdueJobRuntime,
+  relationshipsInquiryOverdueJobRuntimePort,
+} from "./inquiry-overdue-job-runtime-port.js"
+
 export interface RelationshipsMiceRuntime {
   personExists(db: unknown, personId: string): Promise<boolean>
 }
@@ -62,6 +67,30 @@ export const relationshipsRouteRuntimePort = definePort<RelationshipsRouteRuntim
     }
     if (provider.resolveKmsProvider && typeof provider.resolveKmsProvider !== "function") {
       throw new Error("relationships.route-runtime provider resolveKmsProvider must be a function.")
+    }
+    if (
+      provider.resolveInquiryFirstResponseSla &&
+      typeof provider.resolveInquiryFirstResponseSla !== "function"
+    ) {
+      throw new Error(
+        "relationships.route-runtime provider resolveInquiryFirstResponseSla must be a function.",
+      )
+    }
+    if (
+      provider.proposalInquiryConversion &&
+      typeof provider.proposalInquiryConversion.convertInquiry !== "function"
+    ) {
+      throw new Error(
+        "relationships.route-runtime proposalInquiryConversion must implement convertInquiry().",
+      )
+    }
+    if (
+      provider.inquiryTargetValidation &&
+      typeof provider.inquiryTargetValidation.validateTarget !== "function"
+    ) {
+      throw new Error(
+        "relationships.route-runtime inquiryTargetValidation must implement validateTarget().",
+      )
     }
   },
 })

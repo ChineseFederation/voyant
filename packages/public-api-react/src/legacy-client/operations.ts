@@ -10,6 +10,7 @@ import {
   bootstrapCheckoutCollectionSchema,
   bootstrappedCheckoutCollectionResponseSchema,
   checkoutCollectionPlanResponseSchema,
+  createPublicInquirySchema,
   type InitiateCheckoutCollectionInput,
   initiateCheckoutCollectionSchema,
   initiatedCheckoutCollectionResponseSchema,
@@ -23,6 +24,7 @@ import {
   type PublicApiProductExtensionsQuery,
   type PublicApiPromotionalOfferListQuery,
   type PublicBookingOverviewLookupQuery,
+  type PublicInquiryInput,
   previewCheckoutCollectionSchema,
   publicApiDepartureItineraryQuerySchema,
   publicApiDepartureItineraryResponseSchema,
@@ -45,6 +47,7 @@ import {
   publicApiSettingsResponseSchema,
   publicBookingOverviewLookupQuerySchema,
   publicBookingOverviewResponseSchema,
+  publicInquiryReceiptSchema,
 } from "./schemas.js"
 
 type ResolvedClientOptions = Required<Pick<VoyantPublicApiClientOptions, "baseUrl" | "fetcher">> &
@@ -67,6 +70,20 @@ export function createPublicApiLead(
   return publicApiFetchWithValidation(
     "/v1/public/leads",
     publicApiIntakeResponseEnvelopeSchema,
+    client,
+    { method: "POST", headers: requestHeaders(options), body: JSON.stringify(parsed) },
+  ).then((response) => response.data)
+}
+
+export function createPublicInquiry(
+  client: ResolvedClientOptions,
+  input: PublicInquiryInput,
+  options?: PublicApiRequestOptions,
+) {
+  const parsed = createPublicInquirySchema.parse(input)
+  return publicApiFetchWithValidation(
+    "/v1/public/relationships/inquiries",
+    publicInquiryReceiptSchema,
     client,
     { method: "POST", headers: requestHeaders(options), body: JSON.stringify(parsed) },
   ).then((response) => response.data)

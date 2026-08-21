@@ -43,6 +43,7 @@ export type OperatorAdminNavMessages = {
   notificationMyNotifications: string
   notificationPreview: string
   suppliers: string
+  inquiries: string
   people: string
   organizations: string
   customFields: string
@@ -120,6 +121,7 @@ export const operatorAdminNavMessages = {
       notificationMyNotifications: "My notifications",
       notificationPreview: "Preview",
       suppliers: "Suppliers",
+      inquiries: "Inquiries",
       people: "People",
       organizations: "Organizations",
       customFields: "Custom fields",
@@ -197,6 +199,7 @@ export const operatorAdminNavMessages = {
       notificationMyNotifications: "Notificarile mele",
       notificationPreview: "Previzualizare",
       suppliers: "Furnizori",
+      inquiries: "Solicitări",
       people: "Persoane",
       organizations: "Organizații",
       customFields: "Câmpuri personalizate",

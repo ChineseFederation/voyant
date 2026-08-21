@@ -39,6 +39,8 @@ export interface paths {
                 id: string
                 /** @enum {string} */
                 type: "image" | "video" | "document"
+                /** @enum {string} */
+                storageClass: "media" | "documents"
                 name: string
                 altText: string | null
                 defaultLanguageTag: string
@@ -147,6 +149,8 @@ export interface paths {
                 id: string
                 /** @enum {string} */
                 type: "image" | "video" | "document"
+                /** @enum {string} */
+                storageClass: "media" | "documents"
                 name: string
                 altText: string | null
                 defaultLanguageTag: string
@@ -211,6 +215,8 @@ export interface paths {
                 id: string
                 /** @enum {string} */
                 type: "image" | "video" | "document"
+                /** @enum {string} */
+                storageClass: "media" | "documents"
                 name: string
                 altText: string | null
                 defaultLanguageTag: string
@@ -311,6 +317,8 @@ export interface paths {
                 id: string
                 /** @enum {string} */
                 type: "image" | "video" | "document"
+                /** @enum {string} */
+                storageClass: "media" | "documents"
                 name: string
                 altText: string | null
                 defaultLanguageTag: string

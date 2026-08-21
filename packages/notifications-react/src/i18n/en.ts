@@ -437,6 +437,22 @@ export const notificationsUiEn: NotificationsUiMessages = {
         title: "New enquiry",
         description: "Someone asked about a trip and is waiting for a first response.",
       },
+      "staff.inquiry.created": {
+        title: "New inquiry",
+        description: "A new inquiry is waiting to be triaged.",
+      },
+      "staff.inquiry.assigned": {
+        title: "Inquiry assigned",
+        description: "An inquiry was assigned to an owner.",
+      },
+      "staff.inquiry.first-response-overdue": {
+        title: "First response overdue",
+        description: "An inquiry passed its first-response deadline.",
+      },
+      "staff.inquiry.converted": {
+        title: "Inquiry converted",
+        description: "An inquiry was converted into a proposal.",
+      },
     },
     columns: {
       alert: "Alert",

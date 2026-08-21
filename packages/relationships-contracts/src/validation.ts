@@ -44,6 +44,7 @@ export type {
   ResolveCustomerSignalInput,
 } from "./validation/customer-signals.js"
 export {
+  activeCustomerSignalKindSchema,
   customerSignalKindSchema,
   customerSignalListQuerySchema,
   customerSignalPrioritySchema,
@@ -53,6 +54,8 @@ export {
   resolveCustomerSignalSchema,
   updateCustomerSignalSchema,
 } from "./validation/customer-signals.js"
+export * from "./validation/inquiries.js"
+export * from "./validation/inquiry-public-intake.js"
 export {
   insertOrganizationNoteSchema,
   insertPersonNoteSchema,

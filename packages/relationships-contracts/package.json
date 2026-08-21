@@ -5,6 +5,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./inquiry-navigation": "./src/inquiry-navigation.ts",
+    "./inquiry-target-authority/runtime-port": "./src/inquiry-target-authority/runtime-port.ts",
     "./public-api-intake": "./src/public-api-intake.ts",
     "./validation": "./src/validation.ts"
   },
@@ -26,6 +28,16 @@
         "types": "./dist/index.d.ts",
         "import": "./dist/index.js",
         "default": "./dist/index.js"
+      },
+      "./inquiry-navigation": {
+        "types": "./dist/inquiry-navigation.d.ts",
+        "import": "./dist/inquiry-navigation.js",
+        "default": "./dist/inquiry-navigation.js"
+      },
+      "./inquiry-target-authority/runtime-port": {
+        "types": "./dist/inquiry-target-authority/runtime-port.d.ts",
+        "import": "./dist/inquiry-target-authority/runtime-port.js",
+        "default": "./dist/inquiry-target-authority/runtime-port.js"
       },
       "./public-api-intake": {
         "types": "./dist/public-api-intake.d.ts",

@@ -7,11 +7,14 @@
   "exports": {
     ".": "./src/index.ts",
     "./schema": "./src/schema.ts",
+    "./linkables": "./src/linkables.ts",
     "./service": "./src/service.ts",
     "./validation": "./src/validation.ts",
     "./routes": "./src/routes.ts",
     "./graph-runtime": "./src/graph-runtime.ts",
     "./runtime-port": "./src/runtime-port.ts",
+    "./runtime-contributor": "./src/runtime-contributor.ts",
+    "./prepared-attachment-cleanup-job": "./src/prepared-attachment-cleanup-job.ts",
     "./voyant": "./src/voyant.ts",
     "./openapi/admin": "./openapi/admin/media-library.json"
   },
@@ -63,6 +66,11 @@
         "import": "./dist/schema.js",
         "default": "./dist/schema.js"
       },
+      "./linkables": {
+        "types": "./dist/linkables.d.ts",
+        "import": "./dist/linkables.js",
+        "default": "./dist/linkables.js"
+      },
       "./service": {
         "types": "./dist/service.d.ts",
         "import": "./dist/service.js",
@@ -88,6 +96,16 @@
         "import": "./dist/runtime-port.js",
         "default": "./dist/runtime-port.js"
       },
+      "./runtime-contributor": {
+        "types": "./dist/runtime-contributor.d.ts",
+        "import": "./dist/runtime-contributor.js",
+        "default": "./dist/runtime-contributor.js"
+      },
+      "./prepared-attachment-cleanup-job": {
+        "types": "./dist/prepared-attachment-cleanup-job.d.ts",
+        "import": "./dist/prepared-attachment-cleanup-job.js",
+        "default": "./dist/prepared-attachment-cleanup-job.js"
+      },
       "./voyant": {
         "types": "./dist/voyant.d.ts",
         "import": "./dist/voyant.js",
@@ -107,6 +125,10 @@
     "schemaVersion": "voyant.package.v1",
     "kind": "module",
     "manifest": "./voyant",
+    "runtime": {
+      "entry": "./runtime-contributor",
+      "export": "createMediaRuntimePortContribution"
+    },
     "compatibleWith": {
       "framework": ">=0.26.0",
       "targets": [

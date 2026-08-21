@@ -4,7 +4,6 @@
     "packages/accommodations",
     "packages/action-ledger",
     "packages/auth",
-    "packages/catalog",
     "packages/charters",
     "packages/db",
     "packages/flights",

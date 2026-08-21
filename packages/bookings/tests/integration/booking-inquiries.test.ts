@@ -1,12 +1,11 @@
-import { createEventBus } from "@voyant-travel/core"
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest"
 
 import { bookingInquiries } from "../../src/schema.js"
 import { bookingInquiriesService } from "../../src/service-inquiries.js"
 
 const DB_AVAILABLE = !!process.env.TEST_DATABASE_URL
 
-describe.skipIf(!DB_AVAILABLE)("booking inquiry submission", () => {
+describe.skipIf(!DB_AVAILABLE)("legacy booking inquiry read compatibility", () => {
   // biome-ignore lint/suspicious/noExplicitAny: test db typing -- owner: bookings; matches the package integration harness.
   let db: any
 
@@ -24,60 +23,51 @@ describe.skipIf(!DB_AVAILABLE)("booking inquiry submission", () => {
     await closeTestDb()
   })
 
-  it("returns one durable receipt and emits one stable lifecycle event on retry", async () => {
-    const eventBus = createEventBus()
-    const received = vi.fn()
-    eventBus.subscribe("booking.inquiry.created", received)
-    const command = {
-      idempotencyKey: "ask-first-123",
-      channelId: "channel_1",
+  it("keeps historical rows available by id and newest-first list", async () => {
+    const [older] = await db
+      .insert(bookingInquiries)
+      .values({
+        idempotencyKey: "ask-first-123",
+        requestFingerprint: "legacy-fingerprint-1",
+        channelId: "channel_1",
+        productId: "prod_1",
+        departureId: "departure_1",
+        contactFirstName: "Ana",
+        contactLastName: "Popescu",
+        contactEmail: "ana@example.com",
+        contactPhone: "+40700000000",
+        locale: "ro",
+        message: "Este disponibilă plecarea din martie?",
+        createdAt: new Date("2026-08-01T10:00:00.000Z"),
+        updatedAt: new Date("2026-08-01T10:00:00.000Z"),
+      })
+      .returning()
+    const [newer] = await db
+      .insert(bookingInquiries)
+      .values({
+        idempotencyKey: "fixture",
+        requestFingerprint: "legacy-fingerprint-2",
+        channelId: "channel_1",
+        productId: "prod_2",
+        departureId: null,
+        locale: "en",
+        message: "Second historical inquiry",
+        createdAt: new Date("2026-08-02T10:00:00.000Z"),
+        updatedAt: new Date("2026-08-02T10:00:00.000Z"),
+      })
+      .returning()
+
+    await expect(bookingInquiriesService.getById(db, older.id)).resolves.toMatchObject({
+      id: older.id,
       productId: "prod_1",
-      departureId: "departure_1",
-      contact: {
-        firstName: "Ana",
-        lastName: "Popescu",
-        email: "ana@example.com",
-        phone: "+40700000000",
-      },
-      locale: "ro",
-      message: "Este disponibilă plecarea din martie?",
-    }
-
-    const created = await bookingInquiriesService.submit(db, command, { eventBus })
-    const replayed = await bookingInquiriesService.submit(db, command, { eventBus })
-
-    expect(created.status).toBe("created")
-    expect(replayed.status).toBe("replayed")
-    expect(replayed.inquiry.id).toBe(created.inquiry.id)
-    expect(await bookingInquiriesService.list(db)).toHaveLength(1)
-    expect(received).toHaveBeenCalledTimes(2)
-    expect(received.mock.calls[0]?.[0]).toMatchObject({
-      data: { inquiryId: created.inquiry.id, productId: "prod_1", departureId: "departure_1" },
-      metadata: { eventId: `evt_booking_inquiry_created_${created.inquiry.id}` },
     })
-    expect(received.mock.calls[1]?.[0]).toMatchObject({
-      metadata: { eventId: `evt_booking_inquiry_created_${created.inquiry.id}` },
-    })
+    expect((await bookingInquiriesService.list(db)).map((row) => row.id)).toEqual([
+      newer.id,
+      older.id,
+    ])
   })
 
-  it("rejects reuse of an inquiry identity with a different request", async () => {
-    const command = {
-      idempotencyKey: "ask-first-conflict",
-      channelId: "channel_1",
-      productId: "prod_1",
-      departureId: null,
-      contact: { firstName: "Ana", lastName: null, email: "ana@example.com", phone: null },
-      locale: "en",
-      message: "First question",
-    }
-    await bookingInquiriesService.submit(db, command)
-
-    const conflict = await bookingInquiriesService.submit(db, {
-      ...command,
-      message: "Different question",
-    })
-
-    expect(conflict.status).toBe("conflict")
-    expect(await bookingInquiriesService.list(db)).toHaveLength(1)
+  it("does not expose a legacy write method", () => {
+    expect(bookingInquiriesService).not.toHaveProperty("submit")
   })
 })

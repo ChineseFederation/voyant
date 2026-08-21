@@ -1133,7 +1133,7 @@
                 "properties": {
                   "kind": {
                     "type": "string",
-                    "enum": ["wishlist", "notify", "inquiry", "request_offer", "referral"],
+                    "enum": ["inquiry", "request_offer"],
                     "default": "inquiry"
                   },
                   "source": {

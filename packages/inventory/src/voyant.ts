@@ -12,6 +12,7 @@ import {
 } from "@voyant-travel/core/project"
 import { documentRendererPort } from "@voyant-travel/core/runtime-port"
 import { financeInventoryPaymentPolicyRuntimePort } from "@voyant-travel/finance/runtime-port"
+import { inquiryTargetAuthorityRuntimePort } from "@voyant-travel/relationships-contracts/inquiry-target-authority/runtime-port"
 import { storageMediaRuntimePort } from "@voyant-travel/storage/runtime-port"
 import { inventoryBrochureRuntimePort, inventoryRuntimePort } from "./runtime-ports.js"
 import {
@@ -36,6 +37,7 @@ export const inventoryVoyantModule = defineModule({
       providePort(actionLedgerInventoryDriftRuntimePort),
       providePort(bookingsInventoryRuntimePort),
       providePort(financeInventoryPaymentPolicyRuntimePort),
+      providePort(inquiryTargetAuthorityRuntimePort),
       providePort(inventoryRuntimePort),
     ],
   },

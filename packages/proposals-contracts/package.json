@@ -5,8 +5,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./checkout-inquiry": "./src/checkout-inquiry.ts",
-    "./runtime-port": "./src/checkout-inquiry.ts",
+    "./inquiry-conversion": "./src/inquiry-conversion.ts",
+    "./inquiry-conversion/runtime-port": "./src/inquiry-conversion/runtime-port.ts",
     "./validation": "./src/validation.ts"
   },
   "scripts": {
@@ -28,15 +28,15 @@
         "import": "./dist/index.js",
         "default": "./dist/index.js"
       },
-      "./checkout-inquiry": {
-        "types": "./dist/checkout-inquiry.d.ts",
-        "import": "./dist/checkout-inquiry.js",
-        "default": "./dist/checkout-inquiry.js"
+      "./inquiry-conversion": {
+        "types": "./dist/inquiry-conversion.d.ts",
+        "import": "./dist/inquiry-conversion.js",
+        "default": "./dist/inquiry-conversion.js"
       },
-      "./runtime-port": {
-        "types": "./dist/checkout-inquiry.d.ts",
-        "import": "./dist/checkout-inquiry.js",
-        "default": "./dist/checkout-inquiry.js"
+      "./inquiry-conversion/runtime-port": {
+        "types": "./dist/inquiry-conversion/runtime-port.d.ts",
+        "import": "./dist/inquiry-conversion/runtime-port.js",
+        "default": "./dist/inquiry-conversion/runtime-port.js"
       },
       "./validation": {
         "types": "./dist/validation.d.ts",

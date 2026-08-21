@@ -88,6 +88,11 @@ export {
   requireKeyCapability,
   requirePermission,
 } from "./middleware/index.js"
+export {
+  type RequestPermissionAuthorizer,
+  type RequestPermissionDecision,
+  requireAdditionalPermission,
+} from "./middleware/request-permission.js"
 export type { ApiExtension, ApiModule } from "./module.js"
 export type { ErrorEvent, Reporter } from "./observability/index.js"
 export {

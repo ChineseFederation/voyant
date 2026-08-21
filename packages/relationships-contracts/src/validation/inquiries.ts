@@ -1,0 +1,553 @@
+import { z } from "zod"
+
+import { paginationSchema } from "./common.js"
+
+export const inquiryKindSchema = z.enum(["product", "custom_trip", "general"])
+export const inquiryStatusSchema = z.enum([
+  "new",
+  "triaged",
+  "in_progress",
+  "waiting_on_customer",
+  "qualified",
+  "converted",
+  "closed",
+])
+export const inquiryPrioritySchema = z.enum(["low", "normal", "high", "urgent"])
+export const inquiryCloseOutcomeSchema = z.enum([
+  "lost",
+  "not_serviceable",
+  "no_response",
+  "duplicate",
+  "spam",
+  "customer_withdrew",
+  "other",
+])
+export const inquirySourceSchema = z.enum([
+  "storefront",
+  "phone",
+  "email",
+  "admin",
+  "import",
+  "api",
+])
+
+/** Cross-module subjects an Inquiry can retain as immutable intake context. */
+export const inquiryTargetKindSchema = z.enum(["product", "departure", "catalog_item", "trip"])
+
+export const inquiryTargetSnapshotSchema = z.object({
+  title: z.string().trim().min(1).max(500),
+  optionLabel: z.string().trim().min(1).max(500).nullable().optional(),
+  startDate: z.string().date().nullable().optional(),
+  endDate: z.string().date().nullable().optional(),
+  publicUrl: z.string().url().max(2_000).nullable().optional(),
+  sourceChannel: z.string().trim().min(1).max(200).nullable().optional(),
+})
+
+export const addInquiryTargetSchema = z.object({
+  kind: inquiryTargetKindSchema,
+  targetId: z.string().trim().min(1).max(500),
+  snapshot: inquiryTargetSnapshotSchema,
+})
+
+export const inquiryTargetRecordSchema = addInquiryTargetSchema.extend({
+  linkId: z.string(),
+  inquiryId: z.string(),
+  createdAt: z.string(),
+})
+
+export const inquiryTargetsResponseSchema = z.object({ data: z.array(inquiryTargetRecordSchema) })
+export const inquiryTargetResponseSchema = z.object({ data: inquiryTargetRecordSchema })
+
+export const attachInquiryAssetSchema = z.object({
+  assetId: z
+    .string()
+    .trim()
+    .regex(/^mast_/),
+  displayName: z.string().trim().min(1).max(500),
+  caption: z.string().trim().min(1).max(2_000).nullable().optional(),
+})
+
+export const updateInquiryAttachmentSchema = z.object({
+  caption: z.string().trim().min(1).max(2_000).nullable(),
+})
+
+export const inquiryAttachmentRecordSchema = z.object({
+  linkId: z.string(),
+  inquiryId: z.string(),
+  assetId: z.string(),
+  name: z.string(),
+  mimeType: z.string().nullable(),
+  caption: z.string().nullable(),
+  attachedBy: z.string(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+  /** Authenticated Media byte route; never a persisted or public URL. */
+  downloadPath: z.string(),
+})
+
+export const inquiryAttachmentsResponseSchema = z.object({
+  data: z.array(inquiryAttachmentRecordSchema),
+})
+export const inquiryAttachmentResponseSchema = z.object({ data: inquiryAttachmentRecordSchema })
+
+export const inquiryContactSnapshotSchema = z
+  .object({
+    name: z.string().trim().min(1).max(200).optional(),
+    email: z.string().trim().email().max(320).optional(),
+    phone: z.string().trim().min(1).max(80).optional(),
+  })
+  .refine((value) => value.name || value.email || value.phone, {
+    message: "At least one contact detail is required",
+  })
+
+const placeSchema = z.object({
+  placeId: z.string().min(1).optional(),
+  label: z.string().trim().min(1).max(200),
+})
+
+export const inquiryTravelBriefV1Schema = z.object({
+  version: z.literal(1),
+  destinations: z.array(placeSchema).max(20).optional(),
+  origin: placeSchema.optional(),
+  startDate: z.string().date().optional(),
+  endDate: z.string().date().optional(),
+  dateFlexibility: z.enum(["exact", "few_days", "few_weeks", "open"]).optional(),
+  durationNights: z.number().int().min(1).max(365).optional(),
+  adults: z.number().int().min(0).max(100).optional(),
+  children: z
+    .array(z.object({ age: z.number().int().min(0).max(17).optional() }))
+    .max(100)
+    .optional(),
+  rooms: z.number().int().min(1).max(100).optional(),
+  budget: z
+    .object({
+      amountCents: z.number().int().nonnegative().optional(),
+      currency: z
+        .string()
+        .trim()
+        .regex(/^[A-Z]{3}$/),
+      basis: z.enum(["total", "per_person"]).optional(),
+      flexibility: z.enum(["firm", "approximate", "unknown"]).optional(),
+    })
+    .optional(),
+  interests: z.array(z.string().trim().min(1).max(100)).max(50).optional(),
+  accessibilityOrDietaryNotes: z.string().max(4000).optional(),
+})
+
+export const inquiryConsentSnapshotSchema = z.record(z.string(), z.unknown())
+export const inquiryCustomFieldsSchema = z.record(z.string(), z.record(z.string(), z.unknown()))
+
+export const createInquirySchema = z.object({
+  subject: z.string().trim().min(1).max(300),
+  kind: inquiryKindSchema,
+  priority: inquiryPrioritySchema.default("normal"),
+  personId: z.string().min(1).nullable().optional(),
+  organizationId: z.string().min(1).nullable().optional(),
+  contactSnapshot: inquiryContactSnapshotSchema,
+  ownerId: z.string().min(1).nullable().optional(),
+  teamId: z.string().min(1).nullable().optional(),
+  unassignedReason: z.string().trim().min(1).max(500).nullable().optional(),
+  nextActionAt: z.string().datetime().nullable().optional(),
+  travelBrief: inquiryTravelBriefV1Schema.nullable().optional(),
+  customerMessage: z.string().max(20_000).nullable().optional(),
+  internalSummary: z.string().max(10_000).nullable().optional(),
+  source: inquirySourceSchema,
+  sourceRef: z.string().trim().min(1).max(500).nullable().optional(),
+  sourceUrl: z.string().url().max(2_000).nullable().optional(),
+  locale: z.string().trim().min(2).max(35).nullable().optional(),
+  consentSnapshot: inquiryConsentSnapshotSchema.nullable().optional(),
+  tags: z.array(z.string().trim().min(1).max(100)).max(100).default([]),
+  customFields: inquiryCustomFieldsSchema.default({}),
+})
+
+export const updateInquirySchema = createInquirySchema
+  .pick({
+    subject: true,
+    kind: true,
+    priority: true,
+    personId: true,
+    organizationId: true,
+    contactSnapshot: true,
+    nextActionAt: true,
+    travelBrief: true,
+    customerMessage: true,
+    internalSummary: true,
+    tags: true,
+    customFields: true,
+  })
+  .partial()
+  .extend({
+    priority: inquiryPrioritySchema.optional(),
+    tags: z.array(z.string().trim().min(1).max(100)).max(100).optional(),
+    customFields: inquiryCustomFieldsSchema.optional(),
+  })
+
+export const inquiryListQuerySchema = paginationSchema.extend({
+  view: z
+    .enum([
+      "actionable",
+      "new",
+      "mine",
+      "unassigned",
+      "overdue",
+      "waiting",
+      "qualified",
+      "converted",
+      "closed",
+    ])
+    .describe("Saved work-queue view; combined with explicit filters using AND")
+    .default("actionable"),
+  status: inquiryStatusSchema.optional(),
+  ownerId: z.string().optional(),
+  teamId: z.string().optional(),
+  priority: inquiryPrioritySchema.optional(),
+  kind: inquiryKindSchema.optional(),
+  source: inquirySourceSchema.optional(),
+  personId: z.string().optional(),
+  organizationId: z.string().optional(),
+  overdue: z
+    .enum(["true", "false"])
+    .transform((value) => value === "true")
+    .optional(),
+  search: z.string().trim().max(300).optional(),
+})
+
+export const transitionInquirySchema = z.object({
+  status: z.enum(["triaged", "in_progress", "waiting_on_customer", "qualified"]),
+  nextActionAt: z.string().datetime().nullable().optional(),
+  noFollowUpExpected: z.boolean().optional(),
+  unassignedReason: z.string().trim().min(1).max(500).nullable().optional(),
+})
+
+export const assignInquirySchema = z
+  .object({
+    ownerId: z.string().min(1).nullable(),
+    teamId: z.string().min(1).nullable().optional(),
+    unassignedReason: z.string().trim().min(1).max(500).nullable().optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.ownerId === null && !value.unassignedReason) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["unassignedReason"],
+        message: "An unassigned reason is required when clearing the owner",
+      })
+    }
+  })
+
+export const closeInquirySchema = z
+  .object({
+    outcome: inquiryCloseOutcomeSchema,
+    duplicateOfInquiryId: z.string().min(1).nullable().optional(),
+    note: z.string().trim().min(1).max(4000).nullable().optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.outcome === "duplicate" && !value.duplicateOfInquiryId) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["duplicateOfInquiryId"],
+        message: "A duplicate inquiry id is required",
+      })
+    }
+    if (value.outcome === "other" && !value.note) {
+      ctx.addIssue({ code: "custom", path: ["note"], message: "A close note is required" })
+    }
+  })
+
+export const reopenInquirySchema = z.object({
+  nextActionAt: z.string().datetime().nullable().optional(),
+  unassignedReason: z.string().trim().min(1).max(500).nullable().optional(),
+})
+
+/** Explicit command body: the server owns the timestamp and stamps it once. */
+export const recordInquiryFirstResponseSchema = z.object({}).strict()
+
+/**
+ * One auditable item in an Inquiry timeline. Customer direction is explicit so
+ * the owner command, rather than a UI heuristic, decides whether this is the
+ * first meaningful response.
+ */
+export const recordInquiryActivitySchema = z
+  .object({
+    subject: z.string().trim().min(1).max(500),
+    type: z.enum(["call", "email", "meeting", "task", "follow_up", "note"]),
+    description: z.string().trim().max(20_000).nullable().optional(),
+    communicationDirection: z.enum(["inbound", "outbound"]).nullable().optional(),
+    occurredAt: z.string().datetime({ offset: true }).optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.communicationDirection && !["call", "email", "meeting"].includes(value.type)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["communicationDirection"],
+        message: "Only calls, emails, and meetings are customer communications",
+      })
+    }
+  })
+
+export const inquiryActivityRecordSchema = z.object({
+  id: z.string(),
+  subject: z.string(),
+  type: z.enum(["call", "email", "meeting", "task", "follow_up", "note"]),
+  ownerId: z.string().nullable(),
+  status: z.enum(["planned", "done", "cancelled"]),
+  dueAt: z.string().nullable(),
+  completedAt: z.string().nullable(),
+  location: z.string().nullable(),
+  description: z.string().nullable(),
+  customFields: z.record(z.string(), z.record(z.string(), z.unknown())),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+})
+
+export const inquiryActivityListResponseSchema = z.object({
+  data: z.array(inquiryActivityRecordSchema),
+  total: z.number().int(),
+  limit: z.number().int(),
+  offset: z.number().int(),
+})
+
+export const inquiryActivityListQuerySchema = paginationSchema
+
+export const recordInquiryActivityResultSchema = z.object({
+  data: inquiryActivityRecordSchema,
+  inquiry: z.object({
+    id: z.string(),
+    firstRespondedAt: z.string().nullable(),
+    lastActivityAt: z.string().nullable(),
+  }),
+  firstResponseStamped: z.boolean(),
+})
+
+export const convertInquiryToProposalSchema = z.object({
+  kind: z.literal("proposal"),
+  idempotencyKey: z.string().trim().min(1).max(255),
+  pipelineId: z.string().min(1).nullable().optional(),
+  stageId: z.string().min(1).nullable().optional(),
+  keepInquiryOpen: z.boolean().default(false),
+})
+
+export const convertInquiryToBookingSessionSchema = z
+  .object({
+    kind: z.literal("booking_session"),
+    idempotencyKey: z.string().trim().min(1).max(255),
+    targetLinkId: z.string().min(1),
+    channelId: z.string().min(1).nullable().optional(),
+    selection: z.record(z.string(), z.unknown()).optional(),
+    keepInquiryOpen: z.boolean().default(false),
+    nextActionAt: z.string().datetime().nullable().optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.keepInquiryOpen && !value.nextActionAt) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["nextActionAt"],
+        message: "An assisted Booking Session conversion requires a next action",
+      })
+    }
+  })
+
+export const convertInquiryToBookingSchema = z.object({
+  kind: z.literal("booking"),
+  idempotencyKey: z.string().trim().min(1).max(255),
+})
+
+export const convertInquirySchema = z.discriminatedUnion("kind", [
+  convertInquiryToProposalSchema,
+  convertInquiryToBookingSessionSchema,
+  convertInquiryToBookingSchema,
+])
+
+export const inquiryBookingConversionRefusalReasonSchema = z.enum([
+  "booking_session_required",
+  "target_not_found",
+  "unsupported_target",
+  "idempotency_conflict",
+  "invalid_selection",
+  "target_unavailable",
+])
+
+export const inquiryBookingConversionResultSchema = z.object({
+  data: z.object({
+    kind: z.enum(["created", "replayed"]),
+    conversionId: z.string(),
+    inquiryId: z.string(),
+    inquiryStatus: z.enum(["in_progress", "converted"]),
+    target: z.object({ kind: z.literal("booking_session"), id: z.string() }),
+  }),
+})
+
+export const inquiryBookingConversionRefusalSchema = z.object({
+  error: z.string(),
+  reason: inquiryBookingConversionRefusalReasonSchema,
+})
+
+export const inquiryProposalConversionRefusalReasonSchema = z.enum([
+  "invalid_input",
+  "pipeline_not_found",
+  "default_pipeline_not_found",
+  "stage_not_found",
+  "stage_pipeline_mismatch",
+  "stage_closed",
+  "open_stage_not_found",
+  "source_conflict",
+])
+
+export const inquiryProposalConversionResultSchema = z.object({
+  data: z.object({
+    kind: z.enum(["created", "replayed"]),
+    conversionId: z.string(),
+    inquiryId: z.string(),
+    inquiryStatus: z.enum(["qualified", "converted"]),
+    target: z.object({
+      kind: z.literal("proposal"),
+      id: z.string(),
+      pipelineId: z.string(),
+      stageId: z.string(),
+    }),
+  }),
+})
+
+export const inquiryProposalConversionRefusalSchema = z.object({
+  error: z.string(),
+  reason: inquiryProposalConversionRefusalReasonSchema,
+})
+
+const isoTimestampSchema = z.string()
+
+/** Canonical serialized Inquiry row shared by admin clients and future intake surfaces. */
+export const inquiryRecordSchema = z.object({
+  id: z.string(),
+  subject: z.string(),
+  kind: inquiryKindSchema,
+  status: inquiryStatusSchema,
+  closeOutcome: inquiryCloseOutcomeSchema.nullable(),
+  closeNote: z.string().nullable(),
+  duplicateOfInquiryId: z.string().nullable(),
+  priority: z.string(),
+  personId: z.string().nullable(),
+  organizationId: z.string().nullable(),
+  contactSnapshot: inquiryContactSnapshotSchema,
+  ownerId: z.string().nullable(),
+  teamId: z.string().nullable(),
+  unassignedReason: z.string().nullable(),
+  nextActionAt: isoTimestampSchema.nullable(),
+  firstResponseDueAt: isoTimestampSchema.nullable(),
+  firstRespondedAt: isoTimestampSchema.nullable(),
+  travelBrief: inquiryTravelBriefV1Schema.nullable(),
+  customerMessage: z.string().nullable(),
+  internalSummary: z.string().nullable(),
+  source: z.string(),
+  sourceRef: z.string().nullable(),
+  sourceUrl: z.string().nullable(),
+  locale: z.string().nullable(),
+  consentSnapshot: inquiryConsentSnapshotSchema.nullable(),
+  tags: z.array(z.string()),
+  customFields: inquiryCustomFieldsSchema,
+  lastActivityAt: isoTimestampSchema.nullable(),
+  qualifiedAt: isoTimestampSchema.nullable(),
+  convertedAt: isoTimestampSchema.nullable(),
+  closedAt: isoTimestampSchema.nullable(),
+  privacyErasedAt: isoTimestampSchema.nullable().default(null),
+  privacyErasedBy: z.string().nullable().default(null),
+  privacyErasureReason: z
+    .enum(["data_subject_request", "retention_expired", "consent_withdrawn", "admin_correction"])
+    .nullable()
+    .default(null),
+  privacyPurgeAssetIds: z.array(z.string()).default([]),
+  createdAt: isoTimestampSchema,
+  updatedAt: isoTimestampSchema,
+  targets: z.array(inquiryTargetRecordSchema),
+  attachments: z.array(inquiryAttachmentRecordSchema).default([]),
+})
+
+export const inquiryResponseSchema = z.object({ data: inquiryRecordSchema })
+export const inquiryCreateResponseSchema = z.object({
+  data: inquiryRecordSchema,
+  replayed: z.boolean(),
+})
+export const inquiryListResponseSchema = z.object({
+  data: z.array(inquiryRecordSchema),
+  total: z.number().int(),
+  limit: z.number().int(),
+  offset: z.number().int(),
+})
+
+export const eraseInquiryPrivacySchema = z.object({
+  reasonCode: z.enum([
+    "data_subject_request",
+    "retention_expired",
+    "consent_withdrawn",
+    "admin_correction",
+  ]),
+})
+export const inquiryPrivacyExportSchema = z.object({
+  inquiry: inquiryRecordSchema,
+  conversionProvenance: z.array(
+    z.object({ id: z.string(), kind: z.string(), targetId: z.string(), createdAt: z.string() }),
+  ),
+  activities: z.array(inquiryActivityRecordSchema),
+  attachmentBinaryManifest: z.array(
+    z.object({
+      linkId: z.string(),
+      assetId: z.string(),
+      name: z.string(),
+      mimeType: z.string().nullable(),
+      downloadPath: z.string(),
+      authenticationRequired: z.literal(true),
+    }),
+  ),
+  activityIds: z.array(z.string()),
+  attachmentIds: z.array(z.string()),
+  classification: z.record(
+    z.string(),
+    z.enum(["personal_data", "operational", "audit_provenance", "legal_reference"]),
+  ),
+})
+export const inquiryPrivacyExportResponseSchema = z.object({ data: inquiryPrivacyExportSchema })
+
+export type InquiryKind = z.infer<typeof inquiryKindSchema>
+export type InquiryTargetKind = z.infer<typeof inquiryTargetKindSchema>
+export type InquiryTargetSnapshot = z.infer<typeof inquiryTargetSnapshotSchema>
+export type AddInquiryTargetInput = z.infer<typeof addInquiryTargetSchema>
+export type InquiryTargetRecord = z.infer<typeof inquiryTargetRecordSchema>
+export type AttachInquiryAssetInput = z.infer<typeof attachInquiryAssetSchema>
+export type UpdateInquiryAttachmentInput = z.infer<typeof updateInquiryAttachmentSchema>
+export type InquiryAttachmentRecord = z.infer<typeof inquiryAttachmentRecordSchema>
+export type InquiryStatus = z.infer<typeof inquiryStatusSchema>
+export type InquiryPriority = z.infer<typeof inquiryPrioritySchema>
+export type InquirySource = z.infer<typeof inquirySourceSchema>
+export type InquiryCloseOutcome = z.infer<typeof inquiryCloseOutcomeSchema>
+export type InquiryTravelBriefV1 = z.infer<typeof inquiryTravelBriefV1Schema>
+export type CreateInquiryInput = z.infer<typeof createInquirySchema>
+export type UpdateInquiryInput = z.infer<typeof updateInquirySchema>
+export type InquiryListQueryInput = z.infer<typeof inquiryListQuerySchema>
+export type TransitionInquiryInput = z.infer<typeof transitionInquirySchema>
+export type AssignInquiryInput = z.infer<typeof assignInquirySchema>
+export type CloseInquiryInput = z.infer<typeof closeInquirySchema>
+export type ReopenInquiryInput = z.infer<typeof reopenInquirySchema>
+export type RecordInquiryFirstResponseInput = z.infer<typeof recordInquiryFirstResponseSchema>
+export type RecordInquiryActivityInput = z.infer<typeof recordInquiryActivitySchema>
+export type InquiryActivityRecord = z.infer<typeof inquiryActivityRecordSchema>
+export type ConvertInquiryToProposalCommand = z.infer<typeof convertInquiryToProposalSchema>
+export type ConvertInquiryToBookingSessionCommand = z.infer<
+  typeof convertInquiryToBookingSessionSchema
+>
+export type ConvertInquiryToBookingCommand = z.infer<typeof convertInquiryToBookingSchema>
+export type ConvertInquiryCommand = z.infer<typeof convertInquirySchema>
+export type InquiryBookingConversionRefusalReason = z.infer<
+  typeof inquiryBookingConversionRefusalReasonSchema
+>
+export type InquiryBookingConversionResult = z.infer<
+  typeof inquiryBookingConversionResultSchema
+>["data"]
+export type InquiryProposalConversionResult = z.infer<
+  typeof inquiryProposalConversionResultSchema
+>["data"]
+export type InquiryProposalConversionRefusalReason = z.infer<
+  typeof inquiryProposalConversionRefusalReasonSchema
+>
+export type InquiryRecord = z.infer<typeof inquiryRecordSchema>
+export type InquiryCreateResponse = z.infer<typeof inquiryCreateResponseSchema>
+export type EraseInquiryPrivacyInput = z.infer<typeof eraseInquiryPrivacySchema>
+export type InquiryPrivacyErasureReasonCode = EraseInquiryPrivacyInput["reasonCode"]

@@ -24,6 +24,13 @@ export const notificationsVoyantModule = defineModule({
   id: "@voyant-travel/notifications",
   packageName: "@voyant-travel/notifications",
   localId: "notifications",
+  config: [
+    {
+      id: "@voyant-travel/notifications#config.admin-inquiry-detail-path-template",
+      key: "ADMIN_DESTINATION_INQUIRY_DETAIL_PATH_TEMPLATE",
+      required: false,
+    },
+  ],
   runtimePorts: [
     requirePort(notificationsRuntimePort),
     requirePort(notificationsReminderJobRuntimePort),
@@ -548,6 +555,28 @@ export const notificationsReminderSubscribersVoyantPlugin = defineExtension({
         export: "notificationsStaffCustomerSignalCreatedAlertSubscriber",
       },
     },
+    ...[
+      ["inquiry.created", "inquiry.created", "notificationsStaffInquiryCreatedAlertSubscriber"],
+      ["inquiry.assigned", "inquiry.assigned", "notificationsStaffInquiryAssignedAlertSubscriber"],
+      [
+        "inquiry.first_response_overdue",
+        "inquiry.first-response-overdue",
+        "notificationsStaffInquiryFirstResponseOverdueAlertSubscriber",
+      ],
+      [
+        "inquiry.converted",
+        "inquiry.converted",
+        "notificationsStaffInquiryConvertedAlertSubscriber",
+      ],
+    ].map(([eventType, key, exportName]) => ({
+      id: `@voyant-travel/notifications#subscriber.staff.${key}`,
+      eventType,
+      source: "@voyant-travel/notifications/staff-alert-subscriber",
+      runtime: {
+        entry: "@voyant-travel/notifications/staff-alert-subscriber",
+        export: exportName,
+      },
+    })),
   ],
   meta: {
     ownership: "package",

@@ -12,6 +12,23 @@
   "cruise.deleted": { "entity": "cruise", "idKeys": ["id"], "kind": "admin" },
   "cruise.updated": { "entity": "cruise", "idKeys": ["id"], "kind": "admin" },
   "customer.signal.created": { "entity": "signal", "idKeys": ["id"], "kind": "admin" },
+  "inquiry.assigned": { "entity": "inquiry", "idKeys": ["id"], "kind": "admin" },
+  "inquiry.closed": { "entity": "inquiry", "idKeys": ["id"], "kind": "admin" },
+  "inquiry.converted": { "entity": "inquiry", "idKeys": ["id"], "kind": "admin" },
+  "inquiry.created": { "entity": "inquiry", "idKeys": ["id"], "kind": "admin" },
+  "inquiry.first_response_overdue": {
+    "entity": "inquiry",
+    "idKeys": ["id"],
+    "kind": "admin"
+  },
+  "inquiry.first_response_recorded": {
+    "entity": "inquiry",
+    "idKeys": ["id"],
+    "kind": "admin"
+  },
+  "inquiry.reopened": { "entity": "inquiry", "idKeys": ["id"], "kind": "admin" },
+  "inquiry.status_changed": { "entity": "inquiry", "idKeys": ["id"], "kind": "admin" },
+  "inquiry.updated": { "entity": "inquiry", "idKeys": ["id"], "kind": "admin" },
   "invoice.issued": { "entity": "invoice", "idKeys": ["invoiceId", "id"], "kind": "admin" },
   "invoice.proforma.converted": {
     "entity": "invoice",

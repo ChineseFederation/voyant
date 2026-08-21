@@ -14,6 +14,10 @@ import {
 } from "@voyant-travel/core/runtime-port"
 
 import { BOOKING_VOYANT_ACTIONS } from "./action-declarations.js"
+import {
+  bookingsCanonicalInquiryIntakeRuntimePort,
+  legacyBookingInquiryReadRuntimePort,
+} from "./inquiry/ports.js"
 import { bookingsReportingDeclaration } from "./reporting-definitions.js"
 import {
   bookingActionProjectionRuntimePort,
@@ -337,6 +341,7 @@ export const bookingsVoyantModule = defineModule({
     requirePort(customFieldsRuntimePort),
     requirePort(bookingsFinanceRuntimePort),
     requirePort(bookingsRelationshipsRuntimePort),
+    requirePort(bookingsCanonicalInquiryIntakeRuntimePort),
     requirePort(bookingsSupplierAmendmentRuntimePort, { optional: true }),
     requirePort(bookingActionProjectionRuntimePort, { optional: true }),
   ],
@@ -362,6 +367,7 @@ export const bookingsVoyantModule = defineModule({
   provides: {
     capabilities: ["bookings.data-owner"],
     ports: [
+      providePort(legacyBookingInquiryReadRuntimePort),
       providePort(actionLedgerBookingDriftRuntimePort),
       providePort(bookingsCrmSnapshotRuntimePort),
       providePort(customFieldValueLifecycleRuntimePort),

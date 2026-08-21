@@ -5,6 +5,7 @@ import {
 import { catalogOperationsRuntimeExtensionPort } from "@voyant-travel/catalog/ports"
 import { defineModule, providePort, requirePort } from "@voyant-travel/core/project"
 import { financeDepartureProfitabilityRuntimePort } from "@voyant-travel/finance-contracts/runtime-port"
+import { inquiryTargetAuthorityRuntimePort } from "@voyant-travel/relationships-contracts/inquiry-target-authority/runtime-port"
 
 import { operationsExpiredHoldsJobRuntimePort } from "./expired-holds-job-runtime-port.js"
 
@@ -42,6 +43,7 @@ export const operationsVoyantModule = defineModule({
       providePort(catalogOperationsRuntimeExtensionPort),
       providePort(operationsExpiredHoldsJobRuntimePort),
       providePort(bookingActionProjectionRuntimePort),
+      providePort(inquiryTargetAuthorityRuntimePort),
     ],
   },
   // The reaper resolves this port at run time, so the module has to declare it

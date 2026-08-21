@@ -25,7 +25,7 @@ describe("proposals deployment manifests", () => {
       packageName: "@voyant-travel/proposals",
       provides: {
         ports: [
-          { id: "proposals.checkout-inquiry.runtime" },
+          { id: "proposals.inquiry-conversion.runtime" },
           { id: "proposals.runtime" },
           { id: "finance.proposals-payment-policy.runtime" },
           { id: "custom-fields.value-lifecycle" },

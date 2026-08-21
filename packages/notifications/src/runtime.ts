@@ -19,6 +19,14 @@ export function createNotificationsRuntime(
     notificationProviders(primitives, bindings)
   return {
     resolveProviders,
+    resolveAdminDestination: (bindings, destination, params) => {
+      if (destination !== "inquiry.detail" || !params.inquiryId) return null
+      const template = nonEmpty(
+        primitives.env(bindings).ADMIN_DESTINATION_INQUIRY_DETAIL_PATH_TEMPLATE,
+      )
+      if (!template?.includes("{inquiryId}") || !template.startsWith("/")) return null
+      return template.replace("{inquiryId}", encodeURIComponent(params.inquiryId))
+    },
     resolvePublicCheckoutBaseUrl: (bindings) => resolvePublicBaseUrl(primitives.env(bindings)),
     resolvePaymentLinkUrlTemplate: async (db, bindings) =>
       resolveEffectivePaymentLinkUrlTemplate(

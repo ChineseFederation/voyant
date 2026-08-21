@@ -1,4 +1,5 @@
 import { bookingsRelationshipsRuntimePort } from "@voyant-travel/bookings/runtime-port"
+import { catalogInquiryBookingSessionRuntimePort } from "@voyant-travel/catalog/inquiry-booking-session-runtime-port"
 import { createContainer, createEventBus } from "@voyant-travel/core"
 import {
   customFieldsRuntimePort,
@@ -8,10 +9,14 @@ import {
 import { assertPortConforms } from "@voyant-travel/core/project"
 import { customFieldValueOperationsRuntimePort } from "@voyant-travel/core/runtime-port"
 import { financeStoredInstrumentRuntimePort } from "@voyant-travel/finance/runtime-port"
+import { mediaInquiryAttachmentRuntimePort } from "@voyant-travel/media/runtime-port"
+import { proposalInquiryConversionRuntimePort } from "@voyant-travel/proposals-contracts/inquiry-conversion"
+import { inquiryTargetAuthorityRuntimePort } from "@voyant-travel/relationships-contracts/inquiry-target-authority/runtime-port"
 import { describe, expect, it, vi } from "vitest"
 import { createRelationshipsVoyantRuntime, relationshipsRouteRuntimePort } from "../../src/index.js"
 import { RELATIONSHIPS_ROUTE_RUNTIME_CONTAINER_KEY } from "../../src/route-runtime.js"
 import { relationshipsRoutes } from "../../src/routes/index.js"
+import { createRelationshipsRuntimePortContribution } from "../../src/runtime-contributor.js"
 import { relationshipsMiceRuntimePort } from "../../src/runtime-port.js"
 import { relationshipsVoyantModule } from "../../src/voyant.js"
 
@@ -26,18 +31,28 @@ describe("relationships deployment manifest", () => {
           { id: "public-api.intake.runtime" },
           { id: relationshipsMiceRuntimePort.id },
           { id: bookingsRelationshipsRuntimePort.id },
+          { id: "bookings.canonical-inquiry-intake.runtime" },
           { id: financeStoredInstrumentRuntimePort.id },
           { id: relationshipsRouteRuntimePort.id },
           { id: customFieldValueReaderRuntimePort.id },
           { id: customFieldValueLifecycleRuntimePort.id },
           { id: customFieldValueOperationsRuntimePort.id },
           { id: "relationships.booking-enrichment-database" },
+          { id: "relationships.inquiry-overdue-job" },
+          { id: "relationships.legacy-inquiry-cutover-job" },
         ],
       },
       runtimePorts: [
         { id: customFieldsRuntimePort.id },
         { id: "relationships.route-runtime" },
         { id: "relationships.booking-enrichment-database" },
+        { id: "relationships.inquiry-overdue-job" },
+        { id: "relationships.legacy-inquiry-cutover-job" },
+        { id: "bookings.legacy-inquiry-read.runtime", optional: true },
+        { id: proposalInquiryConversionRuntimePort.id, optional: true },
+        { id: inquiryTargetAuthorityRuntimePort.id, optional: true, cardinality: "many" },
+        { id: catalogInquiryBookingSessionRuntimePort.id, optional: true },
+        { id: mediaInquiryAttachmentRuntimePort.id, optional: true },
         // Optional: a deployment can select CRM without Bookings, and then
         // nothing emits `booking.confirmed` for the enrichment subscriber.
         { id: "bookings.crm-snapshot.runtime", optional: true },
@@ -55,12 +70,36 @@ describe("relationships deployment manifest", () => {
             export: "createRelationshipsVoyantRuntime",
           },
         },
+        {
+          id: "@voyant-travel/relationships#api.public",
+          surface: "public",
+          mount: "relationships",
+          resource: "crm",
+          openapi: { document: "relationships" },
+          anonymous: true,
+          guardedIntake: true,
+          transactional: true,
+        },
       ],
       schema: [{ id: "@voyant-travel/relationships#schema" }],
       migrations: [{ id: "@voyant-travel/relationships#migrations" }],
+      jobs: [
+        {
+          id: "relationships.cutover-legacy-inquiries",
+          runtime: {
+            entry: "@voyant-travel/relationships/legacy-inquiry-cutover-job",
+            export: "runLegacyInquiryCutoverJob",
+          },
+        },
+        { id: "relationships.scan-inquiry-first-response-overdue" },
+      ],
       links: [
+        { id: "@voyant-travel/relationships#linkable.inquiry" },
         { id: "@voyant-travel/relationships#linkable.organization" },
         { id: "@voyant-travel/relationships#linkable.person" },
+        { id: "@voyant-travel/relationships#link.inquiry-product" },
+        { id: "@voyant-travel/relationships#link.inquiry-departure" },
+        { id: "@voyant-travel/relationships#link.inquiry-media-asset" },
       ],
     })
     expect(relationshipsVoyantModule.access?.resources).toEqual(
@@ -68,15 +107,31 @@ describe("relationships deployment manifest", () => {
         expect.objectContaining({ resource: "crm" }),
         expect.objectContaining({
           resource: "relationships-pii",
-          actions: [expect.objectContaining({ action: "read", sensitive: true })],
+          actions: expect.arrayContaining([
+            expect.objectContaining({ action: "read", sensitive: true }),
+            expect.objectContaining({ action: "delete", sensitive: true }),
+          ]),
         }),
       ]),
     )
-    expect(relationshipsVoyantModule.tools).toHaveLength(20)
+    expect(relationshipsVoyantModule.events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          eventType: "inquiry.converted",
+          payloadSchema: expect.objectContaining({
+            properties: expect.objectContaining({
+              inquiryStatus: { type: "string", enum: ["qualified", "in_progress", "converted"] },
+            }),
+          }),
+          audit: { sourceModule: "relationships", category: "domain" },
+        }),
+      ]),
+    )
+    expect(relationshipsVoyantModule.tools).toHaveLength(35)
     const toolActions = (relationshipsVoyantModule.actions ?? []).filter(
       (action) => action.from?.tools?.length,
     )
-    expect(toolActions).toHaveLength(20)
+    expect(toolActions).toHaveLength(35)
     for (const tool of relationshipsVoyantModule.tools ?? []) {
       const action = toolActions.find((candidate) => candidate.from?.tools?.includes(tool.id))
       expect(action).toBeDefined()
@@ -85,7 +140,11 @@ describe("relationships deployment manifest", () => {
           kind: "execute",
           ledger: "required",
           approval: "never",
-          reversible: action?.targetLifecycle !== "created",
+          reversible:
+            action?.id === "@voyant-travel/relationships#action.convert-inquiry" ||
+            action?.id === "@voyant-travel/relationships#action.start-booking-from-inquiry"
+              ? false
+              : action?.targetLifecycle !== "created",
         })
       }
       if (tool.risk === "high" && tool.requiredScopes.includes("crm:read")) {
@@ -96,6 +155,12 @@ describe("relationships deployment manifest", () => {
         })
       }
     }
+    expect(
+      relationshipsVoyantModule.tools?.find(({ name }) => name === "start_booking_from_inquiry"),
+    ).toMatchObject({
+      requiredScopes: ["crm:write", "catalog:booking-session-write"],
+      risk: "high",
+    })
     expect(
       relationshipsVoyantModule.actions?.find(
         ({ id }) => id === "@voyant-travel/relationships#action.create-person",
@@ -176,8 +241,13 @@ describe("relationships deployment manifest", () => {
       forEntity: () => [],
     }))
     const customFieldsForWrite = vi.fn(customFields)
+    const proposalInquiryConversion = { convertInquiry: vi.fn() }
     await expect(
-      assertPortConforms(relationshipsRouteRuntimePort, { customFields, customFieldsForWrite }),
+      assertPortConforms(relationshipsRouteRuntimePort, {
+        customFields,
+        customFieldsForWrite,
+        proposalInquiryConversion,
+      }),
     ).resolves.toBeUndefined()
     await expect(
       assertPortConforms(relationshipsRouteRuntimePort, { customFields: true } as never),
@@ -201,7 +271,11 @@ describe("relationships deployment manifest", () => {
       },
       runtimePorts: {},
       hasPort: () => true,
-      getPort: vi.fn(async () => ({ customFields, customFieldsForWrite })) as never,
+      getPort: vi.fn(async () => ({
+        customFields,
+        customFieldsForWrite,
+        proposalInquiryConversion,
+      })) as never,
       getPorts: vi.fn(async () => []) as never,
     })
     const container = createContainer()
@@ -212,7 +286,53 @@ describe("relationships deployment manifest", () => {
     expect(container.resolve(RELATIONSHIPS_ROUTE_RUNTIME_CONTAINER_KEY)).toMatchObject({
       customFields,
       customFieldsForWrite,
+      proposalInquiryConversion: { convertInquiry: expect.any(Function) },
     })
+  })
+
+  it("omits Proposal conversion from the route runtime when its optional port is absent", () => {
+    const contribution = createRelationshipsRuntimePortContribution({
+      primitives: {} as never,
+      hasRuntimePort: (port) => port.id !== proposalInquiryConversionRuntimePort.id,
+      getRuntimePort: vi.fn(async () => ({
+        resolveRegistry: vi.fn(async () => ({ all: () => [] })),
+        resolveRegistryForWrite: vi.fn(async () => ({ all: () => [] })),
+      })) as never,
+    })
+
+    expect(contribution[relationshipsRouteRuntimePort.id]).not.toHaveProperty(
+      "proposalInquiryConversion",
+    )
+  })
+
+  it("routes Inquiry target validation to exactly one selected owner authority", async () => {
+    const targetExists = vi.fn(async (_db: unknown, id: string) => id === "prod_found")
+    const contribution = createRelationshipsRuntimePortContribution({
+      primitives: {} as never,
+      hasRuntimePort: () => false,
+      getRuntimePort: vi.fn(async () => ({
+        resolveRegistry: vi.fn(async () => ({ all: () => [] })),
+        resolveRegistryForWrite: vi.fn(async () => ({ all: () => [] })),
+      })) as never,
+      getRuntimePorts: vi.fn(async (port) =>
+        port.id === inquiryTargetAuthorityRuntimePort.id ? [{ kind: "product", targetExists }] : [],
+      ) as never,
+    })
+    const runtime = contribution[relationshipsRouteRuntimePort.id] as {
+      inquiryTargetValidation: {
+        validateTarget(db: unknown, kind: "product" | "departure", id: string): Promise<string>
+      }
+    }
+
+    await expect(
+      runtime.inquiryTargetValidation.validateTarget({}, "product", "prod_found"),
+    ).resolves.toBe("valid")
+    await expect(
+      runtime.inquiryTargetValidation.validateTarget({}, "product", "prod_missing"),
+    ).resolves.toBe("not_found")
+    await expect(
+      runtime.inquiryTargetValidation.validateTarget({}, "departure", "avsl_missing"),
+    ).resolves.toBe("unavailable")
   })
 
   it("declares the packaged relationships admin routes and person-detail slot", () => {

@@ -12,6 +12,9 @@ export const customerSignalKindSchema = z.enum([
   "referral",
 ])
 
+/** New writes exclude the two kinds now owned by the Inquiry aggregate. */
+export const activeCustomerSignalKindSchema = z.enum(["wishlist", "notify", "referral"])
+
 export const customerSignalSourceSchema = z.enum([
   "form",
   "phone",
@@ -36,7 +39,7 @@ const customerSignalCoreSchema = z.object({
   personId: z.string().min(1),
   productId: z.string().nullable().optional(),
   optionUnitId: z.string().nullable().optional(),
-  kind: customerSignalKindSchema,
+  kind: activeCustomerSignalKindSchema,
   source: customerSignalSourceSchema,
   status: customerSignalStatusSchema.default("new"),
   priority: customerSignalPrioritySchema.default("normal"),

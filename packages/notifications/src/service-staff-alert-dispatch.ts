@@ -24,6 +24,7 @@ import {
 import { getStaffAlertSetting, listStaffAlertOptOutUserIds } from "./service-staff-alerts.js"
 import {
   getStaffAlertDefinition,
+  type StaffAlertAdminDestinationResolver,
   type StaffAlertContextMap,
   type StaffAlertContextResolverRegistry,
   type StaffAlertEventKey,
@@ -37,6 +38,7 @@ export interface StaffAlertRuntime {
   resolvers: StaffAlertContextResolverRegistry
   /** Operator identity for the email shell. Resolved once per dispatch. */
   resolveBrand(db: PostgresJsDatabase): Promise<StaffAlertBrand>
+  resolveAdminDestination: StaffAlertAdminDestinationResolver
 }
 
 export const STAFF_ALERT_RUNTIME_KEY = "notifications.staffAlertRuntime"
@@ -145,6 +147,13 @@ function targetFor(
       // in `target_id` where the ledger can still be filtered on it.
       return { ...empty, targetType: "other", targetId: typed.signalId }
     }
+    case "staff.inquiry.created":
+    case "staff.inquiry.assigned":
+    case "staff.inquiry.first-response-overdue":
+    case "staff.inquiry.converted": {
+      const typed = context as StaffAlertContextMap["staff.inquiry.created"]
+      return { ...empty, targetType: "other", targetId: typed.inquiryId }
+    }
     default: {
       const exhaustive: never = eventKey
       throw new Error(`No delivery target mapping for "${String(exhaustive)}".`)
@@ -167,7 +176,11 @@ export async function dispatchStaffAlert(
   const resolver = runtime.resolvers[eventKey]
   if (!resolver) return { skipped: "no-resolver", enqueued: 0 }
 
-  const context = await resolver.resolve({ db, payload: input.payload })
+  const context = await resolver.resolve({
+    db,
+    payload: input.payload,
+    resolveAdminDestination: runtime.resolveAdminDestination,
+  })
   if (!context) return { skipped: "no-context", enqueued: 0 }
 
   const optedOutUserIds = await listStaffAlertOptOutUserIds(db, eventKey)

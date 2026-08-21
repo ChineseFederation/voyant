@@ -800,6 +800,12 @@ export const publicApiOperations = {
     path: "/v1/public/realtime/token",
     keyKind: "publishable",
   },
+  postPublicRelationshipsInquiries: {
+    id: "postPublicRelationshipsInquiries",
+    method: "POST",
+    path: "/v1/public/relationships/inquiries",
+    keyKind: "secret",
+  },
   postPublicShoppingSearch: {
     id: "postPublicShoppingSearch",
     method: "POST",

@@ -36,7 +36,10 @@ providers: [
   },
 ],
 subscribers: [
-  ["product.created", "realtimeProductCreatedInvalidationSubscriber"],
+  [
+    "product.created",
+    "realtimeProductCreatedInvalidationSubscriber",
+  ],
 ].map(([eventType, exportName]) => ({
   eventType,
   source: "@voyant-travel/realtime/runtime",
@@ -100,7 +103,10 @@ describe("Realtime runtime authority checker", () => {
   it("rejects a route without a selected descriptor", async () => {
     const root = await fixture({
       "packages/realtime/src/voyant.ts": manifest.replace(
-        '["product.created", "realtimeProductCreatedInvalidationSubscriber"],',
+        `[
+    "product.created",
+    "realtimeProductCreatedInvalidationSubscriber",
+  ],`,
         "",
       ),
     })

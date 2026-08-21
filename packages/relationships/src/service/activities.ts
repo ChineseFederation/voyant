@@ -6,6 +6,7 @@ import {
   activities,
   activityLinks,
   activityParticipants,
+  inquiries,
   organizations,
   people,
 } from "../schema.js"
@@ -85,6 +86,14 @@ async function linkedEntityExists(db: PostgresJsDatabase, data: CreateActivityLi
       return foreignRowExists(db, "proposals", data.entityId)
     case "booking":
       return foreignRowExists(db, "bookings", data.entityId)
+    case "inquiry": {
+      const [row] = await db
+        .select({ id: inquiries.id })
+        .from(inquiries)
+        .where(eq(inquiries.id, data.entityId))
+        .limit(1)
+      return !!row
+    }
   }
 }
 
@@ -127,7 +136,7 @@ export const activitiesService = {
         .where(where)
         .limit(query.limit)
         .offset(query.offset)
-        .orderBy(desc(activities.updatedAt)),
+        .orderBy(desc(activities.createdAt), desc(activities.id)),
       db.select({ count: sql<number>`count(*)::int` }).from(activities).where(where),
       query.limit,
       query.offset,

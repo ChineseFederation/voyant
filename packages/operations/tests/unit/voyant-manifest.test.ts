@@ -1,3 +1,4 @@
+import { inquiryTargetAuthorityRuntimePort } from "@voyant-travel/relationships-contracts/inquiry-target-authority/runtime-port"
 import { describe, expect, it } from "vitest"
 import { operationsDashboardVoyantModule, operationsVoyantModule } from "../../src/voyant.js"
 
@@ -12,6 +13,7 @@ describe("operations deployment manifest", () => {
           { id: "catalog.extension.operations" },
           { id: "operations.expired-holds-job" },
           { id: "bookings.booking-action-projection.runtime" },
+          { id: inquiryTargetAuthorityRuntimePort.id },
         ],
       },
       // Required as well as provided — the job resolves the port at run time and

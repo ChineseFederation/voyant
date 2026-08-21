@@ -20,6 +20,7 @@ import { listResponseSchema } from "@voyant-travel/types"
 import { z } from "zod"
 
 import {
+  RELATIONSHIPS_INQUIRY_HANDLER_ACTION_POLICY,
   RELATIONSHIPS_ORGANIZATION_HANDLER_ACTION_POLICY,
   RELATIONSHIPS_PERSON_HANDLER_ACTION_POLICY,
 } from "./created-target-policy.js"
@@ -32,6 +33,20 @@ import {
   personSchema,
 } from "./routes/accounts-openapi-schemas.js"
 import {
+  addInquiryTargetSchema,
+  assignInquirySchema,
+  closeInquirySchema,
+  convertInquiryToBookingSessionSchema,
+  convertInquiryToProposalSchema,
+  createInquirySchema,
+  eraseInquiryPrivacySchema,
+  inquiryAttachmentRecordSchema,
+  inquiryBookingConversionResultSchema,
+  inquiryListQuerySchema,
+  inquiryListResponseSchema,
+  inquiryProposalConversionResultSchema,
+  inquiryRecordSchema,
+  inquiryTargetRecordSchema,
   insertOrganizationSchema,
   insertPersonNoteSchema,
   insertPersonSchema,
@@ -39,8 +54,12 @@ import {
   organizationListSortDirSchema,
   organizationListSortFieldSchema,
   personListQuerySchema,
+  recordInquiryActivitySchema,
   recordStatusSchema,
   relationTypeSchema,
+  reopenInquirySchema,
+  transitionInquirySchema,
+  updateInquirySchema,
   updateOrganizationSchema,
   updatePersonNoteSchema,
   updatePersonSchema,
@@ -191,6 +210,74 @@ const editAddressInputSchema = updateAddressSchema
   .omit({ entityType: true, entityId: true, metadata: true })
   .extend({ id: z.string().min(1) })
 
+export const createInquiryToolInputSchema = createInquirySchema
+  .omit({
+    source: true,
+    sourceRef: true,
+  })
+  .extend({
+    contactSnapshot: z
+      .object({
+        name: z.string().trim().min(1).max(200).optional(),
+        email: z.string().trim().max(320).optional(),
+        phone: z.string().trim().min(1).max(80).optional(),
+      })
+      .describe("Provide at least one contact detail: name, email, or phone."),
+  })
+const inquiryIdSchema = z.object({ id: z.string().min(1) })
+const assignInquiryToolInputSchema = inquiryIdSchema.and(assignInquirySchema)
+const closeInquiryToolInputSchema = inquiryIdSchema.and(closeInquirySchema)
+const convertInquiryToolInputSchema = inquiryIdSchema.and(convertInquiryToProposalSchema)
+const startBookingFromInquiryToolInputSchema = inquiryIdSchema.and(
+  convertInquiryToBookingSessionSchema,
+)
+const reopenInquiryToolInputSchema = inquiryIdSchema.and(reopenInquirySchema)
+const transitionInquiryToolInputSchema = inquiryIdSchema.and(transitionInquirySchema)
+const updateInquiryToolInputSchema = inquiryIdSchema.and(
+  updateInquirySchema.omit({ contactSnapshot: true }).extend({
+    contactSnapshot: z
+      .object({
+        name: z.string().trim().min(1).max(200).optional(),
+        email: z.string().trim().max(320).optional(),
+        phone: z.string().trim().min(1).max(80).optional(),
+      })
+      .optional()
+      .describe("Email syntax is validated by the Inquiry owner command."),
+  }),
+)
+const recordInquiryActivityToolInputSchema = inquiryIdSchema.and(recordInquiryActivitySchema)
+const qualifyInquiryToolInputSchema = inquiryIdSchema
+const manageInquiryTargetToolInputSchema = z.discriminatedUnion("operation", [
+  inquiryIdSchema.extend({ operation: z.literal("add"), ...addInquiryTargetSchema.shape }),
+  inquiryIdSchema.extend({
+    operation: z.literal("remove"),
+    targetLinkId: z.string().min(1),
+  }),
+])
+const manageInquiryTargetOutputSchema = z.discriminatedUnion("operation", [
+  z.object({ operation: z.literal("add"), target: inquiryTargetRecordSchema }),
+  z.object({ operation: z.literal("remove"), removedLinkId: z.string() }),
+])
+const uploadInquiryAttachmentToolInputSchema = inquiryIdSchema.extend({
+  operationKey: z.string().regex(/^[A-Za-z0-9_-]{16,128}$/),
+  name: z.string().trim().min(1).max(500),
+  mimeType: z.string().trim().min(1).max(255).nullable().optional(),
+  caption: z.string().trim().min(1).max(2_000).nullable().optional(),
+  contentBase64: z
+    .string()
+    .min(1)
+    .max(34_952_536)
+    .regex(/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/)
+    .describe("Base64-encoded private document bytes, limited to 25 MiB after decoding."),
+})
+const eraseInquiryPrivacyToolInputSchema = inquiryIdSchema.and(eraseInquiryPrivacySchema)
+const createInquiryOutputSchema = z.object({
+  data: inquiryRecordSchema,
+  replayed: z.boolean(),
+})
+const inquiryConversionOutputSchema = inquiryProposalConversionResultSchema.shape.data
+const inquiryBookingConversionOutputSchema = inquiryBookingConversionResultSchema.shape.data
+
 type PersonListQuery = z.infer<typeof personListQuerySchema>
 type OrganizationListQuery = z.infer<typeof organizationListQuerySchema>
 type OrganizationToolListInput = z.infer<typeof organizationToolListInputSchema>
@@ -208,6 +295,19 @@ type EditContactMethodInput = z.infer<typeof editContactMethodInputSchema>
 type AddAddressInput = z.infer<typeof addAddressInputSchema>
 type AddOwnedAddressInput = z.infer<typeof addOwnedAddressInputSchema>
 type EditAddressInput = z.infer<typeof editAddressInputSchema>
+type CreateInquiryToolInput = z.infer<typeof createInquiryToolInputSchema>
+type AssignInquiryToolInput = z.infer<typeof assignInquiryToolInputSchema>
+type CloseInquiryToolInput = z.infer<typeof closeInquiryToolInputSchema>
+type ConvertInquiryToolInput = z.infer<typeof convertInquiryToolInputSchema>
+type StartBookingFromInquiryToolInput = z.infer<typeof startBookingFromInquiryToolInputSchema>
+type ReopenInquiryToolInput = z.infer<typeof reopenInquiryToolInputSchema>
+type TransitionInquiryToolInput = z.infer<typeof transitionInquiryToolInputSchema>
+type UpdateInquiryToolInput = z.infer<typeof updateInquiryToolInputSchema>
+type RecordInquiryActivityToolInput = z.infer<typeof recordInquiryActivityToolInputSchema>
+type QualifyInquiryToolInput = z.infer<typeof qualifyInquiryToolInputSchema>
+type ManageInquiryTargetToolInput = z.infer<typeof manageInquiryTargetToolInputSchema>
+type UploadInquiryAttachmentToolInput = z.infer<typeof uploadInquiryAttachmentToolInputSchema>
+type EraseInquiryPrivacyToolInput = z.infer<typeof eraseInquiryPrivacyToolInputSchema>
 
 /** Request-scoped Relationships operations used by CRM tools. */
 export interface RelationshipsToolServices {
@@ -231,6 +331,24 @@ export interface RelationshipsToolServices {
   listAddresses(input: EntityArgs): Promise<unknown>
   addAddress(input: AddAddressInput): Promise<unknown>
   updateAddress(input: EditAddressInput): Promise<unknown>
+  createInquiry(
+    input: CreateInquiryToolInput,
+    admitted: ToolHandlerActionPolicyContext,
+  ): Promise<unknown>
+  listInquiries(input: z.infer<typeof inquiryListQuerySchema>): Promise<unknown>
+  getInquiry(id: string): Promise<unknown>
+  updateInquiry(input: UpdateInquiryToolInput): Promise<unknown>
+  recordInquiryActivity(input: RecordInquiryActivityToolInput): Promise<unknown>
+  qualifyInquiry(input: QualifyInquiryToolInput): Promise<unknown>
+  manageInquiryTarget(input: ManageInquiryTargetToolInput): Promise<unknown>
+  uploadInquiryAttachment(input: UploadInquiryAttachmentToolInput): Promise<unknown>
+  eraseInquiryPrivacy(input: EraseInquiryPrivacyToolInput): Promise<unknown>
+  assignInquiry(input: AssignInquiryToolInput): Promise<unknown>
+  closeInquiry(input: CloseInquiryToolInput): Promise<unknown>
+  convertInquiry(input: ConvertInquiryToolInput): Promise<unknown>
+  startBookingFromInquiry(input: StartBookingFromInquiryToolInput): Promise<unknown>
+  reopenInquiry(input: ReopenInquiryToolInput): Promise<unknown>
+  transitionInquiry(input: TransitionInquiryToolInput): Promise<unknown>
 }
 
 export type RelationshipsToolContext = ToolContext & { relationships?: RelationshipsToolServices }
@@ -624,6 +742,289 @@ export const updateRelationshipAddressTool = defineTool<
   },
 })
 
+export const createInquiryTool = defineTool<
+  CreateInquiryToolInput,
+  z.infer<typeof createInquiryOutputSchema>,
+  RelationshipsToolContext
+>({
+  ...routineWriteMetadata,
+  riskPolicy: CREATED_WRITE_RISK,
+  capabilityId: `${OWNER}#tool.create-inquiry`,
+  name: "create_inquiry",
+  description:
+    "Create an agency Inquiry from staff intake. Exact retries resolve the original Inquiry.",
+  inputSchema: createInquiryToolInputSchema,
+  outputSchema: createInquiryOutputSchema,
+  annotations: { idempotentHint: true },
+  resolvesIdempotencyKeyServerSide: true,
+  actionPolicyEnforcement: "handler",
+  async handler(input, ctx) {
+    const validated = createInquirySchema.omit({ source: true, sourceRef: true }).parse(input)
+    const admitted = admitHandlerActionPolicy(ctx, RELATIONSHIPS_INQUIRY_HANDLER_ACTION_POLICY)
+    return parseJsonResult(
+      createInquiryOutputSchema,
+      await crm(ctx).createInquiry(validated, admitted),
+    )
+  },
+})
+
+export const listInquiriesTool = defineTool<
+  z.infer<typeof inquiryListQuerySchema>,
+  z.infer<typeof inquiryListResponseSchema>,
+  RelationshipsToolContext
+>({
+  ...sensitiveReadMetadata,
+  capabilityId: `${OWNER}#tool.list-inquiries`,
+  name: "list_inquiries",
+  description: "List and search the agency Inquiry work queue with live target projections.",
+  inputSchema: inquiryListQuerySchema,
+  outputSchema: inquiryListResponseSchema,
+  async handler(input, ctx) {
+    return parseJsonResult(inquiryListResponseSchema, await crm(ctx).listInquiries(input))
+  },
+})
+
+export const getInquiryTool = defineTool<
+  z.infer<typeof inquiryIdSchema>,
+  z.infer<typeof inquiryRecordSchema> | null,
+  RelationshipsToolContext
+>({
+  ...sensitiveReadMetadata,
+  capabilityId: `${OWNER}#tool.get-inquiry`,
+  name: "get_inquiry",
+  description: "Read one Inquiry, including its current owner, next action, and targets.",
+  inputSchema: inquiryIdSchema,
+  outputSchema: inquiryRecordSchema.nullable(),
+  async handler({ id }, ctx) {
+    return parseJsonResult(inquiryRecordSchema.nullable(), await crm(ctx).getInquiry(id))
+  },
+})
+
+export const updateInquiryTool = defineTool<
+  UpdateInquiryToolInput,
+  z.infer<typeof inquiryRecordSchema>,
+  RelationshipsToolContext
+>({
+  ...sensitiveWriteMetadata,
+  capabilityId: `${OWNER}#tool.update-inquiry`,
+  name: "update_inquiry",
+  description: "Update editable Inquiry request, contact, priority, next-action, and brief fields.",
+  inputSchema: updateInquiryToolInputSchema,
+  outputSchema: inquiryRecordSchema,
+  async handler(input, ctx) {
+    return parseJsonResult(inquiryRecordSchema, await crm(ctx).updateInquiry(input))
+  },
+})
+
+export const recordInquiryActivityTool = defineTool<
+  RecordInquiryActivityToolInput,
+  z.infer<typeof inquiryRecordSchema>,
+  RelationshipsToolContext
+>({
+  ...sensitiveWriteMetadata,
+  capabilityId: `${OWNER}#tool.record-inquiry-activity`,
+  name: "record_inquiry_activity",
+  description:
+    "Record an internal activity or inbound/outbound customer communication on an Inquiry timeline.",
+  inputSchema: recordInquiryActivityToolInputSchema,
+  outputSchema: inquiryRecordSchema,
+  async handler(input, ctx) {
+    return parseJsonResult(inquiryRecordSchema, await crm(ctx).recordInquiryActivity(input))
+  },
+})
+
+export const qualifyInquiryTool = defineTool<
+  QualifyInquiryToolInput,
+  z.infer<typeof inquiryRecordSchema>,
+  RelationshipsToolContext
+>({
+  ...routineWriteMetadata,
+  capabilityId: `${OWNER}#tool.qualify-inquiry`,
+  name: "qualify_inquiry",
+  description: "Qualify an eligible Inquiry through the canonical lifecycle command.",
+  inputSchema: qualifyInquiryToolInputSchema,
+  outputSchema: inquiryRecordSchema,
+  async handler(input, ctx) {
+    return parseJsonResult(inquiryRecordSchema, await crm(ctx).qualifyInquiry(input))
+  },
+})
+
+export const manageInquiryTargetTool = defineTool<
+  ManageInquiryTargetToolInput,
+  z.infer<typeof manageInquiryTargetOutputSchema>,
+  RelationshipsToolContext
+>({
+  ...sensitiveWriteMetadata,
+  capabilityId: `${OWNER}#tool.manage-inquiry-target`,
+  name: "manage_inquiry_target",
+  description:
+    "Add a validated product or option-unit target to an Inquiry, or remove one by its Inquiry target link id.",
+  inputSchema: manageInquiryTargetToolInputSchema,
+  outputSchema: manageInquiryTargetOutputSchema,
+  async handler(input, ctx) {
+    return parseJsonResult(
+      manageInquiryTargetOutputSchema,
+      await crm(ctx).manageInquiryTarget(input),
+    )
+  },
+})
+
+export const uploadInquiryAttachmentTool = defineTool<
+  UploadInquiryAttachmentToolInput,
+  z.infer<typeof inquiryAttachmentRecordSchema>,
+  RelationshipsToolContext
+>({
+  ...sensitiveWriteMetadata,
+  capabilityId: `${OWNER}#tool.upload-inquiry-attachment`,
+  name: "upload_inquiry_attachment",
+  description:
+    "Upload a private document and attach it to an Inquiry. Exact retries reuse the operation key.",
+  inputSchema: uploadInquiryAttachmentToolInputSchema,
+  outputSchema: inquiryAttachmentRecordSchema,
+  annotations: { idempotentHint: true },
+  async handler(input, ctx) {
+    return parseJsonResult(
+      inquiryAttachmentRecordSchema,
+      await crm(ctx).uploadInquiryAttachment(input),
+    )
+  },
+})
+
+export const eraseInquiryPrivacyTool = defineTool<
+  EraseInquiryPrivacyToolInput,
+  z.infer<typeof inquiryRecordSchema>,
+  RelationshipsToolContext
+>({
+  owner: OWNER,
+  capabilityId: `${OWNER}#tool.erase-inquiry-privacy`,
+  capabilityVersion: VERSION,
+  name: "erase_inquiry_privacy",
+  description:
+    "Irreversibly erase personal data from an Inquiry and queue its private documents for purge.",
+  inputSchema: eraseInquiryPrivacyToolInputSchema,
+  outputSchema: inquiryRecordSchema,
+  requiredScopes: ["relationships-pii:delete"],
+  audience: STAFF_AUDIENCE,
+  tier: "destructive",
+  riskPolicy: {
+    destructive: true,
+    reversible: false,
+    dryRunSupported: false,
+    confirmationRequired: true,
+    sideEffects: ["data-write"],
+  },
+  actionPolicyEnforcement: "handler",
+  async handler(input, ctx) {
+    return parseJsonResult(inquiryRecordSchema, await crm(ctx).eraseInquiryPrivacy(input))
+  },
+})
+
+export const assignInquiryTool = defineTool<
+  AssignInquiryToolInput,
+  z.infer<typeof inquiryRecordSchema>,
+  RelationshipsToolContext
+>({
+  ...routineWriteMetadata,
+  capabilityId: `${OWNER}#tool.assign-inquiry`,
+  name: "assign_inquiry",
+  description:
+    "Assign an open Inquiry to staff/team. Clearing ownerId requires an unassignedReason.",
+  inputSchema: assignInquiryToolInputSchema,
+  outputSchema: inquiryRecordSchema,
+  async handler(input, ctx) {
+    return parseJsonResult(inquiryRecordSchema, await crm(ctx).assignInquiry(input))
+  },
+})
+
+export const closeInquiryTool = defineTool<
+  CloseInquiryToolInput,
+  z.infer<typeof inquiryRecordSchema>,
+  RelationshipsToolContext
+>({
+  ...routineWriteMetadata,
+  capabilityId: `${OWNER}#tool.close-inquiry`,
+  name: "close_inquiry",
+  description:
+    "Close an unresolved Inquiry. Duplicate requires duplicateOfInquiryId; other requires a note.",
+  inputSchema: closeInquiryToolInputSchema,
+  outputSchema: inquiryRecordSchema,
+  async handler(input, ctx) {
+    return parseJsonResult(inquiryRecordSchema, await crm(ctx).closeInquiry(input))
+  },
+})
+
+export const convertInquiryTool = defineTool<
+  ConvertInquiryToolInput,
+  z.infer<typeof inquiryConversionOutputSchema>,
+  RelationshipsToolContext
+>({
+  ...routineWriteMetadata,
+  capabilityId: `${OWNER}#tool.convert-inquiry`,
+  name: "convert_inquiry",
+  description:
+    "Convert a qualified Inquiry to a Proposal using the required operation idempotency key.",
+  inputSchema: convertInquiryToolInputSchema,
+  outputSchema: inquiryConversionOutputSchema,
+  annotations: { idempotentHint: true },
+  async handler(input, ctx) {
+    return parseJsonResult(inquiryConversionOutputSchema, await crm(ctx).convertInquiry(input))
+  },
+})
+
+export const startBookingFromInquiryTool = defineTool<
+  StartBookingFromInquiryToolInput,
+  z.infer<typeof inquiryBookingConversionOutputSchema>,
+  RelationshipsToolContext
+>({
+  ...sensitiveWriteMetadata,
+  capabilityId: `${OWNER}#tool.start-booking-from-inquiry`,
+  name: "start_booking_from_inquiry",
+  description:
+    "Start a Booking Session from a qualified Inquiry target using caller-supplied idempotency and next-action semantics.",
+  inputSchema: startBookingFromInquiryToolInputSchema,
+  outputSchema: inquiryBookingConversionOutputSchema,
+  requiredScopes: ["crm:write", "catalog:booking-session-write"],
+  annotations: { idempotentHint: true },
+  async handler(input, ctx) {
+    return parseJsonResult(
+      inquiryBookingConversionOutputSchema,
+      await crm(ctx).startBookingFromInquiry(input),
+    )
+  },
+})
+
+export const reopenInquiryTool = defineTool<
+  ReopenInquiryToolInput,
+  z.infer<typeof inquiryRecordSchema>,
+  RelationshipsToolContext
+>({
+  ...routineWriteMetadata,
+  capabilityId: `${OWNER}#tool.reopen-inquiry`,
+  name: "reopen_inquiry",
+  description: "Reopen a closed Inquiry into triage with an actionable ownership posture.",
+  inputSchema: reopenInquiryToolInputSchema,
+  outputSchema: inquiryRecordSchema,
+  async handler(input, ctx) {
+    return parseJsonResult(inquiryRecordSchema, await crm(ctx).reopenInquiry(input))
+  },
+})
+
+export const transitionInquiryTool = defineTool<
+  TransitionInquiryToolInput,
+  z.infer<typeof inquiryRecordSchema>,
+  RelationshipsToolContext
+>({
+  ...routineWriteMetadata,
+  capabilityId: `${OWNER}#tool.transition-inquiry`,
+  name: "transition_inquiry",
+  description: "Advance an Inquiry through its validated pre-resolution lifecycle.",
+  inputSchema: transitionInquiryToolInputSchema,
+  outputSchema: inquiryRecordSchema,
+  async handler(input, ctx) {
+    return parseJsonResult(inquiryRecordSchema, await crm(ctx).transitionInquiry(input))
+  },
+})
+
 export const relationshipsTools = [
   listPeopleTool,
   getPersonTool,
@@ -645,6 +1046,21 @@ export const relationshipsTools = [
   addPersonAddressTool,
   addOrganizationAddressTool,
   updateRelationshipAddressTool,
+  createInquiryTool,
+  listInquiriesTool,
+  getInquiryTool,
+  updateInquiryTool,
+  recordInquiryActivityTool,
+  qualifyInquiryTool,
+  manageInquiryTargetTool,
+  uploadInquiryAttachmentTool,
+  eraseInquiryPrivacyTool,
+  assignInquiryTool,
+  closeInquiryTool,
+  convertInquiryTool,
+  startBookingFromInquiryTool,
+  reopenInquiryTool,
+  transitionInquiryTool,
 ] as const
 
 function parseJsonResult<T extends z.ZodType>(schema: T, value: unknown): z.output<T> {

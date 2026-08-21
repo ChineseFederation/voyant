@@ -10,6 +10,7 @@ import { StaffBookingConfirmedEmail } from "./staff/booking-confirmed.js"
 import { StaffBookingInquiryCreatedEmail } from "./staff/booking-inquiry-created.js"
 import { StaffContractSignedEmail } from "./staff/contract-signed.js"
 import { StaffCustomerSignalCreatedEmail } from "./staff/customer-signal-created.js"
+import { StaffInquiryEmail } from "./staff/inquiry.js"
 import { StaffInvoiceSettledEmail } from "./staff/invoice-settled.js"
 import { StaffPaymentCompletedEmail } from "./staff/payment-completed.js"
 import { StaffPaymentSettlementStrandedEmail } from "./staff/payment-settlement-stranded.js"
@@ -129,6 +130,23 @@ function selectTemplate<K extends StaffAlertEventKey>(
         subject: messages.customerSignalCreated.subject(
           context.person?.name ?? messages.common.unknownCustomer,
         ),
+      }
+    }
+    case "staff.inquiry.created":
+    case "staff.inquiry.assigned":
+    case "staff.inquiry.first-response-overdue":
+    case "staff.inquiry.converted": {
+      const context = input.context as StaffAlertContextMap["staff.inquiry.created"]
+      return {
+        element: (
+          <StaffInquiryEmail
+            context={context}
+            brand={brand}
+            messages={messages}
+            isAssignee={input.isAssignee ?? false}
+          />
+        ),
+        subject: messages.inquiry.subject(context.alertKind, context.subject),
       }
     }
     default: {

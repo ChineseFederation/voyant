@@ -20,6 +20,7 @@ import { bookingInquiriesService, bookingsService } from "@voyant-travel/booking
 import { financeInvoiceCoreService } from "@voyant-travel/finance/service-invoice-core"
 import { getOperatorProfile } from "@voyant-travel/operator-settings/service"
 import { relationshipsService } from "@voyant-travel/relationships"
+import { INQUIRY_DETAIL_DESTINATION } from "@voyant-travel/relationships-contracts/inquiry-navigation"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
 import {
@@ -284,6 +285,56 @@ const customerSignalCreatedResolver: StaffAlertContextResolver<"staff.customer-s
   },
 }
 
+function inquiryResolver<
+  K extends Extract<
+    import("./staff-alert-registry.js").StaffAlertEventKey,
+    `staff.inquiry.${string}`
+  >,
+>(
+  eventKey: K,
+  alertKind: import("./staff-alert-registry.js").StaffInquiryAlertKind,
+): StaffAlertContextResolver<K> {
+  return {
+    eventKey,
+    async resolve({ db, payload, resolveAdminDestination }) {
+      const inquiryId = asString(payload.id)
+      if (!inquiryId) return null
+      if (!resolveAdminDestination) {
+        throw new Error("Inquiry staff alerts require an admin destination resolver.")
+      }
+      const inquiry = await relationshipsService.getInquiry(db as PostgresJsDatabase, inquiryId)
+      if (!inquiry) return null
+      const assignedOwnerId = payload.ownerId === null ? null : asString(payload.ownerId)
+      if (eventKey === "staff.inquiry.assigned" && assignedOwnerId === undefined) return null
+      const snapshot = inquiry.contactSnapshot as Record<string, unknown>
+      const name = asString(snapshot.name) ?? asString(snapshot.email) ?? asString(snapshot.phone)
+      const adminPath = resolveAdminDestination(INQUIRY_DETAIL_DESTINATION, { inquiryId })
+      if (!adminPath) return null
+
+      return {
+        adminPath,
+        assigneeUserId: eventKey === "staff.inquiry.assigned" ? assignedOwnerId : inquiry.ownerId,
+        actorUserId: asString(payload.actorId),
+        inquiryId,
+        alertKind,
+        subject: inquiry.subject,
+        contact: name ? { name, email: asString(snapshot.email) } : null,
+        source: inquiry.source,
+        status: inquiry.status,
+        firstResponseDueAt: inquiry.firstResponseDueAt?.toISOString() ?? null,
+      } as Awaited<ReturnType<StaffAlertContextResolver<K>["resolve"]>>
+    },
+  }
+}
+
+const inquiryCreatedResolver = inquiryResolver("staff.inquiry.created", "created")
+const inquiryAssignedResolver = inquiryResolver("staff.inquiry.assigned", "assigned")
+const inquiryFirstResponseOverdueResolver = inquiryResolver(
+  "staff.inquiry.first-response-overdue",
+  "first_response_overdue",
+)
+const inquiryConvertedResolver = inquiryResolver("staff.inquiry.converted", "converted")
+
 /**
  * Turn a dead-lettered delivery into a stranded-payment alert, or decline.
  *
@@ -338,6 +389,10 @@ export const staffAlertContextResolvers: StaffAlertContextResolverRegistry = {
   "staff.invoice.settled": invoiceSettledResolver,
   "staff.contract.signed": contractSignedResolver,
   "staff.customer-signal.created": customerSignalCreatedResolver,
+  "staff.inquiry.created": inquiryCreatedResolver,
+  "staff.inquiry.assigned": inquiryAssignedResolver,
+  "staff.inquiry.first-response-overdue": inquiryFirstResponseOverdueResolver,
+  "staff.inquiry.converted": inquiryConvertedResolver,
 }
 
 /**

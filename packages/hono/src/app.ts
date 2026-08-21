@@ -49,6 +49,7 @@ import {
   rateLimit,
   resolveRateLimitStore,
 } from "./middleware/rate-limit.js"
+import { installRequestPermissionAuthorizer } from "./middleware/request-permission.js"
 import { requireActor } from "./middleware/require-actor.js"
 import { securityHeaders } from "./middleware/security-headers.js"
 import { resolveSurfaceMountPath } from "./mount-paths.js"
@@ -718,6 +719,7 @@ export function mountApp<TBindings extends VoyantBindings>(
     "*",
     db(dbSource, { requiresTransactionalDb: txRequiringModules, basePath: config.basePath }),
   )
+  app.use("*", installRequestPermissionAuthorizer(composedAuth))
 
   app.use("*", async (c, next) => {
     // Bootstrap only after auth has admitted the request. Rejected requests

@@ -41,6 +41,8 @@ export const PREFIXES = {
   // --- VOYANT MODULES ---
   communication_log: "clog",
   customer_signals: "csig",
+  inquiries: "inq",
+  inquiryConversions: "icv",
   notification_templates: "ntpl",
   notification_deliveries: "ntdl",
   notification_send_operations: "nsop",

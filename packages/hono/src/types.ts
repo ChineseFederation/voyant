@@ -56,6 +56,8 @@ export type VoyantDb = PostgresJsDatabase | NeonHttpDatabase | NeonWsDatabase
 export type VoyantQueryRuntime = QueryRunner
 
 export type VoyantVariables = CoreVoyantVariables & {
+  /** Request-scoped evaluator for command-specific permissions beyond the route resource. */
+  authorizePermission?: import("./middleware/request-permission.js").RequestPermissionAuthorizer
   /**
    * Per-request correlation id (RFC #1553). Set by the `requestId` middleware;
    * also on the `X-Request-Id` response header and readable from any async

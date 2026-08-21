@@ -385,6 +385,8 @@ function createStaffAlertSubscriberRuntimeFor(
     dispatcher: createNotificationService(runtime.providers),
     resolvers: staffAlertContextResolvers,
     resolveBrand: createStaffAlertBrandResolver({ adminBaseUrl }),
+    resolveAdminDestination: (destination, params) =>
+      provider.resolveAdminDestination?.(bindings, destination, params) ?? null,
   }
 }
 

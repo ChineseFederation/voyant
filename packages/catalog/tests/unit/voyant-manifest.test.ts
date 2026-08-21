@@ -27,6 +27,7 @@ describe("catalog deployment manifest", () => {
           { id: "catalog.booking-session-maintenance-job" },
           { id: "catalog.booking-session-settlement-runtime" },
           { id: "catalog.composite-booking-session.runtime" },
+          { id: "catalog.inquiry-booking-session.runtime" },
           { id: "catalog.runtime-services" },
           { id: "catalog.reindex-products-job" },
           { id: "catalog.sources-sync-job" },
@@ -81,6 +82,7 @@ describe("catalog deployment manifest", () => {
   it("owns executable declarations for Catalog indexing and booking snapshots", () => {
     expect(catalogVoyantModule.subscribers).toEqual(
       [
+        ["booking-session-created-analytics", "catalog.booking-session.created"],
         ["index-product-created", "product.created"],
         ["index-product-updated", "product.updated"],
         ["delete-product", "product.deleted"],
@@ -97,23 +99,31 @@ describe("catalog deployment manifest", () => {
         source:
           eventType === "booking.confirmed"
             ? "@voyant-travel/catalog/booking-snapshot-subscriber"
-            : "@voyant-travel/catalog/index-subscribers",
+            : eventType === "catalog.booking-session.created"
+              ? "@voyant-travel/catalog/booking-session-created-analytics-subscriber"
+              : "@voyant-travel/catalog/index-subscribers",
         runtime:
           eventType === "booking.confirmed"
             ? {
                 entry: "@voyant-travel/catalog/booking-snapshot-subscriber",
                 export: "createCatalogBookingSnapshotSubscriberGraphRuntime",
               }
-            : {
-                entry: "@voyant-travel/catalog/index-subscribers",
-                export: expect.stringMatching(/^createCatalog.+IndexSubscriberGraphRuntime$/),
-              },
+            : eventType === "catalog.booking-session.created"
+              ? {
+                  entry: "@voyant-travel/catalog/booking-session-created-analytics-subscriber",
+                  export: "createCatalogBookingSessionCreatedAnalyticsSubscriberGraphRuntime",
+                }
+              : {
+                  entry: "@voyant-travel/catalog/index-subscribers",
+                  export: expect.stringMatching(/^createCatalog.+IndexSubscriberGraphRuntime$/),
+                },
       })),
     )
     expect(catalogVoyantModule.runtimePorts).toEqual([
       { id: "catalog.search-runtime" },
       { id: "catalog.projection-runtime" },
       { id: "catalog.booking-snapshot-runtime" },
+      { id: "analytics.runtime", optional: true },
       { id: "catalog.booking-session-maintenance-job" },
       { id: "catalog.booking-session-settlement-runtime" },
       { id: "catalog.composite-booking-session.runtime" },

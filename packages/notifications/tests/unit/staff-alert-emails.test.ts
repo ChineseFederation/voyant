@@ -71,6 +71,32 @@ describe("staff alert formatters", () => {
 })
 
 describe("renderStaffAlertEmail", () => {
+  it("renders a localized Inquiry alert with its semantic detail link", async () => {
+    const context: StaffAlertContextMap["staff.inquiry.first-response-overdue"] = {
+      adminPath: "/inquiries/inq_1",
+      assigneeUserId: "usr_1",
+      actorUserId: null,
+      inquiryId: "inq_1",
+      alertKind: "first_response_overdue",
+      subject: "Private tour",
+      contact: { name: "Ana", email: "ana@example.com" },
+      source: "storefront",
+      status: "triaged",
+      firstResponseDueAt: "2026-08-18T10:00:00.000Z",
+    }
+
+    const email = await renderStaffAlertEmail({
+      eventKey: "staff.inquiry.first-response-overdue",
+      context,
+      brand: { ...brand, locale: "ro" },
+      isAssignee: true,
+    })
+
+    expect(email.subject).toContain("Răspuns întârziat")
+    expect(email.html).toContain("https://admin.eturia.ro/inquiries/inq_1")
+    expect(email.html).toContain("Această solicitare îți este alocată")
+  })
+
   it("renders a booking inquiry with the shopper question and selection", async () => {
     const email = await renderStaffAlertEmail({
       eventKey: "staff.booking.inquiry-created",

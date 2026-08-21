@@ -204,7 +204,10 @@
     },
     {
       "command": "pnpm --filter @voyant-travel/relationships generate:openapi",
-      "files": ["packages/relationships/openapi/admin/relationships.json"]
+      "files": [
+        "packages/relationships/openapi/admin/relationships.json",
+        "packages/relationships/openapi/public-api/relationships.json"
+      ]
     },
     {
       "command": "pnpm --filter @voyant-travel/setup generate:openapi",
@@ -370,6 +373,7 @@
         "packages/realtime/openapi/admin/realtime-admin.json",
         "packages/realtime/openapi/public-api/realtime-public.json",
         "packages/relationships/openapi/admin/relationships.json",
+        "packages/relationships/openapi/public-api/relationships.json",
         "packages/setup/openapi/admin/setup.json",
         "packages/storage/openapi/admin/storage-media.json",
         "packages/storage/openapi/admin/storage-uploads.json",

@@ -21,6 +21,7 @@ import {
   catalogOffersRuntimePort,
   catalogSearchRuntimePort,
 } from "./api-runtime-ports.js"
+import { catalogBookingSessionCreatedAnalyticsSubscriberDeclaration } from "./booking-session-created-analytics-subscriber-manifest.js"
 import { catalogBookingSessionMaintenanceJobRuntimePort } from "./booking-session-maintenance-job-runtime-port.js"
 import { catalogBookingSessionSettlementRuntimePort } from "./booking-session-settlement-runtime-port.js"
 import { catalogBookingSnapshotSubscriberDeclaration } from "./booking-snapshot-subscriber-declaration.js"
@@ -28,6 +29,7 @@ import { catalogCompositeBookingSessionRuntimePort } from "./composite-booking-s
 import { catalogContentRuntimePort } from "./content-runtime-port.js"
 import { catalogIndexSubscriberDeclarations } from "./index-subscriber-declarations.js"
 import { catalogIndexerProviderPort } from "./indexer/provider.js"
+import { catalogInquiryBookingSessionRuntimePort } from "./inquiry-booking-session-runtime-port.js"
 import { personalBuyerPersonRuntimePort } from "./personal-buyer-person-runtime-port.js"
 import { catalogReindexJobRuntimePort } from "./reindex-job-runtime-port.js"
 import {
@@ -48,6 +50,7 @@ import {
   catalogProjectionRuntimePort,
 } from "./subscriber-runtime-ports.js"
 import {
+  catalogBookingSessionCreatedPayloadSchema,
   catalogEventDeclarations,
   catalogOverlayChangedPayloadSchema,
   catalogWebhookDeclarations,
@@ -105,6 +108,7 @@ export const catalogVoyantModule = defineModule({
       providePort(catalogBookingSessionMaintenanceJobRuntimePort),
       providePort(catalogBookingSessionSettlementRuntimePort),
       providePort(catalogCompositeBookingSessionRuntimePort),
+      providePort(catalogInquiryBookingSessionRuntimePort),
       providePort(catalogRuntimeServicesPort),
       providePort(catalogReindexJobRuntimePort),
       providePort(catalogSourcesSyncJobRuntimePort),
@@ -117,6 +121,7 @@ export const catalogVoyantModule = defineModule({
     requirePort(catalogSearchRuntimePort),
     requirePort(catalogProjectionRuntimePort),
     requirePort(catalogBookingSnapshotRuntimePort),
+    requirePort(analyticsPort, { optional: true }),
     requirePort(catalogBookingSessionMaintenanceJobRuntimePort),
     requirePort(catalogBookingSessionSettlementRuntimePort),
     requirePort(catalogCompositeBookingSessionRuntimePort),
@@ -255,6 +260,14 @@ export const catalogVoyantModule = defineModule({
     },
   ],
   events: [
+    {
+      id: "@voyant-travel/catalog#event.booking-session-created",
+      eventType: "catalog.booking-session.created",
+      version: "1.0.0",
+      visibility: "internal",
+      audit: { sourceModule: "catalog", category: "domain" },
+      payloadSchema: catalogBookingSessionCreatedPayloadSchema,
+    },
     ...catalogEventDeclarations,
     {
       id: "@voyant-travel/catalog#event.entity.overlay-changed",
@@ -266,6 +279,13 @@ export const catalogVoyantModule = defineModule({
     },
   ],
   subscribers: [
+    {
+      ...catalogBookingSessionCreatedAnalyticsSubscriberDeclaration,
+      runtime: {
+        entry: "@voyant-travel/catalog/booking-session-created-analytics-subscriber",
+        export: "createCatalogBookingSessionCreatedAnalyticsSubscriberGraphRuntime",
+      },
+    },
     ...catalogIndexSubscriberDeclarations.map((subscriber) => ({
       ...subscriber,
       runtime: {

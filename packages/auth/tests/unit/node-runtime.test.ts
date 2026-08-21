@@ -108,6 +108,39 @@ describe("createOperatorAuthNodeRuntime", () => {
     expect(dispose).toHaveBeenCalledOnce()
   })
 
+  // The account-profile facade shipped exported and unit-tested but unmounted,
+  // so PATCH /auth/me answered 404 on every deployment and the admin shell's
+  // language switcher reverted to English on every attempt. A facade unit test
+  // cannot see that; only asking the ROUTER can.
+  it("mounts the account-profile facade on PATCH /auth/me", async () => {
+    const runtime = createOperatorAuthNodeRuntime({
+      accessCatalog: { resources: [], presets: [] },
+      appName: "auth-test",
+      authMode: "local",
+      reporter: { captureException: vi.fn() },
+      openDatabase: () => ({ db: {} as never, dispose: async () => {} }),
+    })
+
+    const response = await runtime.handler.fetch(
+      new Request("https://operator.example.com/auth/me", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ locale: "ro" }),
+      }),
+      {
+        DATABASE_URL: "postgres://unused",
+        BETTER_AUTH_ADMIN_SECRET: "admin-secret-with-at-least-32-characters",
+        SESSION_CLAIMS_ADMIN_SECRET: "admin-secret-with-at-least-32-characters",
+      },
+      { waitUntil: vi.fn() } as never,
+    )
+
+    // Unauthenticated, so the facade refuses it — but it REACHED the facade.
+    // A 404 here means the route is missing again.
+    expect(response.status).not.toBe(404)
+    expect(response.status).toBe(401)
+  })
+
   it("fails the invitation facade closed when business accounts are disabled", async () => {
     const openDatabase = vi.fn(() => ({ db: {} as never, dispose: async () => {} }))
     const runtime = createOperatorAuthNodeRuntime({

@@ -301,6 +301,10 @@ describe("selected Operator graph runtime composition", () => {
       "booking.inquiry.created",
       "contract.signed",
       "customer.signal.created",
+      "inquiry.assigned",
+      "inquiry.converted",
+      "inquiry.created",
+      "inquiry.first_response_overdue",
       "invoice.settled",
       "payment.completed",
       // voyant#4645 added a staff alert for a stranded payment settlement, which

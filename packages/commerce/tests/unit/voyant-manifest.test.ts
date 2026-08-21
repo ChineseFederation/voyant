@@ -153,10 +153,6 @@ describe("commerce deployment manifest", () => {
           id: "@voyant-travel/commerce#event.pricing.rule.changed",
           eventType: "pricing.rule.changed",
         },
-        {
-          id: "@voyant-travel/commerce#event.inquiry.created",
-          eventType: "inquiry.created",
-        },
       ],
       jobs: [
         {

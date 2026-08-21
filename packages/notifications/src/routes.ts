@@ -96,6 +96,12 @@ type Env = {
 export type NotificationsRoutesOptions = {
   providers?: ReadonlyArray<NotificationProvider>
   resolveProviders?: (bindings: Record<string, unknown>) => ReadonlyArray<NotificationProvider>
+  /** Resolve a semantic admin destination using deployment-selected mounts. */
+  resolveAdminDestination?: (
+    bindings: Record<string, unknown>,
+    destination: string,
+    params: Readonly<Record<string, string>>,
+  ) => string | null
   publicCheckoutBaseUrl?: string | null
   resolvePublicCheckoutBaseUrl?: (bindings: Record<string, unknown>) => string | null | undefined
   /**

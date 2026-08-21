@@ -104,6 +104,7 @@
     "@voyant-travel/realtime": "workspace:^",
     "@voyant-travel/realtime-react": "workspace:^",
     "@voyant-travel/relationships": "workspace:^",
+    "@voyant-travel/relationships-contracts": "workspace:^",
     "@voyant-travel/relationships-react": "workspace:^",
     "@voyant-travel/reporting": "workspace:^",
     "@voyant-travel/reporting-contracts": "workspace:^",

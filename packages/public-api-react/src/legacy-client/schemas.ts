@@ -41,6 +41,10 @@ import {
   publicApiPromotionalOfferSchema,
   publicApiSettingsSchema,
 } from "@voyant-travel/public-api/validation"
+import {
+  createPublicInquirySchema,
+  publicInquiryReceiptSchema,
+} from "@voyant-travel/relationships-contracts"
 import { z } from "zod"
 
 export const publicApiSingleEnvelopeSchema = <T extends z.ZodTypeAny>(item: T) =>
@@ -52,6 +56,7 @@ export {
   bootstrapCheckoutCollectionSchema,
   bootstrappedCheckoutCollectionSchema,
   checkoutCollectionPlanSchema,
+  createPublicInquirySchema,
   initiateCheckoutCollectionSchema,
   initiatedCheckoutCollectionSchema,
   previewCheckoutCollectionSchema,
@@ -86,6 +91,7 @@ export {
   publicApiSettingsSchema,
   publicBookingOverviewLookupQuerySchema,
   publicBookingOverviewSchema,
+  publicInquiryReceiptSchema,
 }
 
 export const publicApiSettingsResponseSchema =
@@ -125,6 +131,8 @@ export const bootstrappedCheckoutCollectionResponseSchema = publicApiSingleEnvel
 )
 
 export type PublicApiSettingsRecord = z.infer<typeof publicApiSettingsSchema>
+export type PublicInquiryInput = z.input<typeof createPublicInquirySchema>
+export type PublicInquiryReceipt = z.infer<typeof publicInquiryReceiptSchema>["data"]
 export type PublicApiLeadIntakeInput = z.input<typeof publicApiLeadIntakeInputSchema>
 export type PublicApiNewsletterSubscribeInput = z.input<
   typeof publicApiNewsletterSubscribeInputSchema

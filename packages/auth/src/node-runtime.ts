@@ -89,6 +89,7 @@ import {
   type CustomerAuthMethods,
   createAdminBetterAuth,
   createCustomerBetterAuth,
+  handleAccountProfileRequest,
   handleApiTokenManagementRequest,
   handleOrganizationMembersRequest,
 } from "./server.js"
@@ -1593,6 +1594,34 @@ export function createOperatorAuthNodeRuntime<Env extends OperatorAuthNodeEnv>(
     return c.json(await getBootstrapStatusForRequest(c.req.raw, c.env))
   })
 
+  /**
+   * PATCH /auth/me
+   *
+   * The account-profile facade. It carries the operator's own name, locale,
+   * time zone, and avatar — the admin shell writes `locale`/`timezone` here
+   * whenever someone switches language, and reverts the switch when the write
+   * fails. The handler shipped exported and unit-tested but unmounted, so every
+   * deployment answered 404 and the language switcher silently snapped back to
+   * English ([#4838] review).
+   *
+   * Deliberately without the Cloud membership revalidation the api-token and
+   * member-list facades carry: this edits only the caller's own profile, and
+   * `GET /auth/me` next to it does not revalidate either.
+   */
+  async function handleAccountProfileFacade(c: Context<AuthHonoEnv>) {
+    const { db, dispose } = openDatabase(c.env)
+    try {
+      const betterAuth = buildAdminBetterAuth(c.env, db)
+      const accountProfileDb = db as Parameters<typeof handleAccountProfileRequest>[2]["db"]
+      return (
+        (await handleAccountProfileRequest(c.req.raw, betterAuth, { db: accountProfileDb })) ??
+        c.json({ error: "Not found" }, 404)
+      )
+    } finally {
+      c.executionCtx.waitUntil(dispose())
+    }
+  }
+
   async function handleApiTokensFacade(c: Context<AuthHonoEnv>) {
     const { db, dispose } = openDatabase(c.env)
     try {
@@ -1750,6 +1779,7 @@ export function createOperatorAuthNodeRuntime<Env extends OperatorAuthNodeEnv>(
   auth.get("/auth/admin/cloud/start", handleCloudAuthStart)
   auth.get("/auth/admin/cloud/callback", handleCloudAuthCallback)
 
+  auth.patch("/auth/me", handleAccountProfileFacade)
   auth.all("/auth/api-tokens", handleApiTokensFacade)
   auth.all("/auth/api-tokens/:keyId", handleApiTokensFacade)
   auth.all("/auth/api-tokens/:keyId/rotate", handleApiTokensFacade)

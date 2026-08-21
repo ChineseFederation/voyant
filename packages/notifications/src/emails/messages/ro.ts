@@ -98,4 +98,34 @@ export const staffAlertEmailMessagesRo: StaffAlertEmailMessages = {
     notes: "Note",
     assignedToYou: "Această cerere îți este alocată.",
   },
+  inquiry: {
+    eyebrow: (kind) =>
+      ({
+        created: "Solicitare nouă",
+        assigned: "Solicitare alocată",
+        first_response_overdue: "Primul răspuns este întârziat",
+        converted: "Solicitare convertită",
+      })[kind],
+    subject: (kind, subject) =>
+      ({
+        created: `Solicitare nouă — ${subject}`,
+        assigned: `Solicitare alocată — ${subject}`,
+        first_response_overdue: `Răspuns întârziat — ${subject}`,
+        converted: `Solicitare convertită — ${subject}`,
+      })[kind],
+    preview: (subject) => `Actualizare solicitare: ${subject}`,
+    headline: (subject) => subject,
+    lead: (kind) =>
+      ({
+        created: "O solicitare nouă așteaptă evaluarea.",
+        assigned: "O solicitare a fost alocată și poate fi prelucrată.",
+        first_response_overdue:
+          "Termenul pentru primul răspuns a trecut fără un răspuns înregistrat.",
+        converted: "Solicitarea a fost convertită folosind înregistrarea sa durabilă de conversie.",
+      })[kind],
+    source: "Sursă",
+    status: "Stare",
+    responseDue: "Termen pentru primul răspuns",
+    assignedToYou: "Această solicitare îți este alocată.",
+  },
 }

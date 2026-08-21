@@ -1,10 +1,13 @@
 import { createToolRegistry, type ToolContext } from "@voyant-travel/tools"
+// agent-quality: file-size exception -- owner: relationships; the module tool registry stays in one contract fixture so every contributed operation is exercised together.
 import { describe, expect, it } from "vitest"
 import {
+  RELATIONSHIPS_INQUIRY_HANDLER_ACTION_POLICY,
   RELATIONSHIPS_ORGANIZATION_HANDLER_ACTION_POLICY,
   RELATIONSHIPS_PERSON_HANDLER_ACTION_POLICY,
 } from "../src/created-target-policy.js"
 import {
+  createInquiryTool,
   createOrganizationTool,
   createPersonTool,
   type RelationshipsToolServices,
@@ -43,6 +46,21 @@ function ctx(
       listAddresses: unavailable,
       addAddress: unavailable,
       updateAddress: unavailable,
+      createInquiry: unavailable,
+      listInquiries: unavailable,
+      getInquiry: unavailable,
+      updateInquiry: unavailable,
+      recordInquiryActivity: unavailable,
+      qualifyInquiry: unavailable,
+      manageInquiryTarget: unavailable,
+      uploadInquiryAttachment: unavailable,
+      eraseInquiryPrivacy: unavailable,
+      assignInquiry: unavailable,
+      closeInquiry: unavailable,
+      convertInquiry: unavailable,
+      startBookingFromInquiry: unavailable,
+      reopenInquiry: unavailable,
+      transitionInquiry: unavailable,
       ...overrides,
     },
   }
@@ -59,6 +77,10 @@ function registry() {
       registry.register(tool, {
         actionPolicy: RELATIONSHIPS_ORGANIZATION_HANDLER_ACTION_POLICY.actionPolicy,
       })
+    } else if (tool === createInquiryTool) {
+      registry.register(tool, {
+        actionPolicy: RELATIONSHIPS_INQUIRY_HANDLER_ACTION_POLICY.actionPolicy,
+      })
     } else {
       registry.register(tool)
     }
@@ -71,6 +93,23 @@ function personHandlerActionPolicy(idempotencyKey: string) {
     ...RELATIONSHIPS_PERSON_HANDLER_ACTION_POLICY,
     actionPolicy: {
       ...RELATIONSHIPS_PERSON_HANDLER_ACTION_POLICY.actionPolicy,
+      enforcement: "handler" as const,
+      invocation: {
+        controlField: "_voyant" as const,
+        requiredFields: ["idempotencyKey"],
+        optionalFields: ["reasonCode", "approvalId", "idempotencyFingerprint"],
+        fingerprintAlgorithm: "action-ledger-command-v1" as const,
+      },
+    },
+    invocation: { idempotencyKey },
+  } satisfies NonNullable<ToolContext["handlerActionPolicy"]>
+}
+
+function inquiryHandlerActionPolicy(idempotencyKey: string) {
+  return {
+    ...RELATIONSHIPS_INQUIRY_HANDLER_ACTION_POLICY,
+    actionPolicy: {
+      ...RELATIONSHIPS_INQUIRY_HANDLER_ACTION_POLICY.actionPolicy,
       enforcement: "handler" as const,
       invocation: {
         controlField: "_voyant" as const,
@@ -199,8 +238,48 @@ function address(overrides: Record<string, unknown> = {}) {
   }
 }
 
+function inquiry(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "inq_1",
+    subject: "Custom Romania journey",
+    kind: "custom_trip",
+    status: "triaged",
+    closeOutcome: null,
+    closeNote: null,
+    duplicateOfInquiryId: null,
+    priority: "normal",
+    personId: "pers_1",
+    organizationId: null,
+    contactSnapshot: { email: "ana@example.com" },
+    ownerId: "staff_1",
+    teamId: null,
+    unassignedReason: null,
+    nextActionAt: null,
+    firstResponseDueAt: null,
+    firstRespondedAt: null,
+    travelBrief: null,
+    customerMessage: null,
+    internalSummary: null,
+    source: "admin",
+    sourceRef: "tool:key",
+    sourceUrl: null,
+    locale: "en-GB",
+    consentSnapshot: null,
+    tags: [],
+    customFields: {},
+    lastActivityAt: null,
+    qualifiedAt: null,
+    convertedAt: null,
+    closedAt: null,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    targets: [],
+    ...overrides,
+  }
+}
+
 describe("relationships (crm) tools", () => {
-  it("registers 20 stable staff-only lifecycle capabilities with typed output schemas", () => {
+  it("registers stable staff-only lifecycle capabilities with typed output schemas", () => {
     const manifest = registry().list()
     expect(manifest.map((tool) => tool.name).sort()).toEqual([
       "add_organization_address",
@@ -209,20 +288,35 @@ describe("relationships (crm) tools", () => {
       "add_person_address",
       "add_person_contact_method",
       "add_person_note",
+      "assign_inquiry",
+      "close_inquiry",
+      "convert_inquiry",
+      "create_inquiry",
       "create_organization",
       "create_person",
+      "erase_inquiry_privacy",
+      "get_inquiry",
       "get_organization",
       "get_person",
+      "list_inquiries",
       "list_organizations",
       "list_people",
       "list_relationship_addresses",
       "list_relationship_contact_methods",
       "list_relationship_notes",
+      "manage_inquiry_target",
+      "qualify_inquiry",
+      "record_inquiry_activity",
+      "reopen_inquiry",
+      "start_booking_from_inquiry",
+      "transition_inquiry",
+      "update_inquiry",
       "update_organization",
       "update_person",
       "update_relationship_address",
       "update_relationship_contact_method",
       "update_relationship_note",
+      "upload_inquiry_attachment",
     ])
     for (const tool of manifest) {
       expect(tool.capabilityId).toBe(
@@ -253,6 +347,188 @@ describe("relationships (crm) tools", () => {
     expect(toolsModule).not.toHaveProperty("addRelationshipContactMethodTool")
     expect(toolsModule).not.toHaveProperty("addRelationshipAddressTool")
     expect(relationshipsTools.some((tool) => tool.name.startsWith("add_relationship_"))).toBe(false)
+  })
+
+  it("dispatches Inquiry creation and lifecycle commands through their package service", async () => {
+    const created = await registry().dispatch(
+      "create_inquiry",
+      {
+        subject: "Custom Romania journey",
+        kind: "custom_trip",
+        contactSnapshot: { email: "ana@example.com" },
+      },
+      ctx(
+        {
+          async createInquiry(input, admitted) {
+            expect(input).not.toHaveProperty("source")
+            expect(admitted.invocation.idempotencyKey).toBe("inquiry-create-1")
+            return { data: inquiry(), replayed: false }
+          },
+        },
+        { handlerActionPolicy: inquiryHandlerActionPolicy("inquiry-create-1") },
+      ),
+    )
+    expect(created).toMatchObject({ data: { id: "inq_1" }, replayed: false })
+
+    const assigned = await registry().dispatch(
+      "assign_inquiry",
+      { id: "inq_1", ownerId: "staff_2" },
+      ctx({ assignInquiry: async (input) => inquiry({ ownerId: input.ownerId }) }),
+    )
+    expect(assigned.ownerId).toBe("staff_2")
+
+    const converted = await registry().dispatch(
+      "convert_inquiry",
+      { id: "inq_1", kind: "proposal", idempotencyKey: "proposal-1" },
+      ctx({
+        async convertInquiry(input) {
+          expect(input.idempotencyKey).toBe("proposal-1")
+          return {
+            kind: "created",
+            conversionId: "icv_1",
+            inquiryId: input.id,
+            inquiryStatus: "converted",
+            target: {
+              kind: "proposal",
+              id: "prp_1",
+              pipelineId: "pip_1",
+              stageId: "stg_1",
+            },
+          }
+        },
+      }),
+    )
+    expect(converted).toMatchObject({ conversionId: "icv_1", target: { id: "prp_1" } })
+
+    const listed = await registry().dispatch(
+      "list_inquiries",
+      { view: "mine" },
+      ctx({
+        async listInquiries(input) {
+          expect(input).toMatchObject({ view: "mine", limit: 50, offset: 0 })
+          return { data: [inquiry()], total: 1, limit: 50, offset: 0 }
+        },
+      }),
+    )
+    expect(listed).toMatchObject({ data: [{ id: "inq_1", targets: [] }], total: 1 })
+
+    const read = await registry().dispatch(
+      "get_inquiry",
+      { id: "inq_1" },
+      ctx({ getInquiry: async (id) => inquiry({ id }) }),
+    )
+    expect(read).toMatchObject({ id: "inq_1", status: "triaged" })
+
+    const uploaded = await registry().dispatch(
+      "upload_inquiry_attachment",
+      {
+        id: "inq_1",
+        operationKey: "attachment-key-01",
+        name: "request.txt",
+        mimeType: "text/plain",
+        contentBase64: "aGVsbG8=",
+      },
+      ctx({
+        async uploadInquiryAttachment(input) {
+          expect(input).toMatchObject({ id: "inq_1", contentBase64: "aGVsbG8=" })
+          return {
+            linkId: "lnk_1",
+            inquiryId: input.id,
+            assetId: "mast_1",
+            name: input.name,
+            mimeType: input.mimeType ?? null,
+            caption: input.caption ?? null,
+            attachedBy: "staff_1",
+            createdAt: timestamp,
+            updatedAt: timestamp,
+            downloadPath: "/v1/admin/relationships/inquiries/inq_1/attachments/lnk_1/download",
+          }
+        },
+      }),
+    )
+    expect(uploaded).toMatchObject({ inquiryId: "inq_1", assetId: "mast_1" })
+
+    const updated = await registry().dispatch(
+      "update_inquiry",
+      { id: "inq_1", priority: "urgent" },
+      ctx({ updateInquiry: async (input) => inquiry({ priority: input.priority }) }),
+    )
+    expect(updated).toMatchObject({ id: "inq_1", priority: "urgent" })
+
+    const recorded = await registry().dispatch(
+      "record_inquiry_activity",
+      { id: "inq_1", subject: "Sent options", type: "email", communicationDirection: "outbound" },
+      ctx({
+        recordInquiryActivity: async (input) =>
+          inquiry({ id: input.id, lastActivityAt: "2026-08-18T13:00:00.000Z" }),
+      }),
+    )
+    expect(recorded).toMatchObject({ id: "inq_1", lastActivityAt: "2026-08-18T13:00:00.000Z" })
+
+    const qualified = await registry().dispatch(
+      "qualify_inquiry",
+      { id: "inq_1" },
+      ctx({ qualifyInquiry: async (input) => inquiry({ id: input.id, status: "qualified" }) }),
+    )
+    expect(qualified).toMatchObject({ id: "inq_1", status: "qualified" })
+
+    const managed = await registry().dispatch(
+      "manage_inquiry_target",
+      {
+        id: "inq_1",
+        operation: "add",
+        kind: "product",
+        targetId: "prd_1",
+        snapshot: { title: "Japan private tour" },
+      },
+      ctx({
+        manageInquiryTarget: async (input) => ({
+          operation: "add",
+          target: {
+            linkId: "lnk_1",
+            inquiryId: input.id,
+            kind: "product",
+            targetId: "prd_1",
+            snapshot: { title: "Japan private tour" },
+            createdAt: "2026-08-18T13:00:00.000Z",
+          },
+        }),
+      }),
+    )
+    expect(managed).toMatchObject({ operation: "add", target: { linkId: "lnk_1" } })
+
+    const booking = await registry().dispatch(
+      "start_booking_from_inquiry",
+      {
+        id: "inq_1",
+        kind: "booking_session",
+        idempotencyKey: "agent-turn-42",
+        targetLinkId: "lnk_product_1",
+        keepInquiryOpen: true,
+        nextActionAt: "2026-08-20T09:00:00.000Z",
+      },
+      ctx({
+        startBookingFromInquiry: async (input) => {
+          expect(input).toMatchObject({
+            idempotencyKey: "agent-turn-42",
+            targetLinkId: "lnk_product_1",
+            keepInquiryOpen: true,
+          })
+          return {
+            kind: "created",
+            conversionId: "icv_booking_1",
+            inquiryId: input.id,
+            inquiryStatus: "in_progress",
+            target: { kind: "booking_session", id: "bks_1" },
+          }
+        },
+      }),
+    )
+    expect(booking).toMatchObject({
+      inquiryId: "inq_1",
+      inquiryStatus: "in_progress",
+      target: { kind: "booking_session", id: "bks_1" },
+    })
   })
 
   it("normalizes typed person reads and strips encrypted profile envelopes", async () => {

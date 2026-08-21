@@ -7,13 +7,18 @@ import {
   type SelectedAdminExtensionFactoryContext,
   withAdminRouteMessagesProvider,
 } from "@voyant-travel/admin"
-import { Building, Users } from "lucide-react"
+import {
+  INQUIRY_DETAIL_DESTINATION,
+  inquiryDetailPathTemplate,
+} from "@voyant-travel/relationships-contracts/inquiry-navigation"
+import { Building, ClipboardList, Users } from "lucide-react"
 
 // Lean statics only: the client module (fetcher) and the skeletons. Query
 // options resolve via dynamic import inside the loaders so the data layer
 // (client + response schemas) stays out of the workspace-chrome chunk that
 // evaluates this factory.
 import { defaultFetcher } from "../client.js"
+import { InquiryDetailSkeleton, InquiryQueueSkeleton } from "./inquiry-skeletons.js"
 import { OrganizationDetailSkeleton } from "./organization-detail-skeleton.js"
 import { OrganizationsListSkeleton } from "./organizations-list-skeleton.js"
 import { PeopleListSkeleton } from "./people-list-skeleton.js"
@@ -42,9 +47,12 @@ declare module "@voyant-travel/admin" {
     "organization.list": Record<string, never>
     /** A Relationships organization's detail page. */
     "organization.detail": { organizationId: string }
+    "inquiry.list": Record<string, never>
+    "inquiry.detail": { inquiryId: string }
   }
 }
 
+export { InquiryDetailSkeleton, InquiryQueueSkeleton } from "./inquiry-skeletons.js"
 // Packaged admin hosts (packaged-admin RFC Phase 3): the Relationships pages bound to
 // their data wiring + semantic-destination navigation. Host route files only
 // bind route params onto these.
@@ -67,10 +75,13 @@ export interface CreateRelationshipsAdminExtensionOptions {
   peopleBasePath?: string
   /** Mount path of the organization pages inside the admin workspace. Default `/organizations`. */
   organizationsBasePath?: string
+  /** Mount path of the inquiry pages. Default `/inquiries`. */
+  inquiriesBasePath?: string
   /** Localized page titles. Defaults are the English operator nav labels. */
   labels?: {
     people?: string
     organizations?: string
+    inquiries?: string
   }
 }
 
@@ -108,13 +119,55 @@ export function createRelationshipsAdminExtension(
   const {
     peopleBasePath = "/people",
     organizationsBasePath = "/organizations",
+    inquiriesBasePath = "/inquiries",
     labels = {},
   } = options
-  const { people = "People", organizations = "Organizations" } = labels
+  const { people = "People", organizations = "Organizations", inquiries = "Inquiries" } = labels
 
   return defineAdminExtension({
     id: "relationships",
     routes: [
+      {
+        id: "relationships-inquiries-index",
+        path: inquiriesBasePath,
+        title: inquiries,
+        destination: "inquiry.list",
+        ssr: "data-only",
+        page: () =>
+          import("./inquiry-queue-host.js").then((module) =>
+            adminRoutePageModule(module.InquiryQueueHost),
+          ),
+        loader: async ({ queryClient, runtime }: AdminRouteLoaderContext) => {
+          const { getInquiriesQueryOptions } = await import("../query-options.js")
+          return queryClient.ensureQueryData(
+            // Must match InquiryQueueHost's first query EXACTLY: the query key is
+            // the filters object, so omitting `offset` made a second key and the
+            // prefetch went unused while the page refetched (Codex review on #4838).
+            getInquiriesQueryOptions(loaderClient(runtime), {
+              view: "actionable",
+              limit: 50,
+              offset: 0,
+            }),
+          )
+        },
+        pendingComponent: InquiryQueueSkeleton,
+      },
+      {
+        id: "relationships-inquiries-detail",
+        path: inquiryDetailPathTemplate(inquiriesBasePath).replace("{inquiryId}", "$id"),
+        title: inquiries,
+        destination: INQUIRY_DETAIL_DESTINATION,
+        destinationParams: { id: "inquiryId" },
+        page: () => import("./pages/inquiry-detail-page.js"),
+        loader: async ({ queryClient, runtime, params }: AdminRouteLoaderContext) => {
+          if (!params.id) return
+          const { getInquiryQueryOptions } = await import("../query-options.js")
+          return queryClient.ensureQueryData(
+            getInquiryQueryOptions(loaderClient(runtime), params.id),
+          )
+        },
+        pendingComponent: InquiryDetailSkeleton,
+      },
       {
         id: "relationships-people-index",
         path: peopleBasePath,
@@ -232,11 +285,13 @@ export function createSelectedRelationshipsAdminExtension({
 }: SelectedAdminExtensionFactoryContext): AdminExtension {
   const peopleLabel = navMessages.people ?? "People"
   const organizationsLabel = navMessages.organizations ?? "Organizations"
+  const inquiriesLabel = navMessages.inquiries ?? "Inquiries"
   const extension = withAdminRouteMessagesProvider(
     createRelationshipsAdminExtension({
       labels: {
         people: peopleLabel,
         organizations: organizationsLabel,
+        inquiries: inquiriesLabel,
       },
     }),
     relationshipsRouteMessagesProvider,
@@ -248,6 +303,7 @@ export function createSelectedRelationshipsAdminExtension({
       {
         order: -70,
         items: [
+          { id: "inquiries", title: inquiriesLabel, url: "/inquiries", icon: ClipboardList },
           { id: "people", title: peopleLabel, url: "/people", icon: Users },
           {
             id: "organizations",

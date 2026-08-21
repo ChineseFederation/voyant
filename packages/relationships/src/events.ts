@@ -1,5 +1,59 @@
 import type { EventBus, EventSource } from "@voyant-travel/core"
 
+export const INQUIRY_CREATED_EVENT = "inquiry.created" as const
+export const INQUIRY_UPDATED_EVENT = "inquiry.updated" as const
+export const INQUIRY_ASSIGNED_EVENT = "inquiry.assigned" as const
+export const INQUIRY_STATUS_CHANGED_EVENT = "inquiry.status_changed" as const
+export const INQUIRY_FIRST_RESPONSE_OVERDUE_EVENT = "inquiry.first_response_overdue" as const
+export const INQUIRY_FIRST_RESPONSE_RECORDED_EVENT = "inquiry.first_response_recorded" as const
+export const INQUIRY_CLOSED_EVENT = "inquiry.closed" as const
+export const INQUIRY_REOPENED_EVENT = "inquiry.reopened" as const
+export const INQUIRY_CONVERTED_EVENT = "inquiry.converted" as const
+export const INQUIRY_TARGET_ADDED_EVENT = "inquiry.target_added" as const
+export const INQUIRY_TARGET_REMOVED_EVENT = "inquiry.target_removed" as const
+
+export interface InquiryEvent {
+  id: string
+  actorId: string
+}
+
+export interface InquiryAssignedEvent extends InquiryEvent {
+  ownerId: string | null
+  teamId: string | null
+}
+
+export interface InquiryStatusChangedEvent extends InquiryEvent {
+  from: string
+  to: string
+}
+
+export interface InquiryClosedEvent extends InquiryEvent {
+  outcome: string
+}
+
+export interface InquiryFirstResponseOverdueEvent {
+  id: string
+  firstResponseDueAt: string
+}
+
+export interface InquiryFirstResponseRecordedEvent extends InquiryEvent {
+  firstRespondedAt: string
+}
+
+export interface InquiryConvertedEvent extends InquiryEvent {
+  conversionId: string
+  kind: "proposal" | "booking_session"
+  targetId: string
+  inquiryStatus: "qualified" | "converted"
+}
+
+export interface InquiryTargetChangedEvent extends InquiryEvent {
+  linkId: string
+  kind: "product" | "departure"
+  targetId: string
+  occurredAt: string
+}
+
 export const CUSTOMER_SIGNAL_CREATED_EVENT = "customer.signal.created" as const
 
 export type CustomerSignalCreatedIntake =

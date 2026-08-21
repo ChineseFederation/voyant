@@ -35,6 +35,7 @@ import { defaultPublicApiFetcher, type VoyantPublicApiClientOptions } from "./cl
 import {
   bootstrapCheckoutCollection,
   createPublicApiLead,
+  createPublicInquiry,
   getPublicApiDeparture,
   getPublicApiDepartureItinerary,
   getPublicApiOfferBySlug,
@@ -82,6 +83,10 @@ export function createVoyantPublicApiClient(options: VoyantPublicApiClientOption
         input: Parameters<typeof createPublicApiLead>[1],
         requestOptions?: Parameters<typeof createPublicApiLead>[2],
       ) => createPublicApiLead(client, input, requestOptions),
+      createInquiry: (
+        input: Parameters<typeof createPublicInquiry>[1],
+        requestOptions?: Parameters<typeof createPublicInquiry>[2],
+      ) => createPublicInquiry(client, input, requestOptions),
       subscribeNewsletter: (
         input: Parameters<typeof subscribePublicApiNewsletter>[1],
         requestOptions?: Parameters<typeof subscribePublicApiNewsletter>[2],

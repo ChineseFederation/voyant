@@ -1,4 +1,42 @@
 export {
+  type AssignInquiryInput,
+  assignInquirySchema,
+  type CloseInquiryInput,
+  type CreateInquiryInput,
+  closeInquirySchema,
+  createInquirySchema,
+  type InquiryActivityRecord,
+  type InquiryCloseOutcome,
+  type InquiryKind,
+  type InquiryListQueryInput,
+  type InquiryPriority,
+  type InquiryRecord,
+  type InquiryStatus,
+  inquiryActivityListQuerySchema,
+  inquiryActivityListResponseSchema,
+  inquiryActivityRecordSchema,
+  inquiryCloseOutcomeSchema,
+  inquiryCreateResponseSchema,
+  inquiryKindSchema,
+  inquiryListQuerySchema,
+  inquiryListResponseSchema,
+  inquiryPrioritySchema,
+  inquiryRecordSchema,
+  inquiryResponseSchema,
+  inquirySourceSchema,
+  inquiryStatusSchema,
+  inquiryTravelBriefV1Schema,
+  type RecordInquiryActivityInput,
+  type ReopenInquiryInput,
+  recordInquiryActivityResultSchema,
+  recordInquiryActivitySchema,
+  reopenInquirySchema,
+  type TransitionInquiryInput,
+  transitionInquirySchema,
+  type UpdateInquiryInput,
+  updateInquirySchema,
+} from "@voyant-travel/relationships-contracts"
+export {
   defaultFetcher,
   fetchWithValidation,
   VoyantApiError,
@@ -35,6 +73,25 @@ export {
   useCustomerSignals,
   useCustomerSignalsForPerson,
 } from "./hooks/use-customer-signals.js"
+export { type UseInquiriesOptions, useInquiries } from "./hooks/use-inquiries.js"
+export { useInquiry } from "./hooks/use-inquiry.js"
+export { useInquiryActivities } from "./hooks/use-inquiry-activities.js"
+export { useInquiryMutation } from "./hooks/use-inquiry-mutation.js"
+export { useInquiryOwnerOptions } from "./hooks/use-inquiry-owner-options.js"
+export {
+  type InquiryProposalPipeline,
+  type InquiryProposalStage,
+  useInquiryProposalPipelines,
+  useInquiryProposalStages,
+} from "./hooks/use-inquiry-proposal-pipelines.js"
+export {
+  type InquiryTargetDeparture,
+  useInquiryTargetDepartures,
+} from "./hooks/use-inquiry-target-departures.js"
+export {
+  type InquiryTargetProduct,
+  useInquiryTargetProducts,
+} from "./hooks/use-inquiry-target-products.js"
 export {
   type UseOrganizationOptions,
   useOrganization,
@@ -104,6 +161,21 @@ export {
   useRevealPersonDocument,
 } from "./hooks/use-reveal-person-document.js"
 export {
+  createInquiryBookingSessionConversionAttempt,
+  type InquiryBookingSessionConversionOptions,
+  type InquiryBookingSessionConversionOutcome,
+  inquiryBookingSessionConversionFailureKind,
+  inquiryBookingSessionConversionPath,
+} from "./inquiry-booking-session-conversion.js"
+export {
+  createInquiryProposalConversionAttempt,
+  type InquiryProposalConversionOptions,
+  type InquiryProposalConversionOutcome,
+  inquiryProposalConversionFailureKind,
+  inquiryProposalConversionPath,
+  proposalDestinationForConversion,
+} from "./inquiry-proposal-conversion.js"
+export {
   useVoyantContext,
   type VoyantContextValue,
   VoyantProvider,
@@ -112,6 +184,7 @@ export {
 export {
   type ActivitiesListFilters,
   type CustomerSignalsListFilters,
+  type InquiriesListFilters,
   type OrganizationsListFilters,
   type OrganizationsListSortDir,
   type OrganizationsListSortField,
@@ -124,7 +197,10 @@ export {
   relationshipsQueryKeys,
 } from "./query-keys.js"
 export {
+  buildInquiriesQueryString,
   getActivitiesQueryOptions,
+  getInquiriesQueryOptions,
+  getInquiryQueryOptions,
   getOrganizationQueryOptions,
   getOrganizationsQueryOptions,
   getPeopleQueryOptions,

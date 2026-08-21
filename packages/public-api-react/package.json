@@ -79,6 +79,7 @@
     "@voyant-travel/finance": "workspace:^",
     "@voyant-travel/i18n": "workspace:^",
     "@voyant-travel/public-api-contracts": "workspace:^",
+    "@voyant-travel/relationships-contracts": "workspace:^",
     "@voyant-travel/react": "workspace:^"
   },
   "devDependencies": {

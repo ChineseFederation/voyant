@@ -7,6 +7,7 @@ import {
   activityParticipantSchema,
   activitySchema,
   customerSignalSchema,
+  inquirySchema,
   personDocumentRevealSchema,
   personDocumentSchema,
   personRelationshipSchema,
@@ -18,6 +19,7 @@ import type {
   activityLinks,
   activityParticipants,
 } from "../../src/schema-activities.js"
+import type { inquiries } from "../../src/schema-inquiries.js"
 import type { customerSignals } from "../../src/schema-signals.js"
 
 /**
@@ -90,6 +92,43 @@ const customerSignalRow: InferSelectModel<typeof customerSignals> = {
   updatedAt,
 }
 
+const inquiryRow: InferSelectModel<typeof inquiries> = {
+  id: "inq_01k00000000000000000000000",
+  subject: "Anniversary trip",
+  kind: "custom_trip",
+  status: "new",
+  closeOutcome: null,
+  closeNote: null,
+  duplicateOfInquiryId: null,
+  priority: "normal",
+  personId: null,
+  organizationId: null,
+  contactSnapshot: { email: "traveler@example.com" },
+  ownerId: null,
+  teamId: null,
+  unassignedReason: null,
+  nextActionAt: null,
+  firstResponseDueAt: null,
+  firstRespondedAt: null,
+  travelBrief: { version: 1, destinations: [{ label: "Kyoto" }] },
+  customerMessage: "We would like a custom itinerary.",
+  internalSummary: null,
+  source: "phone",
+  sourceRef: null,
+  sourceUrl: null,
+  locale: "en",
+  consentSnapshot: null,
+  tags: [],
+  customFields: {},
+  lastActivityAt: null,
+  qualifiedAt: null,
+  convertedAt: null,
+  closedAt: null,
+  createdAt,
+  updatedAt,
+}
+const inquiryResponseRow = { ...inquiryRow, targets: [] }
+
 const personDocumentRow: InferSelectModel<typeof personDocuments> = {
   id: "person_documents_00000000000000000",
   personId: "people_000000000000000000000000",
@@ -144,6 +183,7 @@ const singleCases = [
   ["activity link", activityLinkSchema, activityLinkRow],
   ["activity participant", activityParticipantSchema, activityParticipantRow],
   ["customer signal", customerSignalSchema, customerSignalRow],
+  ["inquiry", inquirySchema, inquiryResponseRow],
   ["person document", personDocumentSchema, personDocumentRow],
   ["person relationship", personRelationshipSchema, personRelationshipRow],
   ["travel snapshot", personTravelSnapshotSchema, travelSnapshot],
@@ -165,6 +205,7 @@ describe("relationships rest list response contracts", () => {
   const listCases = [
     ["activity", activitySchema, activityRow],
     ["customer signal", customerSignalSchema, customerSignalRow],
+    ["inquiry", inquirySchema, inquiryResponseRow],
   ] as const
 
   for (const [label, schema, row] of listCases) {

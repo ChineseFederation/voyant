@@ -13,6 +13,8 @@ import { sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { checkBookingActionLedgerDrift } from "./action-ledger-drift.js"
 import { loadBookingCrmSnapshot } from "./crm-snapshot.js"
+import { legacyBookingInquiryReadRuntimePort } from "./inquiry/ports.js"
+import { legacyBookingInquiryReadRuntime } from "./legacy-inquiry-read-runtime.js"
 import { type BookingsCrmSnapshotRuntime, bookingsCrmSnapshotRuntimePort } from "./runtime-port.js"
 
 export interface BookingsRuntimeContributorHost {
@@ -114,6 +116,7 @@ export function createBookingsRuntimePortContribution(
   _host: BookingsRuntimeContributorHost,
 ): Readonly<Record<string, unknown>> {
   return {
+    [legacyBookingInquiryReadRuntimePort.id]: legacyBookingInquiryReadRuntime,
     [actionLedgerBookingDriftRuntimePort.id]: {
       checkBookingDrift: checkBookingActionLedgerDrift,
     } satisfies ActionLedgerBookingDriftRuntime,

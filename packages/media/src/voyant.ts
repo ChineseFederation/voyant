@@ -7,10 +7,17 @@
  * raw byte upload/serve surface stays owned by `@voyant-travel/storage`.
  */
 
-import { defineModule, requirePort } from "@voyant-travel/core/project"
-import { storageMediaRuntimePort } from "@voyant-travel/storage/runtime-port"
+import { defineModule, providePort, requirePort } from "@voyant-travel/core/project"
+import {
+  storageMediaRuntimePort,
+  storageObjectRuntimePort,
+} from "@voyant-travel/storage/runtime-port"
 
-import { mediaSiteClientAuthRuntimePort } from "./runtime-port.js"
+import {
+  mediaInquiryAttachmentRuntimePort,
+  mediaPreparedAttachmentCleanupRuntimePort,
+  mediaSiteClientAuthRuntimePort,
+} from "./runtime-port.js"
 
 const schemaSource = "@voyant-travel/media/schema"
 
@@ -19,9 +26,28 @@ export const mediaVoyantModule = defineModule({
   id: "@voyant-travel/media",
   packageName: "@voyant-travel/media",
   localId: "media",
+  provides: {
+    ports: [
+      providePort(mediaInquiryAttachmentRuntimePort),
+      providePort(mediaPreparedAttachmentCleanupRuntimePort),
+    ],
+  },
   runtimePorts: [
     requirePort(storageMediaRuntimePort),
+    requirePort(storageObjectRuntimePort),
+    requirePort(mediaPreparedAttachmentCleanupRuntimePort),
     requirePort(mediaSiteClientAuthRuntimePort, { optional: true }),
+  ],
+  jobs: [
+    {
+      id: "media.cleanup-prepared-inquiry-attachments",
+      schedule: { cron: "17 * * * *", overlap: "skip" },
+      scheduling: { required: true },
+      runtime: {
+        entry: "@voyant-travel/media/prepared-attachment-cleanup-job",
+        export: "runMediaPreparedAttachmentCleanupJob",
+      },
+    },
   ],
   api: [
     {
@@ -40,6 +66,13 @@ export const mediaVoyantModule = defineModule({
     {
       id: "@voyant-travel/media#schema",
       source: schemaSource,
+    },
+  ],
+  links: [
+    {
+      id: "@voyant-travel/media#linkable.asset",
+      kind: "linkable",
+      source: "@voyant-travel/media/linkables",
     },
   ],
   migrations: [

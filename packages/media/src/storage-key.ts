@@ -36,8 +36,13 @@ function storageKeyExtension(mimeType: string | null | undefined): string {
 }
 
 /** The content-addressed object key for bytes with the given checksum/MIME. */
-export function mediaStorageKey(checksum: string, mimeType: string | null | undefined): string {
-  return `${MEDIA_STORAGE_KEY_PREFIX}${checksum}${storageKeyExtension(mimeType)}`
+export function mediaStorageKey(
+  checksum: string,
+  mimeType: string | null | undefined,
+  dedupScope: "library" | "inquiry-private" = "library",
+): string {
+  const scopePrefix = dedupScope === "library" ? "" : `${dedupScope}/`
+  return `${MEDIA_STORAGE_KEY_PREFIX}${scopePrefix}${checksum}${storageKeyExtension(mimeType)}`
 }
 
 export async function toBytes(body: StorageUploadBody): Promise<Uint8Array> {

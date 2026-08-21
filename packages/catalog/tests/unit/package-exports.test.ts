@@ -81,5 +81,15 @@ describe("@voyant-travel/catalog package exports", () => {
       import: "./dist/booking-snapshot-subscriber-runtime.js",
       default: "./dist/booking-snapshot-subscriber-runtime.js",
     })
+    expect(packageJson.exports["./booking-session-created-analytics-subscriber"]).toBe(
+      "./src/booking-session-created-analytics-subscriber.ts",
+    )
+    expect(
+      packageJson.publishConfig.exports["./booking-session-created-analytics-subscriber"],
+    ).toEqual({
+      types: "./dist/booking-session-created-analytics-subscriber.d.ts",
+      import: "./dist/booking-session-created-analytics-subscriber.js",
+      default: "./dist/booking-session-created-analytics-subscriber.js",
+    })
   })
 })

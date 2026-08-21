@@ -14,6 +14,7 @@
  * source for those.
  */
 
+import { inquiryRecordSchema } from "@voyant-travel/relationships-contracts"
 import { z } from "zod"
 
 import {
@@ -99,6 +100,10 @@ export const customerSignalSchema = z.object({
   createdAt: isoTimestamp,
   updatedAt: isoTimestamp,
 })
+
+// --- inquiries --------------------------------------------------------------
+
+export const inquirySchema = inquiryRecordSchema
 
 // --- person documents -------------------------------------------------------
 

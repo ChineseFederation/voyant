@@ -1,6 +1,6 @@
 {
   "$schema note": "Exact inventory of Tool input-schema refinements. z.toJSONSchema drops .refine/.superRefine, so a rule expressed only that way is invisible to the model at call time. Every refinement must appear here, classified by a human: `documented` means the rule is stated in text the model can read (a field .describe() or the Tool description). Regenerate the id list with `pnpm verify:tool-refinement-visibility --write`, then classify by hand. Nothing is inferred from prose.",
-  "maxUndocumented": 20,
+  "maxUndocumented": 22,
   "entries": [
     {
       "id": "@voyant-travel/accommodations:reverse_room_block_pickup:<root>",
@@ -171,6 +171,26 @@
       "id": "@voyant-travel/trips:revise_trip:addComponents[]",
       "documented": true,
       "note": "Documented. Same two rules as create_trip, stated on the `addComponents` field description and pinned by the same test."
+    },
+    {
+      "id": "@voyant-travel/relationships:assign_inquiry:<root>",
+      "documented": true,
+      "note": "Documented. The Tool description states that clearing ownerId requires unassignedReason."
+    },
+    {
+      "id": "@voyant-travel/relationships:close_inquiry:<root>",
+      "documented": true,
+      "note": "Documented. The Tool description states the required duplicate Inquiry id and other-outcome note conditions."
+    },
+    {
+      "id": "@voyant-travel/relationships:record_inquiry_activity:<root>",
+      "documented": false,
+      "note": "Not stated. The Tool description distinguishes internal activity from inbound/outbound communication, but does not state the refinement's rule that communicationDirection is accepted only for calls, emails, and meetings."
+    },
+    {
+      "id": "@voyant-travel/relationships:start_booking_from_inquiry:<root>",
+      "documented": false,
+      "note": "Not stated. The Tool description mentions next-action semantics without stating the refinement's condition that keepInquiryOpen requires nextActionAt."
     }
   ]
 }

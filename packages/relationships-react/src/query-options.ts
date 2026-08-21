@@ -1,11 +1,16 @@
 "use client"
 
 import { queryOptions } from "@tanstack/react-query"
+import {
+  inquiryListResponseSchema,
+  inquiryResponseSchema,
+} from "@voyant-travel/relationships-contracts"
 
 import { type FetchWithValidationOptions, fetchWithValidation } from "./client.js"
 import type { UseActivitiesOptions } from "./hooks/use-activities.js"
 import type { UseOrganizationsOptions } from "./hooks/use-organizations.js"
 import type { UsePeopleOptions } from "./hooks/use-people.js"
+import type { InquiriesListFilters } from "./query-keys.js"
 import { relationshipsQueryKeys } from "./query-keys.js"
 import {
   activityListResponse,
@@ -17,6 +22,45 @@ import {
 } from "./schemas.js"
 
 const basePath = "/v1/admin/relationships"
+
+export function buildInquiriesQueryString(filters: InquiriesListFilters = {}) {
+  const params = new URLSearchParams()
+  for (const [key, value] of Object.entries(filters)) {
+    if (value !== undefined && value !== "") params.set(key, String(value))
+  }
+  return params.toString()
+}
+
+export function getInquiriesQueryOptions(
+  client: FetchWithValidationOptions,
+  filters: InquiriesListFilters = {},
+) {
+  return queryOptions({
+    queryKey: relationshipsQueryKeys.inquiriesList(filters),
+    queryFn: () => {
+      const query = buildInquiriesQueryString(filters)
+      return fetchWithValidation(
+        `${basePath}/inquiries${query ? `?${query}` : ""}`,
+        inquiryListResponseSchema,
+        client,
+      )
+    },
+  })
+}
+
+export function getInquiryQueryOptions(client: FetchWithValidationOptions, id: string) {
+  return queryOptions({
+    queryKey: relationshipsQueryKeys.inquiry(id),
+    queryFn: async () => {
+      const { data } = await fetchWithValidation(
+        `${basePath}/inquiries/${id}`,
+        inquiryResponseSchema,
+        client,
+      )
+      return data
+    },
+  })
+}
 
 export function getActivitiesQueryOptions(
   client: FetchWithValidationOptions,

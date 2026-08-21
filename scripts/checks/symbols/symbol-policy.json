@@ -233,6 +233,33 @@
         "bookingContractDocumentRequestedPayloadSchema": []
       }
     },
+    "proposal-checkout-inquiry-authority": {
+      "$comment": [
+        "The duplicated Proposals checkout Inquiry bridge is superseded by the",
+        "Relationships-owned canonical Inquiry intake and may not return."
+      ],
+      "literalsOnlyIn": {
+        "proposals.checkout-inquiry.runtime": []
+      },
+      "onlyIn": {
+        "proposalCheckoutInquiryRuntimePort": []
+      }
+    },
+    "customer-signal-write-kind-authority": {
+      "$comment": [
+        "Customer Signal keeps inquiry/request_offer as read-compatible legacy",
+        "values, but every new write is constrained by the active kind schema."
+      ],
+      "onlyIn": {
+        "activeCustomerSignalKindSchema": [
+          "packages/relationships-contracts/src/validation/customer-signals.ts",
+          "packages/relationships-contracts/src/validation.ts"
+        ],
+        "customerSignalCoreSchema": [
+          "packages/relationships-contracts/src/validation/customer-signals.ts"
+        ]
+      }
+    },
     "anonymous-storefront-principal-authority": {
       "$comment": [
         "\"anonymous-storefront\" is the userId auth mints for a storefront guest.",

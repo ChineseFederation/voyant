@@ -1,4 +1,5 @@
 import type { VoyantRuntimeHostPrimitives } from "@voyant-travel/core"
+import { inquiryDetailPathTemplate } from "@voyant-travel/relationships-contracts/inquiry-navigation"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 const resolveInvoicePayUrlTemplate = vi.fn<() => Promise<string | null>>()
@@ -40,6 +41,22 @@ describe("createNotificationsRuntime", () => {
 
     expect(runtime.resolvePublicCustomerPortalBaseUrl?.({})).toBeNull()
     expect(runtime.resolvePublicCheckoutBaseUrl?.({})).toBeNull()
+  })
+
+  it("resolves semantic admin destinations through deployment-selected mounts", () => {
+    const host = primitives({
+      ADMIN_DESTINATION_INQUIRY_DETAIL_PATH_TEMPLATE: inquiryDetailPathTemplate("/solicitari"),
+    })
+    const runtime = createNotificationsRuntime(host)
+
+    expect(runtime.resolveAdminDestination({}, "inquiry.detail", { inquiryId: "inq/1" })).toBe(
+      "/solicitari/inq%2F1",
+    )
+  })
+
+  it("fails closed when the selected destination template is absent", () => {
+    const runtime = createNotificationsRuntime(primitives({}))
+    expect(runtime.resolveAdminDestination({}, "inquiry.detail", { inquiryId: "inq_1" })).toBeNull()
   })
 })
 

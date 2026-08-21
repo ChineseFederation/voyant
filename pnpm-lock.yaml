@@ -514,6 +514,9 @@ importers:
       '@voyant-travel/relationships':
         specifier: workspace:^
         version: link:../../packages/relationships
+      '@voyant-travel/relationships-contracts':
+        specifier: workspace:^
+        version: link:../../packages/relationships-contracts
       '@voyant-travel/relationships-react':
         specifier: workspace:^
         version: link:../../packages/relationships-react
@@ -3486,6 +3489,9 @@ importers:
       '@voyant-travel/relationships':
         specifier: workspace:^
         version: link:../relationships
+      '@voyant-travel/relationships-contracts':
+        specifier: workspace:^
+        version: link:../relationships-contracts
       '@voyant-travel/storage':
         specifier: workspace:^
         version: link:../storage
@@ -4230,6 +4236,9 @@ importers:
       '@voyant-travel/relationships':
         specifier: workspace:^
         version: link:../relationships
+      '@voyant-travel/relationships-contracts':
+        specifier: workspace:^
+        version: link:../relationships-contracts
       '@voyant-travel/tools':
         specifier: workspace:^
         version: link:../tools
@@ -4382,6 +4391,9 @@ importers:
       '@voyant-travel/products-contracts':
         specifier: workspace:^
         version: link:../products-contracts
+      '@voyant-travel/relationships-contracts':
+        specifier: workspace:^
+        version: link:../relationships-contracts
       '@voyant-travel/tools':
         specifier: workspace:^
         version: link:../tools
@@ -4603,7 +4615,7 @@ importers:
   packages/operator-standard:
     dependencies:
       '@better-auth/api-key':
-        specifier: ^1.6.23
+        specifier: 1.6.23
         version: 1.6.23(1ac6a98f3eafa8cc5361cfcd8d9e497a)
       '@fontsource-variable/inter-tight':
         specifier: ^5.2.7
@@ -4833,6 +4845,9 @@ importers:
       '@voyant-travel/relationships':
         specifier: workspace:*
         version: link:../relationships
+      '@voyant-travel/relationships-contracts':
+        specifier: workspace:*
+        version: link:../relationships-contracts
       '@voyant-travel/relationships-react':
         specifier: workspace:*
         version: link:../relationships-react
@@ -4885,7 +4900,7 @@ importers:
         specifier: workspace:*
         version: link:../webhook-delivery
       better-auth:
-        specifier: ^1.6.23
+        specifier: 1.6.23
         version: 1.6.23(@cloudflare/workers-types@4.20260702.1)(@opentelemetry/api@1.9.0)(@tanstack/react-start@1.168.27(esbuild@0.28.1)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(rolldown@1.1.3)(rollup@4.60.2)(vite@8.1.3(@types/node@25.5.2)(esbuild@0.28.1)(jiti@2.7.0)(sass@1.77.4)(terser@5.16.9)(tsx@4.22.4)(yaml@2.8.3)))(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@cloudflare/workers-types@4.20260702.1)(@electric-sql/pglite@0.5.4)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.0)(@types/pg@8.20.0)(@upstash/redis@1.38.0)(kysely@0.29.2)(pg@8.22.0)(postgres@3.4.9))(mongodb@7.1.0(socks@2.8.7))(pg@8.22.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(solid-js@1.9.11)(vitest@4.1.9(@opentelemetry/api@1.9.0)(@types/node@25.5.2)(jsdom@29.1.1(@noble/hashes@2.2.0))(msw@2.12.14(@types/node@25.5.2)(typescript@6.0.3))(vite@8.1.3(@types/node@25.5.2)(esbuild@0.28.1)(jiti@2.7.0)(sass@1.77.4)(terser@5.16.9)(tsx@4.22.4)(yaml@2.8.3)))(vue@3.5.39(typescript@6.0.3))
       drizzle-orm:
         specifier: 'catalog:'
@@ -5268,6 +5283,9 @@ importers:
       '@voyant-travel/react':
         specifier: workspace:^
         version: link:../react
+      '@voyant-travel/relationships-contracts':
+        specifier: workspace:^
+        version: link:../relationships-contracts
     devDependencies:
       '@tanstack/react-query':
         specifier: ^5.101.2
@@ -5455,6 +5473,9 @@ importers:
       '@voyant-travel/bookings':
         specifier: workspace:^
         version: link:../bookings
+      '@voyant-travel/catalog':
+        specifier: workspace:^
+        version: link:../catalog
       '@voyant-travel/core':
         specifier: workspace:^
         version: link:../core
@@ -5473,9 +5494,24 @@ importers:
       '@voyant-travel/identity':
         specifier: workspace:^
         version: link:../identity
+      '@voyant-travel/inventory':
+        specifier: workspace:^
+        version: link:../inventory
+      '@voyant-travel/media':
+        specifier: workspace:^
+        version: link:../media
+      '@voyant-travel/operations':
+        specifier: workspace:^
+        version: link:../operations
+      '@voyant-travel/proposals-contracts':
+        specifier: workspace:^
+        version: link:../proposals-contracts
       '@voyant-travel/relationships-contracts':
         specifier: workspace:^
         version: link:../relationships-contracts
+      '@voyant-travel/reporting-contracts':
+        specifier: workspace:^
+        version: link:../reporting-contracts
       '@voyant-travel/tools':
         specifier: workspace:^
         version: link:../tools
@@ -5532,6 +5568,9 @@ importers:
       '@voyant-travel/react':
         specifier: workspace:^
         version: link:../react
+      '@voyant-travel/relationships-contracts':
+        specifier: workspace:^
+        version: link:../relationships-contracts
       '@voyant-travel/types':
         specifier: workspace:^
         version: link:../types
@@ -5551,6 +5590,12 @@ importers:
       '@voyant-travel/admin':
         specifier: workspace:^
         version: link:../admin
+      '@voyant-travel/admin-api-client':
+        specifier: workspace:^
+        version: link:../admin-api-client
+      '@voyant-travel/auth-react':
+        specifier: workspace:^
+        version: link:../auth-react
       '@voyant-travel/identity-react':
         specifier: workspace:^
         version: link:../identity-react

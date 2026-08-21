@@ -17,6 +17,7 @@ describe("bookings deployment manifest", () => {
       provides: {
         capabilities: ["bookings.data-owner"],
         ports: [
+          { id: "bookings.legacy-inquiry-read.runtime" },
           { id: "action-ledger.booking-drift-runtime" },
           // Lets CRM read a confirmed booking without importing these tables.
           { id: "bookings.crm-snapshot.runtime" },
@@ -31,6 +32,7 @@ describe("bookings deployment manifest", () => {
         { id: "custom-fields.runtime" },
         { id: "bookings.finance.runtime" },
         { id: "bookings.relationships.runtime" },
+        { id: "bookings.canonical-inquiry-intake.runtime" },
         { id: "bookings.supplier-amendment.runtime", optional: true },
         { id: "bookings.booking-action-projection.runtime", optional: true },
       ],
@@ -274,6 +276,13 @@ describe("bookings deployment manifest", () => {
             upsertPersonFromContact: async () => null,
             getPersonById: async () => null,
             getOrganizationById: async () => null,
+          },
+          "bookings.canonical-inquiry-intake.runtime": {
+            submit: async () => {
+              throw new Error("not used")
+            },
+            getById: async () => null,
+            list: async () => [],
           },
         }
         return providers[port.id] as TProvider

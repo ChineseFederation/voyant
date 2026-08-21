@@ -9,11 +9,22 @@ import {
   type RelationshipsRouteRuntimeOptions,
 } from "./route-runtime.js"
 import { relationshipsRoutes } from "./routes/index.js"
+import { publicInquiryRoutes } from "./routes/inquiries-public.js"
 import { relationshipsRouteRuntimePort } from "./runtime-port.js"
 import { relationshipsService } from "./service/index.js"
 
-export { organizationLinkable, personLinkable, relationshipsLinkable } from "./linkables.js"
+export {
+  inquiryLinkable,
+  organizationLinkable,
+  personLinkable,
+  relationshipsLinkable,
+} from "./linkables.js"
 export type { RelationshipsRoutes } from "./routes/index.js"
+export {
+  inquiryDepartureLink,
+  inquiryMediaAssetLink,
+  inquiryProductLink,
+} from "./standard-links.js"
 
 export const relationshipsModule: Module = {
   name: "relationships",
@@ -43,6 +54,9 @@ export function createRelationshipsApiModule(
   return {
     module,
     adminRoutes: relationshipsRoutes,
+    publicRoutes: publicInquiryRoutes,
+    anonymous: true,
+    optionalCustomerAuth: true,
   }
 }
 
@@ -54,6 +68,13 @@ export const createRelationshipsVoyantRuntime = defineGraphRuntimeFactory(async 
 export type {
   CustomerSignalCreatedEvent,
   CustomerSignalCreatedIntake,
+  InquiryAssignedEvent,
+  InquiryClosedEvent,
+  InquiryConvertedEvent,
+  InquiryEvent,
+  InquiryFirstResponseRecordedEvent,
+  InquiryStatusChangedEvent,
+  InquiryTargetChangedEvent,
   OrganizationChangedEvent,
   PersonChangedEvent,
   RelationshipChangeAction,
@@ -61,9 +82,23 @@ export type {
 export {
   emitOrganizationChanged,
   emitPersonChanged,
+  INQUIRY_ASSIGNED_EVENT,
+  INQUIRY_CLOSED_EVENT,
+  INQUIRY_CONVERTED_EVENT,
+  INQUIRY_CREATED_EVENT,
+  INQUIRY_FIRST_RESPONSE_RECORDED_EVENT,
+  INQUIRY_REOPENED_EVENT,
+  INQUIRY_STATUS_CHANGED_EVENT,
+  INQUIRY_TARGET_ADDED_EVENT,
+  INQUIRY_TARGET_REMOVED_EVENT,
+  INQUIRY_UPDATED_EVENT,
   ORGANIZATION_CHANGED_EVENT,
   PERSON_CHANGED_EVENT,
 } from "./events.js"
+export type {
+  InquiryFirstResponseSlaConfiguration,
+  InquiryFirstResponseSlaPolicy,
+} from "./inquiry-sla-policy.js"
 export type {
   RelationshipsRouteRuntime,
   RelationshipsRouteRuntimeOptions,
@@ -80,11 +115,15 @@ export type {
   ActivityParticipant,
   CommunicationLogEntry,
   CustomerSignal,
+  Inquiry,
+  InquiryConversion,
   NewActivity,
   NewActivityLink,
   NewActivityParticipant,
   NewCommunicationLogEntry,
   NewCustomerSignal,
+  NewInquiry,
+  NewInquiryConversion,
   NewOrganization,
   NewOrganizationNote,
   NewPerson,
@@ -113,6 +152,13 @@ export {
   customerSignalSourceEnum,
   customerSignalStatusEnum,
   customerSignals,
+  inquiries,
+  inquiryCloseOutcomeEnum,
+  inquiryConversionKindEnum,
+  inquiryConversionModeEnum,
+  inquiryConversions,
+  inquiryKindEnum,
+  inquiryStatusEnum,
   organizationNotes,
   organizations,
   people,
@@ -132,6 +178,8 @@ export type {
   UpdateCustomerSignalInput,
 } from "./service/customer-signals.js"
 export { customerSignalsService } from "./service/customer-signals.js"
+export type { InquiryServiceErrorCode } from "./service/inquiries.js"
+export { InquiryServiceError, inquiriesService } from "./service/inquiries.js"
 export type {
   CreatePersonDocumentInput,
   PersonDocumentListQuery,
@@ -151,16 +199,50 @@ export type {
   UpdatePersonRelationshipInput,
 } from "./service/person-relationships.js"
 export { personRelationshipsService } from "./service/person-relationships.js"
+export type {
+  AssignInquiryInput,
+  CloseInquiryInput,
+  ConvertInquiryToProposalCommand,
+  CreateInquiryInput,
+  InquiryCreateResponse,
+  InquiryListQueryInput,
+  InquiryProposalConversionRefusalReason,
+  InquiryProposalConversionResult,
+  InquiryRecord,
+  RecordInquiryFirstResponseInput,
+  ReopenInquiryInput,
+  TransitionInquiryInput,
+  UpdateInquiryInput,
+} from "./validation.js"
 export {
   activityListQuerySchema,
+  assignInquirySchema,
+  closeInquirySchema,
   communicationChannelSchema,
   communicationDirectionSchema,
   communicationListQuerySchema,
+  convertInquiryToProposalSchema,
+  createInquirySchema,
   customerSignalKindSchema,
   customerSignalListQuerySchema,
   customerSignalPrioritySchema,
   customerSignalSourceSchema,
   customerSignalStatusSchema,
+  inquiryCloseOutcomeSchema,
+  inquiryContactSnapshotSchema,
+  inquiryCreateResponseSchema,
+  inquiryKindSchema,
+  inquiryListQuerySchema,
+  inquiryListResponseSchema,
+  inquiryPrioritySchema,
+  inquiryProposalConversionRefusalReasonSchema,
+  inquiryProposalConversionRefusalSchema,
+  inquiryProposalConversionResultSchema,
+  inquiryRecordSchema,
+  inquiryResponseSchema,
+  inquirySourceSchema,
+  inquiryStatusSchema,
+  inquiryTravelBriefV1Schema,
   insertActivityLinkSchema,
   insertActivityParticipantSchema,
   insertActivitySchema,
@@ -183,10 +265,14 @@ export {
   personListQuerySchema,
   personRelationshipKindSchema,
   personRelationshipListQuerySchema,
+  recordInquiryFirstResponseSchema,
   relationTypeSchema,
+  reopenInquirySchema,
   resolveCustomerSignalSchema,
+  transitionInquirySchema,
   updateActivitySchema,
   updateCustomerSignalSchema,
+  updateInquirySchema,
   updateOrganizationNoteSchema,
   updateOrganizationSchema,
   updatePersonDocumentFromPlaintextSchema,

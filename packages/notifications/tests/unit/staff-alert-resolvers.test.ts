@@ -32,9 +32,57 @@ afterEach(() => {
 })
 
 describe("staff alert resolvers", () => {
+  it("routes Inquiry alerts to the registered detail destination and assignee", async () => {
+    vi.spyOn(relationshipsService, "getInquiry").mockResolvedValue({
+      id: "inq_1",
+      subject: "Private tour",
+      contactSnapshot: { email: "ana@example.com" },
+      ownerId: "usr_current",
+      source: "storefront",
+      status: "triaged",
+      firstResponseDueAt: new Date("2026-08-18T10:00:00.000Z"),
+    } as Awaited<ReturnType<typeof relationshipsService.getInquiry>>)
+
+    const context = await staffAlertContextResolvers["staff.inquiry.assigned"]?.resolve({
+      db,
+      payload: { id: "inq_1", actorId: "usr_2", ownerId: "usr_event" },
+      resolveAdminDestination: (destination, params) =>
+        destination === "inquiry.detail" ? `/solicitari/${params.inquiryId}` : "/",
+    })
+
+    expect(context).toMatchObject({
+      inquiryId: "inq_1",
+      adminPath: "/solicitari/inq_1",
+      assigneeUserId: "usr_event",
+      actorUserId: "usr_2",
+      contact: { name: "ana@example.com", email: "ana@example.com" },
+      firstResponseDueAt: "2026-08-18T10:00:00.000Z",
+    })
+  })
+
+  it("suppresses an Inquiry alert when its selected destination is unavailable", async () => {
+    vi.spyOn(relationshipsService, "getInquiry").mockResolvedValue({
+      id: "inq_1",
+      subject: "Private tour",
+      contactSnapshot: { email: "ana@example.com" },
+      ownerId: null,
+      source: "storefront",
+      status: "new",
+      firstResponseDueAt: null,
+    } as Awaited<ReturnType<typeof relationshipsService.getInquiry>>)
+
+    await expect(
+      staffAlertContextResolvers["staff.inquiry.created"]?.resolve({
+        db,
+        payload: { id: "inq_1" },
+        resolveAdminDestination: () => null,
+      }),
+    ).resolves.toBeNull()
+  })
+
   it("fills a booking alert from the columns bookings actually has", async () => {
     vi.spyOn(bookingsService, "getBookingById").mockResolvedValue(
-      bookingRow as unknown as Awaited<ReturnType<typeof bookingsService.getBookingById>>,
+      bookingRow as Awaited<ReturnType<typeof bookingsService.getBookingById>>,
     )
 
     const context = await staffAlertContextResolvers["staff.booking.confirmed"]?.resolve({
@@ -76,7 +124,7 @@ describe("staff alert resolvers", () => {
       departureId: "departure_1",
       locale: "ro",
       message: "Mai sunt locuri?",
-    } as unknown as Awaited<ReturnType<typeof bookingInquiriesService.getById>>)
+    } as Awaited<ReturnType<typeof bookingInquiriesService.getById>>)
 
     const context = await staffAlertContextResolvers["staff.booking.inquiry-created"]?.resolve({
       db,
@@ -101,12 +149,12 @@ describe("staff alert resolvers", () => {
       priority: "high",
       notes: "March departure",
       assignedToUserId: "user_9",
-    } as unknown as Awaited<ReturnType<typeof relationshipsService.getCustomerSignal>>)
+    } as Awaited<ReturnType<typeof relationshipsService.getCustomerSignal>>)
     vi.spyOn(relationshipsService, "getPersonById").mockResolvedValue({
       firstName: "Ana",
       lastName: "Popescu",
       email: "ana@example.com",
-    } as unknown as Awaited<ReturnType<typeof relationshipsService.getPersonById>>)
+    } as Awaited<ReturnType<typeof relationshipsService.getPersonById>>)
 
     const context = await staffAlertContextResolvers["staff.customer-signal.created"]?.resolve({
       db,
@@ -124,12 +172,12 @@ describe("staff alert resolvers", () => {
 
   it("names the contract signer from CRM, since the event carries only an id", async () => {
     vi.spyOn(bookingsService, "getBookingById").mockResolvedValue(
-      bookingRow as unknown as Awaited<ReturnType<typeof bookingsService.getBookingById>>,
+      bookingRow as Awaited<ReturnType<typeof bookingsService.getBookingById>>,
     )
     vi.spyOn(relationshipsService, "getPersonById").mockResolvedValue({
       firstName: "Ana",
       lastName: "Popescu",
-    } as unknown as Awaited<ReturnType<typeof relationshipsService.getPersonById>>)
+    } as Awaited<ReturnType<typeof relationshipsService.getPersonById>>)
 
     const context = await staffAlertContextResolvers["staff.contract.signed"]?.resolve({
       db,
@@ -152,7 +200,7 @@ describe("staff alert resolvers", () => {
 
   it("reads a payment alert straight from the event, which already carries the money", async () => {
     vi.spyOn(bookingsService, "getBookingById").mockResolvedValue(
-      bookingRow as unknown as Awaited<ReturnType<typeof bookingsService.getBookingById>>,
+      bookingRow as Awaited<ReturnType<typeof bookingsService.getBookingById>>,
     )
 
     const context = await staffAlertContextResolvers["staff.payment.completed"]?.resolve({

@@ -1,5 +1,9 @@
-import type { ActionLedgerRequestContextValues } from "@voyant-travel/action-ledger"
-import type { EventBus } from "@voyant-travel/core"
+import {
+  type ActionLedgerRequestContextValues,
+  appendActionLedgerMutation,
+} from "@voyant-travel/action-ledger"
+import type { EventBus, ModuleContainer } from "@voyant-travel/core"
+import { createLinkService } from "@voyant-travel/db/links"
 import {
   defineToolContextContribution,
   deriveCommandIdempotencyKey,
@@ -9,12 +13,34 @@ import {
 } from "@voyant-travel/tools"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { Context } from "hono"
-
+import { INQUIRY_PRIVACY_ERASURE_CAPABILITY } from "./action-ledger-capabilities.js"
 import { emitOrganizationChanged, emitPersonChanged } from "./events.js"
+import { executeInquiryCreateCommand } from "./inquiry-created-command.js"
 import { executeOrganizationCreateCommand } from "./organization-created-command.js"
 import { executePersonCreateCommand } from "./person-created-command.js"
+import {
+  RELATIONSHIPS_ROUTE_RUNTIME_CONTAINER_KEY,
+  type RelationshipsRouteRuntime,
+} from "./route-runtime.js"
 import { relationshipsService } from "./service/index.js"
-import { updateOrganizationSchema, updatePersonSchema } from "./validation.js"
+import { convertInquiryToBookingTarget } from "./service/inquiry-booking-conversions.js"
+import { convertInquiryToProposal } from "./service/inquiry-conversions.js"
+import { inquiryDepartureLink, inquiryProductLink } from "./standard-links.js"
+import {
+  addInquiryTargetSchema,
+  assignInquirySchema,
+  closeInquirySchema,
+  convertInquiryToBookingSessionSchema,
+  convertInquiryToProposalSchema,
+  eraseInquiryPrivacySchema,
+  inquiryListQuerySchema,
+  recordInquiryActivitySchema,
+  reopenInquirySchema,
+  transitionInquirySchema,
+  updateInquirySchema,
+  updateOrganizationSchema,
+  updatePersonSchema,
+} from "./validation.js"
 
 export * from "./tools.js"
 
@@ -22,6 +48,7 @@ type RelationshipsMcpEnv = {
   Variables: ActionLedgerRequestContextValues & {
     apiKeyId?: string
     eventBus?: EventBus
+    container?: ModuleContainer
   }
 }
 
@@ -30,13 +57,25 @@ export const voyantToolContextContribution = defineToolContextContribution({
   contribute: ({ request, context }) => {
     const c = request as Context<RelationshipsMcpEnv>
     const db = context.db as PostgresJsDatabase
+    const inquiryTargetLinks = createLinkService(
+      () => db,
+      [inquiryProductLink, inquiryDepartureLink],
+    )
+    const withInquiryTargets = async <T extends { id: string }>(inquiry: T) => ({
+      ...inquiry,
+      targets: await relationshipsService.listInquiryTargets(db, inquiryTargetLinks, inquiry.id),
+    })
     const eventBus = c.get("eventBus")
+    const relationshipsRuntime = c
+      .get("container")
+      ?.resolve(RELATIONSHIPS_ROUTE_RUNTIME_CONTAINER_KEY) as RelationshipsRouteRuntime | undefined
+    const proposalInquiryConversion = relationshipsRuntime?.proposalInquiryConversion
     const requestContext = relationshipsActionLedgerContext(c)
     const authorId = () => {
       const id = c.get("userId") ?? c.get("apiTokenId") ?? c.get("apiKeyId")
       if (!id) {
         throw new ToolError(
-          "CRM note writes require an authenticated user or API credential id for authorship.",
+          "CRM writes require an authenticated user or API credential id for authorship.",
           "AUTHORIZATION_DENIED",
         )
       }
@@ -247,10 +286,261 @@ export const voyantToolContextContribution = defineToolContextContribution({
             id,
             data as Parameters<typeof relationshipsService.updateAddress>[2],
           ),
+        async createInquiry(
+          input: Parameters<typeof executeInquiryCreateCommand>[0]["commandInput"]["inquiry"],
+          admitted: ToolHandlerActionPolicyContext,
+        ) {
+          const actorId = authorId()
+          const idempotencyKey = await deriveCommandIdempotencyKey("create-inquiry", input)
+          const result = await executeInquiryCreateCommand({
+            db,
+            context: requestContext,
+            commandInput: { inquiry: input, actorId },
+            admitted: withServerResolvedIdempotencyKey(admitted, idempotencyKey),
+            idempotencyKey,
+            slaPolicy: relationshipsRuntime?.inquiryFirstResponseSlaPolicy,
+          })
+          const inquiry = await relationshipsService.getInquiry(db, result.value.id)
+          if (!inquiry) {
+            throw new ToolError("Created Inquiry could not be resolved.", "PROVIDER_ERROR")
+          }
+          return { data: await withInquiryTargets(inquiry), replayed: result.replayed }
+        },
+        async listInquiries(input: unknown) {
+          const query = inquiryListQuerySchema.parse(input)
+          const result = await relationshipsService.listInquiries(
+            db,
+            query,
+            c.get("userId") ?? undefined,
+          )
+          const targets = await relationshipsService.listInquiryTargetsForInquiries(
+            db,
+            inquiryTargetLinks,
+            result.data.map((inquiry) => inquiry.id),
+          )
+          return {
+            ...result,
+            data: result.data.map((inquiry) => ({
+              ...inquiry,
+              targets: targets.get(inquiry.id) ?? [],
+            })),
+          }
+        },
+        async getInquiry(id: string) {
+          const inquiry = await relationshipsService.getInquiry(db, id)
+          return inquiry ? withInquiryTargets(inquiry) : null
+        },
+        async updateInquiry({ id, ...input }: { id: string; [key: string]: unknown }) {
+          return withInquiryTargets(
+            await relationshipsService.updateInquiry(
+              db,
+              id,
+              updateInquirySchema.parse(input),
+              authorId(),
+            ),
+          )
+        },
+        async recordInquiryActivity({ id, ...input }: { id: string; [key: string]: unknown }) {
+          await relationshipsService.recordInquiryActivity(
+            db,
+            id,
+            recordInquiryActivitySchema.parse(input),
+            authorId(),
+          )
+          const inquiry = await relationshipsService.getInquiry(db, id)
+          if (!inquiry) throw new ToolError("Inquiry could not be resolved.", "PROVIDER_ERROR")
+          return withInquiryTargets(inquiry)
+        },
+        async qualifyInquiry({ id }: { id: string }) {
+          return withInquiryTargets(
+            await relationshipsService.transitionInquiry(
+              db,
+              id,
+              { status: "qualified" },
+              authorId(),
+            ),
+          )
+        },
+        async manageInquiryTarget(input: {
+          id: string
+          operation: "add" | "remove"
+          [key: string]: unknown
+        }) {
+          if (input.operation === "add") {
+            const { id, operation: _operation, ...targetInput } = input
+            const targetValidation = relationshipsRuntime?.inquiryTargetValidation
+            if (!targetValidation) {
+              throw new ToolError(
+                "Inquiry target validation is unavailable in this deployment.",
+                "PROVIDER_UNAVAILABLE",
+              )
+            }
+            const target = await relationshipsService.addInquiryTarget(
+              db,
+              id,
+              addInquiryTargetSchema.parse(targetInput),
+              authorId(),
+              targetValidation,
+            )
+            return { operation: "add" as const, target }
+          }
+          await relationshipsService.deleteInquiryTarget(
+            db,
+            input.id,
+            String(input.targetLinkId),
+            authorId(),
+          )
+          return { operation: "remove" as const, removedLinkId: String(input.targetLinkId) }
+        },
+        async uploadInquiryAttachment({
+          id,
+          contentBase64,
+          ...input
+        }: {
+          id: string
+          contentBase64: string
+          [key: string]: unknown
+        }) {
+          const body = decodeBase64(contentBase64)
+          if (body.byteLength > 25 * 1024 * 1024) {
+            throw new ToolError("Inquiry attachments are limited to 25 MiB.", "INVALID_INPUT")
+          }
+          return relationshipsService.uploadInquiryAttachment(
+            db,
+            id,
+            {
+              operationKey: String(input.operationKey),
+              name: String(input.name),
+              mimeType: typeof input.mimeType === "string" ? input.mimeType : null,
+              caption: typeof input.caption === "string" ? input.caption : null,
+              body,
+            },
+            authorId(),
+            c.env,
+            relationshipsRuntime?.inquiryAttachments,
+          )
+        },
+        async eraseInquiryPrivacy({ id, ...input }: { id: string; [key: string]: unknown }) {
+          const row = await relationshipsService.eraseInquiryPrivacy(
+            db,
+            id,
+            eraseInquiryPrivacySchema.parse(input),
+            authorId(),
+            c.env,
+            relationshipsRuntime?.inquiryAttachments,
+            (tx) =>
+              appendActionLedgerMutation(tx, {
+                context: requestContext,
+                actionName: "relationships.inquiry.privacy_erasure",
+                actionVersion: "v1",
+                actionKind: "delete",
+                evaluatedRisk: "high",
+                targetType: "inquiry",
+                targetId: id,
+                routeOrToolName: "erase_inquiry_privacy",
+                capabilityId: INQUIRY_PRIVACY_ERASURE_CAPABILITY.id,
+                capabilityVersion: INQUIRY_PRIVACY_ERASURE_CAPABILITY.version,
+                authorizationSource: "scope",
+                mutationDetail: {
+                  summary:
+                    "Privacy-erased Inquiry personal data and queued private document purges",
+                  reversalKind: "none",
+                },
+              }),
+          )
+          return withInquiryTargets(row)
+        },
+        async startBookingFromInquiry({ id, ...input }: { id: string; [key: string]: unknown }) {
+          const sessionRuntime = relationshipsRuntime?.inquiryBookingSession
+          if (!sessionRuntime) {
+            throw new ToolError(
+              "Booking Session conversion is unavailable in this deployment.",
+              "PROVIDER_UNAVAILABLE",
+            )
+          }
+          const command = convertInquiryToBookingSessionSchema.parse(input)
+          const result = await convertInquiryToBookingTarget(
+            db,
+            sessionRuntime,
+            inquiryTargetLinks,
+            id,
+            command,
+            authorId(),
+          )
+          return result
+        },
+        async assignInquiry({ id, ...input }: { id: string; [key: string]: unknown }) {
+          return withInquiryTargets(
+            await relationshipsService.assignInquiry(
+              db,
+              id,
+              assignInquirySchema.parse(input),
+              authorId(),
+            ),
+          )
+        },
+        async closeInquiry({ id, ...input }: { id: string; [key: string]: unknown }) {
+          return withInquiryTargets(
+            await relationshipsService.closeInquiry(
+              db,
+              id,
+              closeInquirySchema.parse(input),
+              authorId(),
+            ),
+          )
+        },
+        async convertInquiry({ id, ...input }: { id: string; [key: string]: unknown }) {
+          if (!proposalInquiryConversion) {
+            throw new ToolError(
+              "Proposal conversion is unavailable in this deployment.",
+              "PROVIDER_UNAVAILABLE",
+            )
+          }
+          return convertInquiryToProposal(
+            db,
+            proposalInquiryConversion,
+            id,
+            convertInquiryToProposalSchema.parse(input),
+            authorId(),
+          )
+        },
+        async reopenInquiry({ id, ...input }: { id: string; [key: string]: unknown }) {
+          return withInquiryTargets(
+            await relationshipsService.reopenInquiry(
+              db,
+              id,
+              reopenInquirySchema.parse(input),
+              authorId(),
+            ),
+          )
+        },
+        async transitionInquiry({ id, ...input }: { id: string; [key: string]: unknown }) {
+          return withInquiryTargets(
+            await relationshipsService.transitionInquiry(
+              db,
+              id,
+              transitionInquirySchema.parse(input),
+              authorId(),
+            ),
+          )
+        },
       },
     }
   },
 })
+
+function decodeBase64(value: string): ArrayBuffer {
+  try {
+    const binary = atob(value)
+    const bytes = new Uint8Array(binary.length)
+    for (let index = 0; index < binary.length; index += 1) {
+      bytes[index] = binary.charCodeAt(index)
+    }
+    return bytes.buffer
+  } catch {
+    throw new ToolError("contentBase64 must be valid base64.", "INVALID_INPUT")
+  }
+}
 
 function relationshipsActionLedgerContext(
   c: Context<RelationshipsMcpEnv>,

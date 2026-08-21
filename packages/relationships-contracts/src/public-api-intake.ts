@@ -4,6 +4,8 @@ export interface PublicApiIntakeContext {
   eventBus?: unknown
   env?: unknown
   context?: unknown
+  channelId?: string | null
+  channelStatus?: string | null
 }
 
 export interface PublicApiIntakeSignal {
@@ -25,6 +27,26 @@ export interface PublicApiIntakePerson {
 export interface PublicApiIntakePersistence<
   Context extends PublicApiIntakeContext = PublicApiIntakeContext,
 > {
+  createInquiry(input: {
+    context: Context
+    data: {
+      sourceRef: string
+      contact: { name?: string; email?: string; phone?: string }
+      productId?: string | null
+      optionUnitId?: string | null
+      message?: string | null
+      sourceUrl?: string | null
+      locale?: string | null
+      tags: string[]
+      payload: Record<string, unknown>
+      consent: Record<string, unknown>
+    }
+  }): Promise<{
+    id: string
+    personId: string | null
+    duplicate: boolean
+    createdAt: Date
+  }>
   findSignal(input: {
     context: Context
     kind: PublicApiIntakeSignal["kind"]
@@ -50,7 +72,7 @@ export interface PublicApiIntakePersistence<
       personId: string
       productId?: string | null
       optionUnitId?: string | null
-      kind: PublicApiIntakeSignal["kind"]
+      kind: "wishlist" | "notify" | "referral"
       source: PublicApiIntakeSignal["source"]
       status: "new"
       priority: "normal"

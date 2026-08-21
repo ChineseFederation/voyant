@@ -1,8 +1,14 @@
 // agent-quality: file-size exception -- owner: relationships; the import-cheap package manifest remains centralized until #3398 moves custom-field API and Settings facets to their generic owner.
+
+import {
+  bookingsCanonicalInquiryIntakeRuntimePort,
+  legacyBookingInquiryReadRuntimePort,
+} from "@voyant-travel/bookings/inquiry/ports"
 import {
   bookingsCrmSnapshotRuntimePort,
   bookingsRelationshipsRuntimePort,
 } from "@voyant-travel/bookings/runtime-port"
+import { catalogInquiryBookingSessionRuntimePort } from "@voyant-travel/catalog/inquiry/ports"
 import { defineModule, providePort, requirePort } from "@voyant-travel/core/project"
 import {
   customFieldsRuntimePort,
@@ -11,6 +17,12 @@ import {
   customFieldValueReaderRuntimePort,
 } from "@voyant-travel/core/runtime-port"
 import { financeStoredInstrumentRuntimePort } from "@voyant-travel/finance/runtime-port"
+import { mediaInquiryAttachmentRuntimePort } from "@voyant-travel/media/runtime-port"
+import { proposalInquiryConversionRuntimePort } from "@voyant-travel/proposals-contracts/inquiry-conversion/runtime-port"
+import { inquiryTargetAuthorityRuntimePort } from "@voyant-travel/relationships-contracts/inquiry-target-authority/runtime-port"
+import { relationshipsInquiryOverdueJobRuntimePort } from "./inquiry-overdue-job-runtime-port.js"
+import { legacyInquiryCutoverJobRuntimePort } from "./legacy-inquiry-cutover-job-runtime-port.js"
+import { relationshipsReportingDeclaration } from "./reporting-definitions.js"
 import {
   relationshipsBookingEnrichmentDatabaseRuntimePort,
   relationshipsMiceRuntimePort,
@@ -79,6 +91,87 @@ const relationshipChangedPayloadSchema = {
   additionalProperties: false,
 } as const
 
+const inquiryEventPayloadSchema = {
+  type: "object",
+  required: ["id", "actorId"],
+  properties: { id: { type: "string" }, actorId: { type: "string" } },
+  additionalProperties: false,
+} as const
+
+const inquiryAssignedPayloadSchema = {
+  type: "object",
+  required: ["id", "actorId", "ownerId", "teamId"],
+  properties: {
+    id: { type: "string" },
+    actorId: { type: "string" },
+    ownerId: { type: ["string", "null"] },
+    teamId: { type: ["string", "null"] },
+  },
+  additionalProperties: false,
+} as const
+
+const inquiryStatusChangedPayloadSchema = {
+  type: "object",
+  required: ["id", "actorId", "from", "to"],
+  properties: {
+    id: { type: "string" },
+    actorId: { type: "string" },
+    from: { type: "string" },
+    to: { type: "string" },
+  },
+  additionalProperties: false,
+} as const
+
+const inquiryClosedPayloadSchema = {
+  type: "object",
+  required: ["id", "actorId", "outcome"],
+  properties: {
+    id: { type: "string" },
+    actorId: { type: "string" },
+    outcome: { type: "string" },
+  },
+  additionalProperties: false,
+} as const
+
+const inquiryConvertedPayloadSchema = {
+  type: "object",
+  required: ["id", "actorId", "conversionId", "kind", "targetId", "inquiryStatus"],
+  properties: {
+    id: { type: "string" },
+    actorId: { type: "string" },
+    conversionId: { type: "string" },
+    kind: { type: "string", enum: ["proposal", "booking_session"] },
+    targetId: { type: "string" },
+    inquiryStatus: { type: "string", enum: ["qualified", "in_progress", "converted"] },
+  },
+  additionalProperties: false,
+} as const
+
+const inquiryTargetChangedPayloadSchema = {
+  type: "object",
+  required: ["id", "actorId", "linkId", "kind", "targetId", "occurredAt"],
+  properties: {
+    id: { type: "string" },
+    actorId: { type: "string" },
+    linkId: { type: "string" },
+    kind: { type: "string", enum: ["product", "departure"] },
+    targetId: { type: "string" },
+    occurredAt: { type: "string", format: "date-time" },
+  },
+  additionalProperties: false,
+} as const
+
+const inquiryFirstResponseRecordedPayloadSchema = {
+  type: "object",
+  required: ["id", "actorId", "firstRespondedAt"],
+  properties: {
+    id: { type: "string" },
+    actorId: { type: "string" },
+    firstRespondedAt: { type: "string", format: "date-time" },
+  },
+  additionalProperties: false,
+} as const
+
 /** Import-cheap deployment declaration owned by the relationships package. */
 export const relationshipsVoyantModule = defineModule({
   id: "@voyant-travel/relationships",
@@ -89,21 +182,68 @@ export const relationshipsVoyantModule = defineModule({
       publicApiIntakeRuntimePortReference,
       providePort(relationshipsMiceRuntimePort),
       providePort(bookingsRelationshipsRuntimePort),
+      providePort(bookingsCanonicalInquiryIntakeRuntimePort),
       providePort(financeStoredInstrumentRuntimePort),
       providePort(relationshipsRouteRuntimePort),
       providePort(customFieldValueReaderRuntimePort),
       providePort(customFieldValueLifecycleRuntimePort),
       providePort(customFieldValueOperationsRuntimePort),
       providePort(relationshipsBookingEnrichmentDatabaseRuntimePort),
+      providePort(relationshipsInquiryOverdueJobRuntimePort),
+      providePort(legacyInquiryCutoverJobRuntimePort),
     ],
   },
   runtimePorts: [
     requirePort(customFieldsRuntimePort),
     requirePort(relationshipsRouteRuntimePort),
     requirePort(relationshipsBookingEnrichmentDatabaseRuntimePort),
+    requirePort(relationshipsInquiryOverdueJobRuntimePort),
+    requirePort(legacyInquiryCutoverJobRuntimePort),
+    requirePort(legacyBookingInquiryReadRuntimePort, { optional: true }),
+    // Optional so Relationships remains deployable without Proposals. The
+    // conversion endpoint stays mounted and answers 503 when no provider is selected.
+    requirePort(proposalInquiryConversionRuntimePort, { optional: true }),
+    requirePort(inquiryTargetAuthorityRuntimePort, { optional: true, cardinality: "many" }),
+    requirePort(catalogInquiryBookingSessionRuntimePort, { optional: true }),
+    requirePort(mediaInquiryAttachmentRuntimePort, { optional: true }),
     // Optional so a deployment that selects CRM without Bookings still boots;
     // the enrichment subscriber simply has nothing to read.
     requirePort(bookingsCrmSnapshotRuntimePort, { optional: true }),
+  ],
+  reporting: relationshipsReportingDeclaration,
+  jobs: [
+    {
+      id: "relationships.cutover-legacy-inquiries",
+      schedule: { cron: "*/5 * * * *", overlap: "skip" },
+      scheduling: {
+        required: true,
+        profiles: {
+          eager: { cron: "* * * * *", overlap: "skip" },
+          economical: { cron: "*/15 * * * *", overlap: "skip" },
+          "scale-to-zero": { cron: "*/15 * * * *", overlap: "skip" },
+        },
+      },
+      runtime: {
+        entry: "@voyant-travel/relationships/legacy-inquiry-cutover-job",
+        export: "runLegacyInquiryCutoverJob",
+      },
+    },
+    {
+      id: "relationships.scan-inquiry-first-response-overdue",
+      schedule: { cron: "*/5 * * * *", overlap: "skip" },
+      scheduling: {
+        required: true,
+        profiles: {
+          eager: { cron: "* * * * *", overlap: "skip" },
+          economical: { cron: "*/15 * * * *", overlap: "skip" },
+          "scale-to-zero": { cron: "*/15 * * * *", overlap: "skip" },
+        },
+      },
+      runtime: {
+        entry: "@voyant-travel/relationships/inquiry-overdue-job",
+        export: "runRelationshipsInquiryOverdueJob",
+      },
+    },
   ],
   api: [
     {
@@ -112,6 +252,20 @@ export const relationshipsVoyantModule = defineModule({
       mount: "relationships",
       openapi: { document: "relationships" },
       resource: "crm",
+      transactional: true,
+      runtime: {
+        entry: "@voyant-travel/relationships",
+        export: "createRelationshipsVoyantRuntime",
+      },
+    },
+    {
+      id: "@voyant-travel/relationships#api.public",
+      surface: "public",
+      mount: "relationships",
+      openapi: { document: "relationships" },
+      resource: "crm",
+      anonymous: true,
+      guardedIntake: true,
       transactional: true,
       runtime: {
         entry: "@voyant-travel/relationships",
@@ -133,6 +287,11 @@ export const relationshipsVoyantModule = defineModule({
   ],
   links: [
     {
+      id: "@voyant-travel/relationships#linkable.inquiry",
+      kind: "linkable",
+      source: "@voyant-travel/relationships/linkables",
+    },
+    {
       id: "@voyant-travel/relationships#linkable.organization",
       kind: "linkable",
       source: "@voyant-travel/relationships/linkables",
@@ -142,8 +301,122 @@ export const relationshipsVoyantModule = defineModule({
       kind: "linkable",
       source: "@voyant-travel/relationships/linkables",
     },
+    {
+      id: "@voyant-travel/relationships#link.inquiry-product",
+      kind: "definition",
+      source: "@voyant-travel/relationships/standard-links",
+      export: "inquiryProductLink",
+    },
+    {
+      id: "@voyant-travel/relationships#link.inquiry-departure",
+      kind: "definition",
+      source: "@voyant-travel/relationships/standard-links",
+      export: "inquiryDepartureLink",
+    },
+    {
+      id: "@voyant-travel/relationships#link.inquiry-media-asset",
+      kind: "definition",
+      source: "@voyant-travel/relationships/standard-links",
+      export: "inquiryMediaAssetLink",
+    },
   ],
   events: [
+    {
+      id: "@voyant-travel/relationships#event.inquiry.created",
+      eventType: "inquiry.created",
+      version: "1.0.0",
+      payloadSchema: inquiryEventPayloadSchema,
+      visibility: "internal",
+      audit: { sourceModule: "relationships", category: "domain" },
+    },
+    {
+      id: "@voyant-travel/relationships#event.inquiry.updated",
+      eventType: "inquiry.updated",
+      version: "1.0.0",
+      payloadSchema: inquiryEventPayloadSchema,
+      visibility: "internal",
+      audit: { sourceModule: "relationships", category: "domain" },
+    },
+    {
+      id: "@voyant-travel/relationships#event.inquiry.assigned",
+      eventType: "inquiry.assigned",
+      version: "1.0.0",
+      payloadSchema: inquiryAssignedPayloadSchema,
+      visibility: "internal",
+      audit: { sourceModule: "relationships", category: "domain" },
+    },
+    {
+      id: "@voyant-travel/relationships#event.inquiry.status-changed",
+      eventType: "inquiry.status_changed",
+      version: "1.0.0",
+      payloadSchema: inquiryStatusChangedPayloadSchema,
+      visibility: "internal",
+      audit: { sourceModule: "relationships", category: "domain" },
+    },
+    {
+      id: "@voyant-travel/relationships#event.inquiry.first-response-overdue",
+      eventType: "inquiry.first_response_overdue",
+      version: "1.0.0",
+      payloadSchema: {
+        type: "object",
+        required: ["id", "firstResponseDueAt"],
+        properties: {
+          id: { type: "string" },
+          firstResponseDueAt: { type: "string", format: "date-time" },
+        },
+        additionalProperties: false,
+      },
+      visibility: "internal",
+      audit: { sourceModule: "relationships", category: "domain" },
+    },
+    {
+      id: "@voyant-travel/relationships#event.inquiry.first-response-recorded",
+      eventType: "inquiry.first_response_recorded",
+      version: "1.0.0",
+      payloadSchema: inquiryFirstResponseRecordedPayloadSchema,
+      visibility: "internal",
+      audit: { sourceModule: "relationships", category: "domain" },
+    },
+    {
+      id: "@voyant-travel/relationships#event.inquiry.closed",
+      eventType: "inquiry.closed",
+      version: "1.0.0",
+      payloadSchema: inquiryClosedPayloadSchema,
+      visibility: "internal",
+      audit: { sourceModule: "relationships", category: "domain" },
+    },
+    {
+      id: "@voyant-travel/relationships#event.inquiry.converted",
+      eventType: "inquiry.converted",
+      version: "1.0.0",
+      payloadSchema: inquiryConvertedPayloadSchema,
+      visibility: "internal",
+      audit: { sourceModule: "relationships", category: "domain" },
+    },
+    {
+      id: "@voyant-travel/relationships#event.inquiry.reopened",
+      eventType: "inquiry.reopened",
+      version: "1.0.0",
+      payloadSchema: inquiryEventPayloadSchema,
+      visibility: "internal",
+      audit: { sourceModule: "relationships", category: "domain" },
+    },
+    {
+      id: "@voyant-travel/relationships#event.inquiry.target-added",
+      eventType: "inquiry.target_added",
+      version: "1.0.0",
+      payloadSchema: inquiryTargetChangedPayloadSchema,
+      visibility: "internal",
+      audit: { sourceModule: "relationships", category: "domain" },
+    },
+    {
+      id: "@voyant-travel/relationships#event.inquiry.target-removed",
+      eventType: "inquiry.target_removed",
+      version: "1.0.0",
+      payloadSchema: inquiryTargetChangedPayloadSchema,
+      visibility: "internal",
+      audit: { sourceModule: "relationships", category: "domain" },
+    },
     {
       id: "@voyant-travel/relationships#event.customer.signal.created",
       eventType: "customer.signal.created",
@@ -219,6 +492,12 @@ export const relationshipsVoyantModule = defineModule({
             description: "Reveal personally-identifiable documents held on relationship records.",
             sensitive: true,
           },
+          {
+            action: "delete",
+            label: "Erase relationship PII",
+            description: "Irreversibly erase verified relationship and Inquiry personal data.",
+            sensitive: true,
+          },
         ],
       },
     ],
@@ -291,6 +570,107 @@ export const relationshipsVoyantModule = defineModule({
       context: ["relationships"],
       risk: "medium",
     },
+    {
+      id: "@voyant-travel/relationships#tool.create-inquiry",
+      name: "create_inquiry",
+      runtime: { entry: "@voyant-travel/relationships/tools", export: "createInquiryTool" },
+      requiredScopes: ["crm:write"],
+      context: ["relationships"],
+      risk: "medium",
+      adminWrites: ["relationship/inquiry"],
+    },
+    ...(
+      [
+        ["list-inquiries", "list_inquiries", "listInquiriesTool", "crm:read", "high"],
+        ["get-inquiry", "get_inquiry", "getInquiryTool", "crm:read", "high"],
+        ["update-inquiry", "update_inquiry", "updateInquiryTool", "crm:write", "high"],
+        [
+          "record-inquiry-activity",
+          "record_inquiry_activity",
+          "recordInquiryActivityTool",
+          "crm:write",
+          "high",
+        ],
+        ["qualify-inquiry", "qualify_inquiry", "qualifyInquiryTool", "crm:write", "medium"],
+      ] as const
+    ).map(([id, name, runtimeExport, scope, risk]) => ({
+      id: `@voyant-travel/relationships#tool.${id}`,
+      name,
+      runtime: { entry: "@voyant-travel/relationships/tools", export: runtimeExport },
+      requiredScopes: [scope],
+      context: ["relationships"],
+      risk,
+      ...(scope === "crm:write"
+        ? {
+            adminWrites:
+              id === "record-inquiry-activity"
+                ? ["relationship/inquiry/activity", "relationship/inquiry/record-first-response"]
+                : ["relationship/inquiry"],
+          }
+        : {}),
+    })),
+    {
+      id: "@voyant-travel/relationships#tool.start-booking-from-inquiry",
+      name: "start_booking_from_inquiry",
+      runtime: {
+        entry: "@voyant-travel/relationships/tools",
+        export: "startBookingFromInquiryTool",
+      },
+      requiredScopes: ["crm:write", "catalog:booking-session-write"],
+      context: ["relationships"],
+      risk: "high",
+      adminWrites: ["relationship/inquiry"],
+    },
+    {
+      id: "@voyant-travel/relationships#tool.manage-inquiry-target",
+      name: "manage_inquiry_target",
+      runtime: {
+        entry: "@voyant-travel/relationships/tools",
+        export: "manageInquiryTargetTool",
+      },
+      requiredScopes: ["crm:write"],
+      context: ["relationships"],
+      risk: "high",
+      adminWrites: ["relationship/inquiry/target"],
+    },
+    {
+      id: "@voyant-travel/relationships#tool.upload-inquiry-attachment",
+      name: "upload_inquiry_attachment",
+      runtime: {
+        entry: "@voyant-travel/relationships/tools",
+        export: "uploadInquiryAttachmentTool",
+      },
+      requiredScopes: ["crm:write"],
+      context: ["relationships"],
+      risk: "high",
+      adminWrites: ["relationship/inquiry/attachment", "relationship/inquiry/attachment/upload"],
+    },
+    {
+      id: "@voyant-travel/relationships#tool.erase-inquiry-privacy",
+      name: "erase_inquiry_privacy",
+      runtime: {
+        entry: "@voyant-travel/relationships/tools",
+        export: "eraseInquiryPrivacyTool",
+      },
+      requiredScopes: ["relationships-pii:delete"],
+      context: ["relationships"],
+      risk: "high",
+      adminWrites: ["relationship/inquiry/privacy-erasure"],
+    },
+    ...(["assign", "close", "convert", "reopen", "transition"] as const).map((operation) => ({
+      id: `@voyant-travel/relationships#tool.${operation}-inquiry`,
+      name: `${operation}_inquiry`,
+      runtime: {
+        entry: "@voyant-travel/relationships/tools",
+        export: `${operation}InquiryTool`,
+      },
+      requiredScopes: ["crm:write"],
+      context: ["relationships"],
+      risk: (operation === "close" || operation === "convert" ? "high" : "medium") as
+        | "medium"
+        | "high",
+      adminWrites: [`relationship/inquiry/${operation}`],
+    })),
     {
       id: "@voyant-travel/relationships#tool.list-relationship-notes",
       name: "list_relationship_notes",
@@ -518,6 +898,167 @@ export const relationshipsVoyantModule = defineModule({
       targetLifecycle: "existing",
       from: { tools: ["@voyant-travel/relationships#tool.update-organization"] },
     },
+    {
+      id: "@voyant-travel/relationships#action.create-inquiry",
+      version: "v1",
+      kind: "execute",
+      targetType: "inquiry",
+      requiredScopes: ["crm:write"],
+      risk: "medium",
+      ledger: "required",
+      approval: "never",
+      reversible: false,
+      allowedActorTypes: ["staff"],
+      availability: { status: "available" },
+      effectBoundary: "local",
+      targetLifecycle: "created",
+      createdTarget: {
+        commandTargetType: "inquiry_create_command",
+        resultReferenceType: "inquiry",
+        durability: "handler-command-claim-v1",
+      },
+      from: { tools: ["@voyant-travel/relationships#tool.create-inquiry"] },
+    },
+    ...(["list-inquiries", "get-inquiry"] as const).map((operation) => ({
+      id: `@voyant-travel/relationships#action.${operation}`,
+      version: "v1",
+      kind: "sensitive-read" as const,
+      targetType: "inquiry",
+      ...(operation === "get-inquiry" ? { commandTargetField: "id" } : {}),
+      requiredScopes: ["crm:read"],
+      risk: "high" as const,
+      ledger: "required" as const,
+      approval: "never" as const,
+      reversible: false,
+      from: { tools: [`@voyant-travel/relationships#tool.${operation}`] },
+    })),
+    ...(["update-inquiry", "record-inquiry-activity", "qualify-inquiry"] as const).map(
+      (operation) => ({
+        id: `@voyant-travel/relationships#action.${operation}`,
+        version: "v1",
+        kind: "execute" as const,
+        targetType: "inquiry",
+        commandTargetField: "id",
+        targetLifecycle: "existing" as const,
+        requiredScopes: ["crm:write"],
+        risk: (operation === "qualify-inquiry" ? "medium" : "high") as "medium" | "high",
+        ledger: "required" as const,
+        approval: "never" as const,
+        reversible: true,
+        allowedActorTypes: ["staff"] as const,
+        availability: { status: "available" as const },
+        effectBoundary: "local" as const,
+        from: { tools: [`@voyant-travel/relationships#tool.${operation}`] },
+      }),
+    ),
+    {
+      id: "@voyant-travel/relationships#action.start-booking-from-inquiry",
+      version: "v1",
+      kind: "execute",
+      targetType: "inquiry",
+      commandTargetField: "id",
+      targetLifecycle: "existing",
+      requiredScopes: ["crm:write", "catalog:booking-session-write"],
+      risk: "high",
+      ledger: "required",
+      approval: "never",
+      reversible: false,
+      allowedActorTypes: ["staff"],
+      availability: { status: "available" },
+      effectBoundary: "multistage",
+      durability: {
+        strategy: "outbox",
+        testReference:
+          "packages/relationships/tests/integration/inquiry-booking-conversions.test.ts",
+      },
+      from: { tools: ["@voyant-travel/relationships#tool.start-booking-from-inquiry"] },
+    },
+    {
+      id: "@voyant-travel/relationships#action.manage-inquiry-target",
+      version: "v1",
+      kind: "execute",
+      targetType: "inquiry",
+      commandTargetField: "id",
+      targetLifecycle: "existing",
+      requiredScopes: ["crm:write"],
+      risk: "high",
+      ledger: "required",
+      approval: "never",
+      reversible: true,
+      allowedActorTypes: ["staff"],
+      availability: { status: "available" },
+      effectBoundary: "local",
+      from: { tools: ["@voyant-travel/relationships#tool.manage-inquiry-target"] },
+    },
+    {
+      id: "@voyant-travel/relationships#action.upload-inquiry-attachment",
+      version: "v1",
+      kind: "execute",
+      targetType: "inquiry",
+      commandTargetField: "id",
+      targetLifecycle: "existing",
+      requiredScopes: ["crm:write"],
+      risk: "high",
+      ledger: "required",
+      approval: "never",
+      reversible: true,
+      allowedActorTypes: ["staff"],
+      availability: { status: "available" },
+      effectBoundary: "multistage",
+      durability: {
+        strategy: "saga",
+        testReference: "packages/relationships/tests/integration/inquiries.test.ts",
+      },
+      from: { tools: ["@voyant-travel/relationships#tool.upload-inquiry-attachment"] },
+    },
+    {
+      id: "@voyant-travel/relationships#action.erase-inquiry-privacy",
+      capabilityId: "relationships-pii:delete:inquiry-private-data",
+      version: "v1",
+      kind: "execute",
+      targetType: "inquiry",
+      commandTargetField: "id",
+      targetLifecycle: "existing",
+      resource: "relationships-pii",
+      action: "delete",
+      requiredScopes: ["relationships-pii:delete"],
+      risk: "high",
+      ledger: "required",
+      approval: "required",
+      reversible: false,
+      allowedActorTypes: ["staff"],
+      availability: { status: "available" },
+      effectBoundary: "local",
+      existingTarget: { durability: "handler-command-result-v1" },
+      from: { tools: ["@voyant-travel/relationships#tool.erase-inquiry-privacy"] },
+    },
+    ...(["assign", "close", "convert", "reopen", "transition"] as const).map((operation) => ({
+      id: `@voyant-travel/relationships#action.${operation}-inquiry`,
+      version: "v1",
+      kind: "execute" as const,
+      targetType: "inquiry",
+      commandTargetField: "id",
+      targetLifecycle: "existing" as const,
+      requiredScopes: ["crm:write"],
+      risk: (operation === "close" || operation === "convert" ? "high" : "medium") as
+        | "medium"
+        | "high",
+      ledger: "required" as const,
+      approval: "never" as const,
+      reversible: operation !== "convert",
+      allowedActorTypes: ["staff"] as const,
+      availability: { status: "available" as const },
+      effectBoundary: (operation === "convert" ? "multistage" : "local") as "local" | "multistage",
+      ...(operation === "convert"
+        ? {
+            durability: {
+              strategy: "outbox" as const,
+              testReference: "packages/relationships/tests/integration/inquiry-conversions.test.ts",
+            },
+          }
+        : {}),
+      from: { tools: [`@voyant-travel/relationships#tool.${operation}-inquiry`] },
+    })),
     {
       id: "@voyant-travel/relationships#action.list-relationship-notes",
       version: "v1",

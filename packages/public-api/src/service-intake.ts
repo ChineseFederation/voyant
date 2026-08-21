@@ -13,7 +13,6 @@ export type {
 import type { PublicApiRequestContext } from "./service.js"
 import type {
   PublicApiIntakeResponse,
-  PublicApiLeadContact,
   PublicApiLeadIntakeInput,
   PublicApiNewsletterSubscribeInput,
   PublicApiNewsletterSubscribeResponse,
@@ -119,14 +118,6 @@ function splitName(name: string | undefined): { firstName?: string; lastName?: s
   return { firstName: parts[0], lastName: parts.slice(1).join(" ") }
 }
 
-function personNameFromContact(contact: PublicApiLeadContact) {
-  const split = splitName(contact.name)
-  return {
-    firstName: contact.firstName ?? split.firstName ?? "Storefront",
-    lastName: contact.lastName ?? split.lastName ?? "Lead",
-  }
-}
-
 function personNameFromNewsletter(input: PublicApiNewsletterSubscribeInput) {
   const split = splitName(input.name)
   const emailLocalPart = input.email
@@ -169,7 +160,7 @@ async function findExistingSignal(
   persistence: PublicApiIntakePersistence,
   context: PublicApiRequestContext,
   input: {
-    kind: PublicApiLeadIntakeInput["kind"]
+    kind: PublicApiIntakeSignal["kind"]
     sourceSubmissionId?: string | null
   },
 ) {
@@ -233,72 +224,37 @@ export async function createPublicApiLeadSignal(input: {
 }): Promise<PublicApiIntakeResponse> {
   const persistence = await requirePersistence(input.intake, input.context)
   const sourceSubmissionId = input.body.sourceSubmissionId ?? defaultLeadSubmissionId(input.body)
-  const existing = await findExistingSignal(persistence, input.context, {
-    kind: input.body.kind,
-    sourceSubmissionId,
-  })
-  if (existing) return leadResponse(existing, true)
-
-  const { firstName, lastName } = personNameFromContact(input.body.contact)
-  const person = await persistence.createPerson({
+  const explicitName =
+    input.body.contact.name ??
+    [input.body.contact.firstName, input.body.contact.lastName].filter(Boolean).join(" ")
+  const inquiry = await persistence.createInquiry({
     context: input.context,
     data: {
-      firstName,
-      lastName,
-      status: "active",
-      website: null,
-      email: input.body.contact.email ? normalizeEmail(input.body.contact.email) : null,
-      phone: input.body.contact.phone ?? null,
-      source: "storefront",
       sourceRef: sourceSubmissionId,
-      tags: input.body.tags,
-    },
-  })
-  if (!person) throw new Error("Failed to create intake person for storefront lead")
-
-  const signal = await persistence.createCustomerSignal({
-    context: input.context,
-    data: {
-      personId: person.id,
-      productId: input.body.productId ?? null,
-      optionUnitId: input.body.optionUnitId ?? null,
-      kind: input.body.kind,
-      source: input.body.source,
-      status: "new",
-      priority: "normal",
-      notes: input.body.notes ?? null,
-      tags: input.body.tags,
-      sourceSubmissionId,
-      metadata: {
-        intake: { surface: "storefront", type: "lead" },
-        payload: input.body.payload,
-        consent: input.body.consent,
-        source: {
-          url: input.body.sourceUrl ?? null,
-          locale: input.body.locale ?? null,
-        },
+      contact: {
+        ...(explicitName ? { name: explicitName } : {}),
+        ...(input.body.contact.email ? { email: normalizeEmail(input.body.contact.email) } : {}),
+        ...(input.body.contact.phone ? { phone: input.body.contact.phone } : {}),
       },
+      productId: input.body.productId,
+      optionUnitId: input.body.optionUnitId,
+      message: input.body.notes,
+      sourceUrl: input.body.sourceUrl,
+      locale: input.body.locale,
+      tags: input.body.tags,
+      payload: input.body.payload,
+      consent: input.body.consent,
     },
   })
-  if (!signal) throw new Error("Failed to create customer signal for storefront lead")
 
-  await emitCustomerSignalCreated(
-    input.context.eventBus,
-    {
-      id: signal.id,
-      personId: signal.personId,
-      kind: signal.kind,
-      source: signal.source,
-      status: signal.status,
-      productId: signal.productId,
-      optionUnitId: signal.optionUnitId,
-      sourceSubmissionId: signal.sourceSubmissionId,
-      intake: { surface: "storefront", type: "lead" },
-    },
-    "route",
-  )
-
-  return leadResponse(signal, false)
+  return {
+    id: inquiry.id,
+    personId: inquiry.personId ?? "",
+    kind: input.body.kind,
+    source: input.body.source,
+    status: "new",
+    duplicate: inquiry.duplicate,
+  }
 }
 
 export async function subscribePublicApiNewsletter(input: {

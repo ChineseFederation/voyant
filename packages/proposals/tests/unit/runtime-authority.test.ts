@@ -52,7 +52,7 @@ describe("proposals deployment authority", () => {
     expect(proposalsVoyantModule).toMatchObject({
       provides: {
         ports: [
-          { id: "proposals.checkout-inquiry.runtime" },
+          { id: "proposals.inquiry-conversion.runtime" },
           { id: "proposals.runtime" },
           { id: "finance.proposals-payment-policy.runtime" },
           { id: "custom-fields.value-lifecycle" },

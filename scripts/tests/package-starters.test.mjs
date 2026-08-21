@@ -87,6 +87,17 @@ test("operator release archive pins the current core package releases", () => {
   }
 })
 
+test("standard operator keeps the coupled Better Auth packages exact and in lockstep", () => {
+  const packageJson = JSON.parse(
+    readFileSync(join(repoRoot, "packages/operator-standard/package.json"), "utf8"),
+  )
+  const betterAuthVersion = packageJson.dependencies["better-auth"]
+  const apiKeyVersion = packageJson.dependencies["@better-auth/api-key"]
+
+  assert.match(betterAuthVersion, /^\d+\.\d+\.\d+$/)
+  assert.equal(apiKeyVersion, betterAuthVersion)
+})
+
 function packageAndExtract(extraArgs = []) {
   const tempDir = mkdtempSync(join(tmpdir(), "voyant-package-starters-test-"))
   const outDir = join(tempDir, "out")

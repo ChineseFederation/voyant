@@ -3,7 +3,14 @@ export const crmRelationTypes = ["client", "partner", "supplier", "other"] as co
 export const crmRecordStatuses = ["active", "inactive", "archived"] as const
 export const crmActivityTypes = ["note", "call", "email", "meeting", "task", "follow_up"] as const
 export const crmActivityStatuses = ["planned", "done", "cancelled"] as const
-export const crmEntityTypes = ["none", "person", "organization", "proposal", "activity"] as const
+export const crmEntityTypes = [
+  "none",
+  "person",
+  "organization",
+  "proposal",
+  "activity",
+  "inquiry",
+] as const
 const crmProposalStatuses = ["open", "won", "lost", "archived"] as const
 const crmProposalVersionStatuses = [
   "draft",
@@ -50,6 +57,188 @@ export type CrmUiMessages = {
       monthsAgo: string
       yearsAgo: string
     }
+  }
+  inquiryQueue: {
+    title: string
+    description: string
+    searchPlaceholder: string
+    empty: string
+    loadFailed: string
+    loading: string
+    savedViewsLabel: string
+    searchLabel: string
+    statusFilterLabel: string
+    priorityFilterLabel: string
+    kindFilterLabel: string
+    unknownOwner: string
+    views: Record<
+      "new" | "mine" | "unassigned" | "overdue" | "waiting" | "qualified" | "converted" | "closed",
+      string
+    >
+    filters: { allStatuses: string; allPriorities: string; allKinds: string }
+    columns: {
+      inquiry: string
+      contact: string
+      status: string
+      priority: string
+      owner: string
+      nextAction: string
+    }
+  }
+  inquiryLabels: {
+    kinds: Record<"product" | "custom_trip" | "general", string>
+    statuses: Record<
+      | "new"
+      | "triaged"
+      | "in_progress"
+      | "waiting_on_customer"
+      | "qualified"
+      | "converted"
+      | "closed",
+      string
+    >
+    priorities: Record<"low" | "normal" | "high" | "urgent", string>
+    closeOutcomes: Record<
+      | "lost"
+      | "not_serviceable"
+      | "no_response"
+      | "duplicate"
+      | "spam"
+      | "customer_withdrew"
+      | "other",
+      string
+    >
+    sources: Record<"storefront" | "phone" | "email" | "admin" | "import" | "api", string>
+    targetKinds: Record<"product" | "departure" | "catalog_item" | "trip", string>
+    activityTypes: Record<"call" | "email" | "meeting" | "task" | "follow_up" | "note", string>
+  }
+  inquiryDetail: {
+    targets: string
+    noTargets: string
+    addTarget: string
+    targetSearchPlaceholder: string
+    targetEmpty: string
+    addDeparture: string
+    departurePlaceholder: string
+    departureEmpty: string
+    departureScope: string
+    departureNeedsProduct: string
+    removeTarget: string
+    targetInUse: string
+    targetAddFailed: string
+    unresolvedTargets: string
+    attachments: string
+    noAttachments: string
+    chooseAttachment: string
+    attachmentCaption: string
+    uploadAttachment: string
+    removeAttachment: string
+    back: string
+    customerRequest: string
+    context: string
+    noContext: string
+    brief: {
+      destinations: string
+      origin: string
+      dates: string
+      duration: string
+      nights: string
+      travellers: string
+      adults: string
+      children: string
+      rooms: string
+      budget: string
+      budgetPerPerson: string
+      budgetTotal: string
+      interests: string
+      notes: string
+      flexibility: Record<"exact" | "few_days" | "few_weeks" | "open", string>
+    }
+    operations: string
+    assignment: string
+    resolution: string
+    activityTimeline: string
+    activitySubject: string
+    activityType: string
+    activityAudience: string
+    activityDescription: string
+    activityInternal: string
+    activityInbound: string
+    activityOutbound: string
+    recordActivity: string
+    noActivities: string
+    nextAction: string
+    firstResponseDue: string
+    firstResponded: string
+    recordFirstResponse: string
+    source: string
+    save: string
+    assign: string
+    qualify: string
+    startWork: string
+    triage: string
+    returnToWork: string
+    waitForCustomer: string
+    noFollowUpExpected: string
+    followUpRequired: string
+    customerRequired: string
+    ownerRequired: string
+    unassignedReasonRequired: string
+    unassignedReason: string
+    close: string
+    reopen: string
+    internalSummary: string
+    owner: string
+    ownerUnassigned: string
+    ownerSearchPlaceholder: string
+    ownerEmpty: string
+    assignToMe: string
+    ownerPlaceholder: string
+    closeOutcome: string
+    duplicateInquiryId: string
+    closeNote: string
+    contact: string
+    personLinked: string
+    loadFailed: string
+    proposalConversion: string
+    proposalAdvanced: string
+    proposalPipeline: string
+    proposalStage: string
+    proposalOptional: string
+    keepInquiryOpen: string
+    convertToProposal: string
+    proposalRequiresQualified: string
+    proposalUnavailable: string
+    proposalFailed: string
+    proposalRefusals: Record<
+      | "invalid_input"
+      | "pipeline_not_found"
+      | "default_pipeline_not_found"
+      | "stage_not_found"
+      | "stage_pipeline_mismatch"
+      | "stage_closed"
+      | "open_stage_not_found"
+      | "source_conflict",
+      string
+    >
+    bookingSessionConversion: string
+    bookingSessionTarget: string
+    bookingSessionTargetPlaceholder: string
+    bookingSessionRequiresProduct: string
+    createBookingSession: string
+    bookingSessionCreated: string
+    openBookingSession: string
+    bookingSessionUnavailable: string
+    bookingSessionFailed: string
+    bookingSessionRefusals: Record<
+      | "booking_session_required"
+      | "target_not_found"
+      | "unsupported_target"
+      | "idempotency_conflict"
+      | "invalid_selection"
+      | "target_unavailable",
+      string
+    >
   }
   organizationForm: {
     fields: {

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import {
   createPublicApiLead,
+  createPublicInquiry,
   createVoyantPublicApiClient,
   publicApiLeadIntakeInputSchema,
   publicApiNewsletterSubscribeInputSchema,
@@ -9,7 +10,7 @@ import {
 } from "../../../src/legacy-client/index.js"
 
 describe("storefront intake operations", () => {
-  it("posts lead intake through the public storefront route", async () => {
+  it("preserves the published lead SDK shape over the canonical Inquiry compatibility route", async () => {
     const calls: Array<{ url: string; init?: RequestInit }> = []
     const client = {
       baseUrl: "https://operator.example.com",
@@ -17,8 +18,8 @@ describe("storefront intake operations", () => {
         calls.push({ url, init })
         return Response.json({
           data: {
-            id: "sig_123",
-            personId: "person_123",
+            id: "inq_123",
+            personId: "",
             kind: "inquiry",
             source: "website",
             status: "new",
@@ -33,7 +34,14 @@ describe("storefront intake operations", () => {
       consent: { newsletter: false },
     })
 
-    expect(result.id).toBe("sig_123")
+    expect(result).toMatchObject({
+      id: "inq_123",
+      personId: "",
+      kind: "inquiry",
+      source: "website",
+      status: "new",
+      duplicate: false,
+    })
     expect(calls[0]?.url).toBe("https://operator.example.com/v1/public/leads")
     expect(calls[0]?.init?.method).toBe("POST")
     expect(JSON.parse(String(calls[0]?.init?.body))).toMatchObject({
@@ -71,6 +79,36 @@ describe("storefront intake operations", () => {
 
     expect(result.doubleOptIn).toBe("requested")
     expect(calls[0]?.url).toBe("https://operator.example.com/v1/public/newsletter/subscribe")
+    expect(calls[0]?.init?.method).toBe("POST")
+  })
+
+  it("posts canonical targetless custom Inquiry intake through the client", async () => {
+    const calls: Array<{ url: string; init?: RequestInit }> = []
+    const result = await createPublicInquiry(
+      {
+        baseUrl: "https://operator.example.com/",
+        fetcher: async (url, init) => {
+          calls.push({ url, init })
+          return Response.json({
+            data: {
+              inquiryId: "inq_123",
+              status: "new",
+              duplicate: false,
+              receivedAt: "2026-08-18T08:00:00.000Z",
+            },
+          })
+        },
+      },
+      {
+        sourceRef: "custom-1",
+        subject: "Plan a custom trip",
+        kind: "custom_trip",
+        contactSnapshot: { email: "traveler@example.com" },
+      },
+    )
+
+    expect(result.inquiryId).toBe("inq_123")
+    expect(calls[0]?.url).toBe("https://operator.example.com/v1/public/relationships/inquiries")
     expect(calls[0]?.init?.method).toBe("POST")
   })
 

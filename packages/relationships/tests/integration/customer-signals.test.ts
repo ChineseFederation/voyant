@@ -62,7 +62,7 @@ describe.skipIf(!DB_AVAILABLE)("customerSignalsService", () => {
     const person = await seedPerson("Bob")
     const created = await customerSignalsService.createCustomerSignal(db, {
       personId: person.id,
-      kind: "request_offer",
+      kind: "notify",
       source: "phone",
       productId: "prod_does_not_exist",
       optionUnitId: "ount_also_missing",
@@ -83,7 +83,7 @@ describe.skipIf(!DB_AVAILABLE)("customerSignalsService", () => {
       assignedToUserId: "user_1",
       tags: [],
     })
-    await customerSignalsService.createCustomerSignal(db, {
+    await db.insert(customerSignals).values({
       personId: a.id,
       kind: "inquiry",
       source: "phone",
@@ -140,7 +140,7 @@ describe.skipIf(!DB_AVAILABLE)("customerSignalsService", () => {
     })
     const second = await customerSignalsService.createCustomerSignal(db, {
       personId: person.id,
-      kind: "inquiry",
+      kind: "referral",
       source: "phone",
       notes: "second",
       tags: [],
@@ -155,7 +155,7 @@ describe.skipIf(!DB_AVAILABLE)("customerSignalsService", () => {
     const person = await seedPerson("Resolver")
     const signal = await customerSignalsService.createCustomerSignal(db, {
       personId: person.id,
-      kind: "request_offer",
+      kind: "referral",
       source: "form",
       tags: [],
     })

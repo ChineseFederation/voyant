@@ -5,6 +5,7 @@ import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { accountRoutes } from "./accounts.js"
 import { activityRoutes } from "./activities.js"
 import { customerSignalRoutes } from "./customer-signals.js"
+import { inquiryRoutes } from "./inquiries.js"
 import { personDocumentRoutes } from "./person-documents.js"
 import { personRelationshipRoutes } from "./person-relationships.js"
 
@@ -25,6 +26,7 @@ export const relationshipsRoutes = new OpenAPIHono<Env>({ defaultHook: openApiVa
   .route("/", personDocumentRoutes)
   .route("/", personRelationshipRoutes)
   .route("/", customerSignalRoutes)
+  .route("/", inquiryRoutes)
   .route("/", activityRoutes)
 
 export type RelationshipsRoutes = typeof relationshipsRoutes

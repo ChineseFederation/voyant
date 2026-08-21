@@ -11,6 +11,7 @@ export const entityTypeSchema = z.enum([
   "proposal",
   "activity",
   "booking",
+  "inquiry",
 ])
 export const customFieldTargetSchema = z.string().min(1)
 

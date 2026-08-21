@@ -5,10 +5,26 @@ import { createBookingsAdminRoute, createBookingsPublicRoute } from "./routes-op
 import { activePublicApiChannelGuard, activePublicApiOrigin } from "./routes-public.js"
 import type { Env } from "./routes-shared.js"
 import type { BookingInquiry } from "./schema-inquiries.js"
-import { bookingInquiriesService } from "./service-inquiries.js"
+import {
+  type BookingInquiryServiceRuntime,
+  bookingInquiriesService,
+  type SubmitBookingInquiryInput,
+  type SubmitBookingInquiryResult,
+} from "./service-inquiries.js"
 import { bookingInquiryReceiptSchema, submitBookingInquirySchema } from "./validation-inquiries.js"
 
-type BookingInquiryService = Pick<typeof bookingInquiriesService, "submit" | "getById" | "list">
+export interface BookingInquiryReadService {
+  getById: typeof bookingInquiriesService.getById
+  list: typeof bookingInquiriesService.list
+}
+
+export interface BookingInquiryService extends BookingInquiryReadService {
+  submit(
+    db: Parameters<typeof bookingInquiriesService.getById>[0],
+    input: SubmitBookingInquiryInput,
+    runtime?: BookingInquiryServiceRuntime,
+  ): Promise<SubmitBookingInquiryResult>
+}
 
 function receipt(inquiry: BookingInquiry) {
   return {
@@ -65,8 +81,15 @@ const submitRoute = createBookingsPublicRoute({
   },
 })
 
+const canonicalInquiryIntakeRequired: BookingInquiryService = {
+  ...bookingInquiriesService,
+  async submit() {
+    throw new Error("Canonical Inquiry intake provider is required")
+  },
+}
+
 export function createBookingInquiryPublicRoutes(
-  service: BookingInquiryService = bookingInquiriesService,
+  service: BookingInquiryService = canonicalInquiryIntakeRequired,
 ) {
   const app = new OpenAPIHono<Env>({ defaultHook: openApiValidationHook })
   app.use("/inquiries", activePublicApiChannelGuard())
@@ -127,7 +150,7 @@ const getRoute = createBookingsAdminRoute({
 })
 
 export function createBookingInquiryAdminRoutes(
-  service: BookingInquiryService = bookingInquiriesService,
+  service: BookingInquiryReadService = bookingInquiriesService,
 ) {
   return new OpenAPIHono<Env>({ defaultHook: openApiValidationHook })
     .openapi(listRoute, async (c) =>
