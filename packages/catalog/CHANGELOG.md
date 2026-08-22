@@ -1,5 +1,22 @@
 # @voyant-travel/catalog
 
+## 0.263.0
+
+### Minor Changes
+
+- 33cba53: Add the Catalog-owned Booking Session command port and the idempotent Inquiry
+  conversion coordinator, typed owner refusals, target-link selection, and
+  transactional conversion provenance.
+
+### Patch Changes
+
+- Updated dependencies [33cba53]
+- Updated dependencies [ee1092f]
+- Updated dependencies [73a3ca3]
+  - @voyant-travel/hono@0.145.0
+  - @voyant-travel/bookings@0.251.0
+  - @voyant-travel/finance@0.262.5
+
 ## 0.262.5
 
 ### Patch Changes

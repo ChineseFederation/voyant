@@ -1,6 +1,6 @@
 {
   "name": "@voyant-travel/media",
-  "version": "0.6.16",
+  "version": "0.6.17",
   "description": "Consolidated media library (images/videos/documents) for Voyant, built on the storage seam.",
   "license": "Apache-2.0",
   "type": "module",

@@ -1,6 +1,6 @@
 {
   "name": "@voyant-travel/catalog-authoring",
-  "version": "0.107.56",
+  "version": "0.107.57",
   "license": "Apache-2.0",
   "type": "module",
   "exports": {

@@ -1,5 +1,109 @@
 # @voyant-travel/crm-react
 
+## 0.313.0
+
+### Minor Changes
+
+- 33cba53: Add the Catalog-owned Booking Session command port and the idempotent Inquiry
+  conversion coordinator, typed owner refusals, target-link selection, and
+  transactional conversion provenance.
+- c23d099: Add Inquiry activity timelines, the canonical record-activity command, and read/update/qualify Inquiry tools.
+
+  Inquiry attachments remain deferred to the Storage/Media owner-link slice; this change does not create a parallel attachment store in Relationships.
+
+- 03cd44c: Finish the Inquiry workspace's pickers: departures and Proposal pipelines.
+
+  A departure target could only be created by intake or the API. The workspace now
+  offers the departures of an attached Product — Availability's open, future slots
+  — so an operator can record the dated departure a customer asked about. It is
+  scoped to one Product because a departure belongs to one, and only appears once
+  a Product is attached.
+
+  The Proposal pipeline and stage overrides were free-text id fields. They are now
+  selects over the real pipelines and their open stages: closed stages are left
+  out rather than offered and then refused with `stage_closed`, choosing a
+  pipeline clears a stage that belonged to the previous one, and the whole
+  disclosure is hidden when no pipeline is reachable instead of showing an
+  override that can only be empty.
+
+  A target row no longer prints its date twice — a departure's title is its date,
+  and the snapshot's `startDate` was echoed underneath it.
+
+- 8311f44: Rename the materialized Inquiry target kind `option_unit` to `departure`, and stop
+  losing a storefront submission when a target cannot be resolved.
+
+  The kind named `option_unit` resolved an availability slot: its authority is the
+  Availability slot reader, its link is the departure linkable, and legacy Booking
+  Inquiries populate it from `departureId`. A caller passing a real option-unit id
+  was refused, and because the refusal escaped the intake transaction the guarded
+  public intake and the legacy Booking Inquiry adapter both answered 500 with the
+  customer's inquiry rolled back.
+
+  Target references are now resolved through their owning module before the write,
+  and any the owner cannot resolve are retained on the Inquiry as
+  `customFields.relationships.unresolvedTargets` instead of aborting the
+  submission. `addInquiryTarget` no longer pre-checks the id's prefix — existence
+  is the owning module's call through `validateTarget`, which the prefix guard
+  duplicated while refusing ids the owner would have resolved.
+
+- 30d8b8f: Make the Inquiry workspace usable by an operator who does not know the data model.
+
+  - A disabled lifecycle action now states its reason on the page. The reasons rode
+    on `title`, which the shared Button suppresses through
+    `disabled:pointer-events-none`, so a greyed-out "Mark triaged" explained
+    nothing to anyone and nothing at all to a screen reader.
+  - Targets can be managed from the workspace: the attached Products are listed,
+    detachable, and a Product can be attached from a search. Previously targets
+    were API-only, which left "Start booking journey" permanently unreachable for
+    any Inquiry an operator created.
+  - Owner assignment is a colleague picker rather than a free-text "Owner ID"
+    field, and the queue's Owner column shows the colleague's name.
+  - Status, priority, kind and activity-type labels are no longer run through
+    `capitalize`, which title-cased translated sentences ("Waiting On Customer").
+    Activity types are translated rather than printed as raw enum values.
+  - The travel brief renders as a brief — destinations, dates, travellers, budget —
+    instead of `JSON.stringify` in a `<pre>`.
+  - Detail order follows triage: the customer's request, its context, what it
+    points at, then the paperwork. The duplicate "Work details" card title is gone,
+    the attachment caption field is labelled, the private-document picker uses the
+    Media uploader's control instead of the browser's native file input, and the
+    optional Proposal pipeline/stage ids sit behind an Advanced disclosure.
+
+### Patch Changes
+
+- 73a3ca3: Address the automated review on the Inquiry workspace.
+
+  - **Next action no longer drifts by the operator's UTC offset.** The deadline is
+    a `datetime-local` control, which the browser reads as local time, and the save
+    path parses it back with `new Date(...)`. Slicing the stored ISO string put UTC
+    clock fields in it, so anyone outside UTC moved an untouched deadline by their
+    offset every time they pressed Save. The instant is now formatted into local
+    fields, and a round-trip test pins it.
+  - **An ownerless closed Inquiry can be reopened again.** Reopening lands in
+    triage, which requires an owner or a stated reason for having none, but the
+    Reopen button sent an empty command and `onReopen` could not carry one — the
+    API answered 409 and there was no way to satisfy it from the packaged UI. The
+    button now carries the unassigned reason and is blocked, with the reason shown,
+    until there is one.
+  - **The inquiry-queue loader shares its cache entry with the queue.** The query
+    key is the filters object, so the loader's `{ view, limit }` and the host's
+    `{ view, limit, offset }` were different keys: every first navigation threw the
+    prefetch away and refetched behind the pending state. Both sibling loaders
+    already passed `offset: 0`.
+
+- Updated dependencies [33cba53]
+- Updated dependencies [e3b63b5]
+- Updated dependencies [ee1092f]
+- Updated dependencies [c23d099]
+- Updated dependencies [8311f44]
+- Updated dependencies [73a3ca3]
+- Updated dependencies [2f038a2]
+- Updated dependencies [0646a63]
+  - @voyant-travel/relationships@0.135.0
+  - @voyant-travel/relationships-contracts@0.112.0
+  - @voyant-travel/i18n@0.127.1
+  - @voyant-travel/identity-react@0.313.0
+
 ## 0.312.0
 
 ### Patch Changes

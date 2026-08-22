@@ -1,5 +1,23 @@
 # @voyant-travel/commerce
 
+## 0.56.3
+
+### Patch Changes
+
+- e3b63b5: Add the first-class Inquiry aggregate, lifecycle contracts and admin API for
+  capturing, assigning, triaging, working, closing and reopening agency customer
+  requests. Reserve `inquiry.created` for the Relationships-owned aggregate by
+  removing Commerce's unused, conflicting event authority.
+- Updated dependencies [33cba53]
+- Updated dependencies [ee1092f]
+- Updated dependencies [73a3ca3]
+  - @voyant-travel/catalog@0.263.0
+  - @voyant-travel/hono@0.145.0
+  - @voyant-travel/bookings@0.251.0
+  - @voyant-travel/distribution@0.229.8
+  - @voyant-travel/action-ledger@0.115.22
+  - @voyant-travel/finance@0.262.5
+
 ## 0.56.2
 
 ### Patch Changes
