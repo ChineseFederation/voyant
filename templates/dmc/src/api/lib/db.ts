@@ -1,5 +1,28 @@
-import { createDbClient, createServerlessDbClient, type DbAdapter } from "@voyantjs/db"
-import type { NeonDatabase } from "drizzle-orm/neon-serverless"
+import {
+  type AnyDrizzleDb,
+  createDbClient,
+  createServerlessDbClient,
+  type DbAdapter,
+} from "@voyantjs/db"
+
+type TuyuLocalBindings = CloudflareBindings & { DB_ADAPTER?: DbAdapter }
+
+// The merchant-hosted TuyuBooking profile keeps one direct PostgreSQL client
+// for the lifetime of the local workerd process. Cloud deployments retain the
+// upstream per-request Neon WebSocket behavior unchanged.
+let tuyuLocalDb: AnyDrizzleDb | undefined
+
+function usesTuyuLocalPostgres(env: CloudflareBindings): boolean {
+  return (env as TuyuLocalBindings).DB_ADAPTER === "node"
+}
+
+function getTuyuLocalDb(env: CloudflareBindings): AnyDrizzleDb {
+  tuyuLocalDb ??= createDbClient(env.DATABASE_URL, {
+    adapter: "node",
+    nodeMaxConnections: 10,
+  })
+  return tuyuLocalDb
+}
 
 /**
  * Database client helpers with NO schema passing.
@@ -24,8 +47,10 @@ export function getDb(adapter?: DbAdapter) {
  * Without explicit cleanup, the Pool sits open until the Workers
  * runtime reclaims the isolate.
  */
-export function getDbFromEnv(env: CloudflareBindings): NeonDatabase {
-  return createServerlessDbClient(env.DATABASE_URL).db
+export function getDbFromEnv(env: CloudflareBindings): AnyDrizzleDb {
+  return usesTuyuLocalPostgres(env)
+    ? getTuyuLocalDb(env)
+    : createServerlessDbClient(env.DATABASE_URL).db
 }
 
 /**
@@ -36,9 +61,12 @@ export function getDbFromEnv(env: CloudflareBindings): NeonDatabase {
  * instead of leaking WebSocket connections to Neon at request rate.
  */
 export function dbFromEnvForApp(env: CloudflareBindings): {
-  db: NeonDatabase
+  db: AnyDrizzleDb
   dispose: () => Promise<void>
 } {
+  if (usesTuyuLocalPostgres(env)) {
+    return { db: getTuyuLocalDb(env), dispose: async () => {} }
+  }
   return createServerlessDbClient(env.DATABASE_URL)
 }
 
@@ -50,7 +78,7 @@ export function dbFromEnvForApp(env: CloudflareBindings): {
  */
 export async function withDbFromEnv<T>(
   env: CloudflareBindings,
-  fn: (db: NeonDatabase) => Promise<T>,
+  fn: (db: AnyDrizzleDb) => Promise<T>,
 ): Promise<T> {
   const { db, dispose } = createServerlessDbClient(env.DATABASE_URL)
   try {

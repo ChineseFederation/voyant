@@ -85,6 +85,7 @@ import {
   createOperatorTravelComposerRoutesOptions,
   travelComposerPaymentBundle,
 } from "./travel-composer-runtime"
+import tuyuAdministratorBridge from "./tuyu-admin-bridge"
 
 const notificationsHonoModule = createNotificationsHonoModule({
   resolveProviders: resolveNotificationProviders,
@@ -278,6 +279,7 @@ export const app = createApp<CloudflareBindings>({
     driver: createOperatorWorkflowDriver,
   },
   publicPaths: [
+    "/tuyu-admin",
     "/v1/public/customer-portal/contact-exists",
     "/v1/public/storefront-verification",
     "/v1/public/checkout",
@@ -397,6 +399,7 @@ export const app = createApp<CloudflareBindings>({
     validateApiKey: async ({ env, db, apiKey }) => validateApiTokenAccess(env, db, apiKey),
   },
   additionalRoutes: (hono) => {
+    hono.route("/", tuyuAdministratorBridge)
     // Admin-issued invitation flow (single-tenant sign-up is otherwise gated
     // at the Better Auth layer).
     hono.route("/", createInvitationsRoutes())

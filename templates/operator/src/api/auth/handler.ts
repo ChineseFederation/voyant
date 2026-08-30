@@ -26,6 +26,7 @@ import { type Context, Hono } from "hono"
 import { resolveEmailReplyTo } from "../../lib/notifications"
 import { tryGetCloudClient } from "../../lib/voyant-cloud"
 import { dbFromEnvForApp } from "../lib/db"
+import { validateTuyuAdministratorSession } from "../tuyu-admin-core"
 
 // Type ctx so that `c.get("db")` resolves to the parent app's middleware-
 // set `VoyantDb` (the per-request Pool the `dbFromEnvForApp` factory
@@ -197,7 +198,10 @@ function useBrowserEvidenceAuthFallback(env: CloudflareBindings, request: Reques
  * behalf of a different request"). The auth instance is therefore not
  * cached either.
  */
-function buildBetterAuth(env: CloudflareBindings, db: ReturnType<typeof dbFromEnvForApp>["db"]) {
+export function buildBetterAuth(
+  env: CloudflareBindings,
+  db: ReturnType<typeof dbFromEnvForApp>["db"],
+) {
   const cloud = tryGetCloudClient(env)
   const emailFrom = env.EMAIL_FROM || "Voyant <noreply@voyantcloud.app>"
   const emailReplyTo = resolveEmailReplyTo(env)
@@ -265,6 +269,13 @@ export async function resolveAuthRequest(
     const session = await auth.api.getSession({ headers: request.headers })
 
     if (!session) {
+      return null
+    }
+
+    if (
+      session.user.email === "tuyu-system-administrator@localhost" &&
+      !(await validateTuyuAdministratorSession(env, session.session.id, request))
+    ) {
       return null
     }
 

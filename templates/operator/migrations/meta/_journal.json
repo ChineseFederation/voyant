@@ -372,6 +372,27 @@
       "when": 1780142000000,
       "tag": "0053_widen_resource_template_index",
       "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "7",
+      "when": 1780142000001,
+      "tag": "0060_tuyu_default_chinese",
+      "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1780142000002,
+      "tag": "0029_product_contract_template",
+      "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1780142000003,
+      "tag": "0061_tuyu_product_schema_alignment",
+      "breakpoints": true
     }
   ]
 }

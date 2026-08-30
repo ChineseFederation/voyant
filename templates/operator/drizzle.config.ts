@@ -55,6 +55,7 @@ export default defineConfig({
   ],
   out: "./migrations",
   dialect: "postgresql",
+  schemaFilter: process.env.TUYU_BOOKING_RUNTIME === "1" ? ["module_voyant"] : undefined,
   dbCredentials: {
     url: resolveDatabaseUrl(),
   },

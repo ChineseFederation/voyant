@@ -21,13 +21,13 @@ import {
   captureSnapshotGraph,
   createIndexerService,
 } from "@voyantjs/catalog"
+import type { AnyDrizzleDb } from "@voyantjs/db"
 import type { HonoBundle } from "@voyantjs/hono/plugin"
 import {
   buildProductSnapshotInput,
   createProductDocumentBuilder,
 } from "@voyantjs/products/service-catalog-plane"
 import { and, eq, isNotNull } from "drizzle-orm"
-import type { NeonDatabase } from "drizzle-orm/neon-serverless"
 
 import {
   buildEmbeddingProvider,
@@ -60,10 +60,8 @@ export const catalogBridgeBundle: HonoBundle = {
     }
     const sellerOperatorId = env.TENANT_ID ?? "default"
 
-    // Compose the indexer service + builder for a given db client. Db
-    // ownership lives at the call site so we can wrap with `withDbFromEnv`
-    // and tear the Pool down before the subscriber returns.
-    function buildIndexerContext(db: NeonDatabase) {
+    // DMC 同时支持本机 PostgreSQL 与 Neon，索引上下文必须沿用统一数据库联合类型。
+    function buildIndexerContext(db: AnyDrizzleDb) {
       const embeddings = buildEmbeddingProvider(env)
       const indexer = buildTypesenseIndexer(env, embeddings)
       if (!indexer) return null

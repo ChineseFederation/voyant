@@ -5,9 +5,12 @@ import tailwindcss from "@tailwindcss/vite"
 import { devtools } from "@tanstack/devtools-vite"
 import { tanstackStart } from "@tanstack/react-start/plugin/vite"
 import viteReact from "@vitejs/plugin-react"
+import { nitro } from "nitro/vite"
 import { defineConfig, type PluginOption } from "vite"
 
 const require = createRequire(import.meta.url)
+const tuyuRuntime = process.env.TUYU_BOOKING_RUNTIME === "1"
+const tuyuOutputDir = process.env.TUYU_VOYANT_OUTPUT_DIR
 
 type VisualizerModule = {
   visualizer: (options: {
@@ -105,8 +108,13 @@ const config = defineConfig({
     },
   },
   plugins: [
+    tuyuRuntime &&
+      nitro({
+        preset: "node-server",
+        ...(tuyuOutputDir ? { output: { dir: tuyuOutputDir } } : {}),
+      }),
     devtools(),
-    cloudflare({ viteEnvironment: { name: "ssr" } }),
+    !tuyuRuntime && cloudflare({ viteEnvironment: { name: "ssr" } }),
     tailwindcss(),
     tanstackStart({
       router: {

@@ -3,6 +3,16 @@ import type { NeonDatabase } from "drizzle-orm/neon-serverless"
 import { drizzle as drizzleNodePg } from "drizzle-orm/node-postgres"
 import { Pool as NodePgPool } from "pg"
 
+function applyTuyuSchema(connectionString: string): string {
+  if (process.env.TUYU_BOOKING_RUNTIME !== "1") return connectionString
+  const parsed = new URL(connectionString)
+  if (parsed.pathname !== "/tuyubooking") {
+    throw new Error("TuyuBooking Voyant must use the tuyubooking database")
+  }
+  parsed.searchParams.set("options", "-csearch_path=module_voyant,pg_catalog")
+  return parsed.toString()
+}
+
 /**
  * Local Postgres doesn't speak Neon's WebSocket protocol. When the
  * connection string points at localhost, swap the WS driver for
@@ -24,6 +34,7 @@ function openDb(connectionString: string): {
   db: NeonDatabase
   dispose: () => Promise<void>
 } {
+  connectionString = applyTuyuSchema(connectionString)
   if (isLocalConnection(connectionString)) {
     const pool = new NodePgPool({ connectionString })
     return {
@@ -41,7 +52,7 @@ function openDb(connectionString: string): {
  */
 
 export function getDb(adapter?: DbAdapter) {
-  const url = process.env.DATABASE_URL ?? ""
+  const url = applyTuyuSchema(process.env.DATABASE_URL ?? "")
   const effectiveAdapter = adapter || (process.env.DB_ADAPTER as DbAdapter) || "edge"
   return createDbClient(url, { adapter: effectiveAdapter })
 }

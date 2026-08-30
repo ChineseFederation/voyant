@@ -49,7 +49,7 @@ export const userProfilesTable = pgTable(
     avatarUrl: text("avatar_url"),
 
     // App preferences (low risk)
-    locale: text("locale").notNull().default("en"),
+    locale: text("locale").notNull().default("zh-CN"),
     timezone: text("timezone"),
     uiPrefs: jsonb("ui_prefs").$type<Record<string, unknown>>().default({}),
 
@@ -101,7 +101,7 @@ const userProfileCoreSchema = z.object({
   firstName: z.string().max(200).optional().nullable(),
   lastName: z.string().max(200).optional().nullable(),
   avatarUrl: z.string().url().optional().nullable(),
-  locale: z.string().max(10).default("en"),
+  locale: z.string().max(10).default("zh-CN"),
   timezone: z.string().max(64).optional().nullable(),
   uiPrefs: z.record(z.string(), z.unknown()).optional().nullable(),
   seatingPreference: z.enum(["aisle", "window", "middle", "no_preference"]).optional().nullable(),

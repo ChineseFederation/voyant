@@ -10,8 +10,8 @@ import {
   useState,
 } from "react"
 
-export const DEFAULT_ADMIN_LOCALES = ["en", "ro"] as const
-export const DEFAULT_ADMIN_LOCALE = "en"
+export const DEFAULT_ADMIN_LOCALES = ["zh-CN", "en"] as const
+export const DEFAULT_ADMIN_LOCALE = "zh-CN"
 
 export interface LocaleContextValue {
   locale: string
